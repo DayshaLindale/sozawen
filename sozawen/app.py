@@ -230,7 +230,8 @@ from sozawen.audio_fx import (apply_noise_gate, apply_eq, apply_compressor,
     apply_reverb, apply_delay, apply_limiter, apply_hum_removal,
     apply_deesser, apply_normalize, apply_crossfade, apply_time_stretch,
     apply_pitch_shift, apply_stereo_width, apply_declip, apply_reverse,
-    apply_bleed_removal, measure_loudness, export_mix)
+    apply_bleed_removal, apply_sidechain_compression,
+    measure_loudness, export_mix)
 @api.post("/api/project/save")
 async def save_project(request: Request):
     """Save the current project state."""
@@ -549,6 +550,37 @@ async def fx_bleed_removal(request: Request):
         return JSONResponse({"ok": True, "output": output})
     except Exception as e:
         logger.error("Bleed removal failed: %s", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/fx/sidechain")
+async def fx_sidechain(request: Request):
+    """Sidechain compression — duck one track based on another's level."""
+    import asyncio
+    data = await request.json()
+    target_id = data.get("target_track_id")
+    sidechain_id = data.get("sidechain_track_id")
+    threshold = data.get("threshold_db", -20)
+    ratio = data.get("ratio", 4.0)
+
+    target_track = _engine.tracks.get(target_id)
+    sc_track = _engine.tracks.get(sidechain_id)
+
+    if not target_track or not target_track.regions:
+        return JSONResponse({"error": "Target track has no audio"}, status_code=400)
+    if not sc_track or not sc_track.regions:
+        return JSONResponse({"error": "Sidechain track has no audio"}, status_code=400)
+
+    try:
+        output = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: apply_sidechain_compression(
+                target_track.regions[0].source_path,
+                sc_track.regions[0].source_path,
+                threshold_db=threshold, ratio=ratio))
+        target_track.regions[0] = target_track.regions[0].__class__(
+            output, source_type="processed", name=f"{target_track.name} (sidechained)")
+        target_track.regions[0]._cache = None
+        return JSONResponse({"ok": True, "output": output})
+    except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @api.post("/api/track/{track_id}/input-channel")

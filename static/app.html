@@ -322,6 +322,20 @@
 
         <div class="transport-divider"></div>
 
+        <!-- Grid & Markers -->
+        <button id="snapBtn" class="btn btn-secondary" onclick="toggleSnap()" style="font-size:9px; padding:4px 10px; border-radius:20px; color:var(--teal);" title="Toggle snap-to-grid">Snap</button>
+        <select onchange="setSnapValue(this.value)" style="font-size:9px; padding:3px 6px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text-dim); border-radius:12px;" title="Grid resolution">
+            <option value="1">Bar</option>
+            <option value="0.5">1/2</option>
+            <option value="0.25" selected>1/4</option>
+            <option value="0.125">1/8</option>
+            <option value="0.0625">1/16</option>
+        </select>
+        <button class="btn btn-secondary" onclick="addMarker()" style="font-size:9px; padding:4px 10px; border-radius:20px;" title="Add marker at playhead (M)">Marker</button>
+        <button class="btn btn-secondary" onclick="toggleAutomationMode()" style="font-size:9px; padding:4px 10px; border-radius:20px;" title="Toggle automation drawing mode (A)">Auto</button>
+
+        <div class="transport-divider"></div>
+
         <!-- Actions -->
         <button class="btn btn-secondary" onclick="openFile()" style="font-size:10px; padding:5px 12px; border-radius:20px;">Open</button>
         <button class="btn btn-secondary" onclick="addTrack()" style="font-size:10px; padding:5px 12px; border-radius:20px;">+ Track</button>
@@ -470,6 +484,184 @@
     let isRecording = false;
     let _autoScroll = true;
     let _undoStack = [];
+
+    // ═══ SNAP TO GRID ═══
+    let _snapEnabled = true;
+    let _snapValue = 0.25; // snap to quarter beats by default
+
+    function getSnapSeconds() {
+        if (!_snapEnabled) return 0;
+        const bpmText = document.getElementById('bpmDisplay')?.textContent || '120';
+        const bpm = parseFloat(bpmText) || 120;
+        const beatSec = 60 / bpm;
+        return beatSec * _snapValue;
+    }
+
+    function snapToGrid(seconds) {
+        if (!_snapEnabled) return seconds;
+        const grid = getSnapSeconds();
+        if (grid <= 0) return seconds;
+        return Math.round(seconds / grid) * grid;
+    }
+
+    function toggleSnap() {
+        _snapEnabled = !_snapEnabled;
+        document.getElementById('statusText').textContent = 'Snap: ' + (_snapEnabled ? 'ON' : 'OFF');
+        const btn = document.getElementById('snapBtn');
+        if (btn) btn.style.color = _snapEnabled ? 'var(--teal)' : 'var(--text-muted)';
+    }
+
+    function setSnapValue(val) {
+        _snapValue = parseFloat(val);
+        const labels = {1: 'bar', 0.5: '1/2', 0.25: '1/4', 0.125: '1/8', 0.0625: '1/16'};
+        document.getElementById('statusText').textContent = 'Snap: ' + (labels[_snapValue] || _snapValue);
+    }
+
+    // ═══ MARKERS ═══
+    let _markers = [];
+    let _markerIdCounter = 0;
+
+    function addMarker(name) {
+        // Get current playhead position
+        const playhead = document.getElementById('playhead');
+        const pos = parseFloat(playhead?.style.left || 0) / PIXELS_PER_SECOND;
+        const seconds = Math.max(0, pos);
+        const id = _markerIdCounter++;
+        const markerName = name || prompt('Marker name:', `Marker ${id + 1}`);
+        if (!markerName) return;
+
+        _markers.push({ id, name: markerName, time: seconds });
+        _markers.sort((a, b) => a.time - b.time);
+        renderMarkers();
+        document.getElementById('statusText').textContent = `Marker "${markerName}" at ${seconds.toFixed(1)}s`;
+    }
+
+    function removeMarker(id) {
+        _markers = _markers.filter(m => m.id !== id);
+        renderMarkers();
+    }
+
+    function renderMarkers() {
+        // Remove old markers
+        document.querySelectorAll('.timeline-marker').forEach(el => el.remove());
+
+        const wp = document.getElementById('wavePanel');
+        if (!wp) return;
+
+        _markers.forEach(m => {
+            const el = document.createElement('div');
+            el.className = 'timeline-marker';
+            el.style.cssText = `position:absolute; top:0; bottom:0; left:${m.time * PIXELS_PER_SECOND}px; width:1px; background:var(--amber); z-index:8; pointer-events:none;`;
+
+            // Label
+            const label = document.createElement('div');
+            label.style.cssText = `position:absolute; top:2px; left:4px; font-size:9px; color:var(--amber); background:rgba(212,168,77,0.15); padding:1px 6px; border-radius:3px; white-space:nowrap; pointer-events:auto; cursor:pointer;`;
+            label.textContent = m.name;
+            label.title = `${m.name} — ${m.time.toFixed(1)}s (click to seek, right-click to remove)`;
+            label.onclick = () => seekToPosition(m.time);
+            label.oncontextmenu = (e) => { e.preventDefault(); removeMarker(m.id); };
+            el.appendChild(label);
+
+            wp.appendChild(el);
+        });
+    }
+
+    function jumpToNextMarker() {
+        const playhead = document.getElementById('playhead');
+        const pos = parseFloat(playhead?.style.left || 0) / PIXELS_PER_SECOND;
+        const next = _markers.find(m => m.time > pos + 0.1);
+        if (next) seekToPosition(next.time);
+    }
+
+    function jumpToPrevMarker() {
+        const playhead = document.getElementById('playhead');
+        const pos = parseFloat(playhead?.style.left || 0) / PIXELS_PER_SECOND;
+        const prev = [..._markers].reverse().find(m => m.time < pos - 0.1);
+        if (prev) seekToPosition(prev.time);
+    }
+
+    // ═══ AUTOMATION CURVES ═══
+    // Each track can have automation points for volume, pan, or any parameter
+    // Points are {time: seconds, value: 0-1}
+    // Rendered as SVG overlays on the waveform
+
+    function initAutomation(track) {
+        if (!track.automation) track.automation = {};
+    }
+
+    function addAutomationPoint(trackId, param, time, value) {
+        const t = tracks.find(t => t.id === trackId);
+        if (!t) return;
+        initAutomation(t);
+        if (!t.automation[param]) t.automation[param] = [];
+        // Snap time if enabled
+        time = snapToGrid(time);
+        // Remove existing point at same time
+        t.automation[param] = t.automation[param].filter(p => Math.abs(p.time - time) > 0.01);
+        t.automation[param].push({ time, value });
+        t.automation[param].sort((a, b) => a.time - b.time);
+        renderAutomation(trackId, param);
+    }
+
+    function renderAutomation(trackId, param) {
+        const row = document.querySelector(`.track-row[data-id="${trackId}"]`);
+        if (!row) return;
+        const t = tracks.find(t => t.id === trackId);
+        if (!t || !t.automation || !t.automation[param]) return;
+
+        // Remove old automation overlay
+        row.querySelectorAll(`.auto-overlay-${param}`).forEach(el => el.remove());
+
+        const points = t.automation[param];
+        if (points.length < 2) return;
+
+        const h = row.offsetHeight || 80;
+        const w = row.scrollWidth || 800;
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', `auto-overlay-${param}`);
+        svg.style.cssText = `position:absolute; top:0; left:0; width:${w}px; height:${h}px; pointer-events:none; z-index:6;`;
+        svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+        // Build polyline
+        const linePoints = points.map(p => {
+            const x = p.time * PIXELS_PER_SECOND;
+            const y = h - (p.value * h * 0.8) - h * 0.1; // 10% margin top/bottom
+            return `${x},${y}`;
+        }).join(' ');
+
+        const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        polyline.setAttribute('points', linePoints);
+        const colors = { volume: 'var(--violet-glow)', pan: 'var(--teal)' };
+        polyline.setAttribute('stroke', colors[param] || 'var(--amber)');
+        polyline.setAttribute('stroke-width', '2');
+        polyline.setAttribute('fill', 'none');
+        polyline.setAttribute('opacity', '0.7');
+        svg.appendChild(polyline);
+
+        // Draw dots at each point
+        points.forEach(p => {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', p.time * PIXELS_PER_SECOND);
+            circle.setAttribute('cy', h - (p.value * h * 0.8) - h * 0.1);
+            circle.setAttribute('r', '4');
+            circle.setAttribute('fill', colors[param] || 'var(--amber)');
+            circle.setAttribute('opacity', '0.9');
+            circle.style.pointerEvents = 'auto';
+            circle.style.cursor = 'pointer';
+            svg.appendChild(circle);
+        });
+
+        row.appendChild(svg);
+    }
+
+    function toggleAutomationMode() {
+        window._automationMode = !window._automationMode;
+        const param = window._automationParam || 'volume';
+        document.getElementById('statusText').textContent = window._automationMode
+            ? `Automation: ${param} — click on waveform to add points`
+            : 'Automation: OFF';
+    }
     let _redoStack = [];
     let _clipboard = null;
     let _loopStart = 0;
@@ -765,7 +957,7 @@
 
     // Click on ruler to seek
     function seekToPosition(seconds) {
-        seconds = Math.max(0, seconds);
+        seconds = Math.max(0, snapToGrid(seconds));
         fetch('/api/transport/seek', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({seconds})
@@ -799,6 +991,19 @@
     document.getElementById('trackList').addEventListener('mousedown', function(e) {
         const row = e.target.closest('.track-row');
         if (!row) return;
+
+        // Automation mode: add a point instead of selecting
+        if (window._automationMode) {
+            const time = getSecondsFromEvent(e, row);
+            const trackId = parseInt(row.dataset.id);
+            const rect = row.getBoundingClientRect();
+            const value = 1.0 - ((e.clientY - rect.top) / rect.height); // top = 1, bottom = 0
+            const param = window._automationParam || 'volume';
+            addAutomationPoint(trackId, param, time, Math.max(0, Math.min(1, value)));
+            e.preventDefault();
+            return;
+        }
+
         _selecting = true;
         _selStart = getSecondsFromEvent(e, row);
         _selEnd = _selStart;
@@ -2554,7 +2759,11 @@
         if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
         else if (e.code === 'KeyR' && !e.ctrlKey) { toggleRecord(); }
         else if (e.code === 'KeyS' && !e.ctrlKey) { splitAtPlayhead(); }
-        else if (e.code === 'KeyM' && !e.ctrlKey) { /* mute selected */ }
+        else if (e.code === 'KeyM' && !e.ctrlKey && !e.shiftKey) { addMarker(); }
+        else if (e.code === 'KeyA' && !e.ctrlKey) { toggleAutomationMode(); }
+        else if (e.code === 'KeyG' && !e.ctrlKey) { toggleSnap(); }
+        else if (e.code === 'BracketRight') { jumpToNextMarker(); }
+        else if (e.code === 'BracketLeft') { jumpToPrevMarker(); }
         else if (e.ctrlKey && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
         else if (e.ctrlKey && e.code === 'KeyS') { e.preventDefault(); saveProject(); }
         else if (e.ctrlKey && e.code === 'KeyE') { e.preventDefault(); showPanel('export'); }

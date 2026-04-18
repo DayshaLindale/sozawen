@@ -582,6 +582,46 @@ def apply_declip(path, sensitivity=50):
 # REVERSE (already pure numpy)
 # ═══════════════════════════════════════════════════════════════════
 
+def apply_sidechain_compression(target_path, sidechain_path, threshold_db=-20, ratio=4.0,
+                                  attack_ms=5, release_ms=50):
+    """Sidechain compression — duck one track based on another's level.
+
+    Classic use: duck the bass when the kick hits.
+    target_path: the track to compress (e.g., bass)
+    sidechain_path: the track that triggers compression (e.g., kick drum)
+    """
+    target, sr = _load(target_path)
+    sidechain, sr2 = _load(sidechain_path)
+
+    sc_mono = sidechain.mean(axis=1) if sidechain.ndim > 1 else sidechain
+    n = min(len(target), len(sc_mono))
+    target = target[:n]
+    sc_mono = sc_mono[:n]
+
+    threshold = _db_to_linear(threshold_db)
+    attack_samples = int(attack_ms / 1000 * sr)
+    release_samples = int(release_ms / 1000 * sr)
+
+    # Envelope of the sidechain signal
+    env = _envelope_follower(sc_mono.astype(np.float32), attack_samples, release_samples)
+
+    # Compute gain reduction based on sidechain envelope
+    gain = np.ones(n, dtype=np.float64)
+    above = env > threshold
+    if np.any(above):
+        db_over = 20 * np.log10(env[above] / threshold + 1e-10)
+        db_reduction = db_over * (1.0 - 1.0 / ratio)
+        gain[above] = _db_to_linear(-db_reduction)
+
+    # Apply gain to target
+    result = target.copy()
+    for ch in range(result.shape[1]):
+        result[:, ch] *= gain.astype(np.float32)
+
+    result = np.clip(result, -1.0, 1.0)
+    return _save(result.astype(np.float32), sr, target_path, "sidechained")
+
+
 def apply_bleed_removal(target_path, reference_path, filter_length=4096, step_size=0.1):
     """Remove bleed/leakage from one channel using another as reference.
 
