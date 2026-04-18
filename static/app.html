@@ -1576,34 +1576,60 @@
                     <input type="range" min="0" max="200" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">100%</span></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyStereoWidth()">Apply</button>`,
 
-            help: `<h3>Getting Started</h3>
-                <div style="font-size:12px; color:var(--text-dim); line-height:1.8;">
-                    <p><strong style="color:var(--teal);">1. Load audio</strong> — Click Open File or drag a song onto the timeline.</p>
-                    <p><strong style="color:var(--teal);">2. Record</strong> — Hit the red circle to record from your mic.</p>
-                    <p><strong style="color:var(--teal);">3. Edit</strong> — Click on the waveform to place the cursor. Use S to split.</p>
-                    <p><strong style="color:var(--teal);">4. Mix</strong> — Adjust volume and pan on each track header.</p>
-                    <p><strong style="color:var(--teal);">5. Export</strong> — File → Export Mix when you are done.</p>
-                    <p style="margin-top:12px;">Hover over any <span class="help-tip" data-tip="Like this one!">?</span> icon for an explanation.</p>
-                    <p>The sidebar adapts to what you are doing — relevant tools appear automatically.</p>
+            help: `<h3 style="margin-bottom:16px;">Getting Started</h3>
+                <div style="font-size:13px; color:var(--text-dim); line-height:2; overflow-y:auto;">
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:11px; color:var(--teal); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">Your First Song</div>
+                        <p><strong style="color:var(--text);">1. Load or create</strong> — Open a file, record from your mic, or use the Synth and Drum Machine to build from nothing.</p>
+                        <p><strong style="color:var(--text);">2. Build your arrangement</strong> — Add tracks, split clips, set markers for verse/chorus/bridge. Snap-to-grid keeps everything tight.</p>
+                        <p><strong style="color:var(--text);">3. Shape the sound</strong> — EQ, compression, reverb. Open any effect and hover the <span class="help-tip" data-tip="Like this one!">?</span> icons — every parameter is explained.</p>
+                        <p><strong style="color:var(--text);">4. Mix</strong> — Balance volumes, set panning, draw automation curves. Use the mixer view for a console layout.</p>
+                        <p><strong style="color:var(--text);">5. Master and export</strong> — Check LUFS, apply the limiter, export in any format. Reference A/B against a pro mix.</p>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:11px; color:var(--teal); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">The Interface</div>
+                        <p><strong style="color:var(--text);">Sidebar</strong> — adapts to what you're doing. Relevant tools appear automatically.</p>
+                        <p><strong style="color:var(--text);">Click a track header</strong> to select it. All tools apply to the selected track.</p>
+                        <p><strong style="color:var(--text);">Drag panel edges</strong> to resize the sidebar, track headers, and waveform areas.</p>
+                        <p><strong style="color:var(--text);">Tool panels</strong> slide in from the right. The <strong>&times;</strong> button closes them.</p>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <div style="font-size:11px; color:var(--teal); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">AI Features</div>
+                        <p><strong style="color:var(--text);">Stem Split</strong> — drop any song, get individual instruments on separate tracks.</p>
+                        <p><strong style="color:var(--text);">Lyrics</strong> — transcribes vocals with timestamps.</p>
+                        <p><strong style="color:var(--text);">Bandmate</strong> — ask about chords, production, arrangement. It sees your session.</p>
+                        <p><strong style="color:var(--text);">Chord Detection</strong> — analyzes audio and shows what chords are playing.</p>
+                        <p><strong style="color:var(--text);">Audio to MIDI</strong> — converts a melody into MIDI notes you can edit.</p>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; color:var(--teal); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px;">Go Deeper</div>
+                        <p>Open <strong style="color:var(--text);">Learn</strong> for 27 in-depth articles covering music theory, recording techniques, mixing strategies, and mastering. Searchable by topic.</p>
+                    </div>
                 </div>`,
 
-            glossary: `<h3>Glossary</h3>
-                <div style="font-size:12px; color:var(--text-dim); line-height:2; overflow-y:auto;">
-                    <div><strong>BPM</strong> — Beats per minute. The tempo of the song.</div>
-                    <div><strong>Clipping</strong> — When audio is too loud and distorts.</div>
-                    <div><strong>Compression</strong> — Evening out the volume of audio.</div>
-                    <div><strong>dB</strong> — Decibels. How we measure loudness.</div>
-                    <div><strong>EQ</strong> — Equalizer. Adjusts the tone by boosting or cutting frequencies.</div>
-                    <div><strong>FLAC</strong> — Lossless audio format. Smaller than WAV, no quality loss.</div>
-                    <div><strong>Gain</strong> — Volume level of a signal.</div>
-                    <div><strong>Key</strong> — The musical key of a song (C major, A minor, etc).</div>
-                    <div><strong>LUFS</strong> — Loudness Units Full Scale. Standard loudness measurement.</div>
-                    <div><strong>Normalize</strong> — Adjust volume to a standard level.</div>
-                    <div><strong>Pan</strong> — Left-right positioning in the stereo field.</div>
-                    <div><strong>Reverb</strong> — The sound of a space. Adds depth and ambiance.</div>
-                    <div><strong>Sample Rate</strong> — How many times per second audio is captured. 44100 = CD quality.</div>
-                    <div><strong>Stem</strong> — An individual instrument track separated from a mix.</div>
-                    <div><strong>WAV</strong> — Uncompressed audio format. Full quality, large files.</div>
+            glossary: `<h3 style="margin-bottom:16px;">Glossary</h3>
+                <div style="font-size:13px; color:var(--text-dim); line-height:2.2; overflow-y:auto;">
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">ADSR</strong> — Attack, Decay, Sustain, Release. The four stages of how a note evolves over time. Controls the shape of a sound.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">BPM</strong> — Beats per minute. The tempo. 120 BPM is a standard pop tempo. 60 BPM is a slow ballad.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Clipping</strong> — When audio exceeds the maximum level and distorts. The waveform gets "clipped" flat at the top. Use a limiter to prevent it.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Compression</strong> — Reducing the dynamic range. Makes quiet parts louder and loud parts quieter. Essential for vocals, drums, and the mix bus.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">dB (Decibel)</strong> — How we measure loudness. 0 dBFS is the maximum digital level. Each -6 dB is roughly half as loud.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">DAW</strong> — Digital Audio Workstation. The software you record, edit, mix, and master in. You're using one right now.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">DI (Direct Input)</strong> — Plugging an instrument directly into the interface without a microphone. Clean signal, no room sound.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">EQ (Equalizer)</strong> — Adjusts the tone by boosting or cutting specific frequencies. The most-used tool in mixing.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Gain</strong> — The volume of a signal at a specific point in the chain. Not the same as "volume" — gain is input, volume is output.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">HPF (High-Pass Filter)</strong> — Removes frequencies below a cutoff point. "Passes" the highs, cuts the lows. Use on everything except kick and bass.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Key</strong> — The musical key of a song. Tells you which notes and chords belong. C major = happy. A minor = sad.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">LUFS</strong> — Loudness Units Full Scale. The standard for measuring perceived loudness. Spotify targets -14 LUFS.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">MIDI</strong> — Musical Instrument Digital Interface. Note data (pitch, velocity, timing) — not audio. Like sheet music for computers.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Normalize</strong> — Adjust the volume of a clip so the peak or average hits a target level.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Pan</strong> — Left-right positioning in the stereo field. Center = both speakers equally. Hard left = left speaker only.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Phase</strong> — The timing relationship between two audio signals. Out of phase = they cancel each other out. Check when using multiple mics.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Reverb</strong> — The sound of a space. Every room has reverb. Adding reverb makes a recording sound less dry and more natural.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Sample Rate</strong> — How many snapshots of audio per second. 44,100 Hz (CD quality) means 44,100 snapshots every second.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Sidechain</strong> — Using one track's signal to control an effect on another. Classic example: kick drum ducking the bass.</div>
+                    <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,.03);"><strong style="color:var(--text);">Stem</strong> — An individual instrument track separated from a full mix. Vocals, drums, bass, guitar — each is a stem.</div>
+                    <div style="padding:6px 0;"><strong style="color:var(--text);">WAV</strong> — Uncompressed audio format. Full quality, large files. The standard for recording and mastering.</div>
                 </div>`,
 
             bleed_remove: `<h3>Bleed Removal ${h('If your mic picked up guitar bleed from the room, this uses the clean DI signal to subtract it. Select which track has the clean source and which has the bleed.')}</h3>
