@@ -909,8 +909,8 @@
                     ${t.file ? t.file.split(/[/\\]/).pop() : t.hasAudio ? 'Audio loaded' : 'Empty'}
                     ${t.recordArmed || t.inputChannel !== undefined ? `<span style="color:var(--teal);"> · Ch ${(t.inputChannel||0)+1}</span>` : ''}
                 </div>
-                ${t.recordArmed ? `<div style="height:4px; background:var(--bg-deep); border-radius:2px; margin-top:3px; overflow:hidden;">
-                    <div class="input-meter" data-channel="${t.inputChannel||0}" style="height:100%; width:0%; background:var(--teal); transition:width 0.1s; border-radius:2px;"></div>
+                ${t.inputChannel >= 0 ? `<div style="height:4px; background:var(--bg-deep); border-radius:2px; margin-top:3px; overflow:hidden;">
+                    <div class="input-meter" data-channel="${t.inputChannel}" style="height:100%; width:0%; background:var(--teal); transition:width 0.1s; border-radius:2px;"></div>
                 </div>` : `<div style="display:none;">`}
                 </div>
                 ${t.effects && t.effects.length ? `<div style="display:flex; flex-wrap:wrap; gap:2px; margin-top:2px;">${t.effects.map(fx => `<span style="font-size:8px; padding:1px 4px; background:var(--violet-soft); border:1px solid var(--violet); border-radius:3px; color:var(--violet-glow);">${fx}</span>`).join('')}</div>` : ''}
@@ -2904,6 +2904,10 @@
                     body: JSON.stringify({channel})
                 });
             }
+            // Ensure monitoring is on so we can see levels
+            fetch('/api/monitor/toggle', {method:'POST'}).then(r=>r.json()).then(d => {
+                if (!d.monitoring) fetch('/api/monitor/toggle', {method:'POST'});
+            });
             showStatus(`${t.name} → Input ${channel+1}`);
         } else {
             t.recordArmed = false;
