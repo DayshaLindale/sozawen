@@ -1738,6 +1738,20 @@
                 <div id="a2mResults" style="margin-top:12px; font-size:12px; color:var(--text-dim);"></div>
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Best on: isolated vocals, bass lines, lead melodies. Not designed for chords or polyphonic material.</p>`,
 
+            midi_input: `<h3>MIDI Input ${h('Connect a MIDI keyboard or controller. Play notes live through the synth, record sequences, or use the pads with hardware.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:8px; letter-spacing:1px;">MIDI CONTROLLER INPUT</div>
+                <div class="field"><label>MIDI Device ${h('Select your MIDI keyboard or controller. Plug it in before opening this panel.')}</label>
+                    <select id="midiDeviceSelect"><option>Loading...</option></select></div>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <button class="btn btn-teal" style="flex:1;" onclick="connectMidi()">Connect</button>
+                    <button class="btn btn-secondary" onclick="disconnectMidi()">Disconnect</button>
+                </div>
+                <div id="midiStatus" style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Not connected</div>
+                <div style="font-size:10px; color:var(--text-dim); line-height:1.6;">
+                    <p>Once connected, play your MIDI keyboard and hear it through the synth. Notes trigger the current synth waveform.</p>
+                    <p style="margin-top:6px;">Use with the <strong>Pad Record</strong> to capture sequences from your controller.</p>
+                </div>`,
+
             pad: `<h3>Pad ${h('MPC-style pad grid. Each pad plays a note from the current scale. Tap to preview, record a sequence by clicking pads in order, then render to a track.')}</h3>
                 <div style="font-size:9px; color:var(--text-muted); margin-bottom:8px; letter-spacing:1px;">TAP PADS TO BUILD A PATTERN</div>
                 <div class="field"><label>Scale ${h('Which scale to map the pads to. Major = happy. Minor = sad. Pentatonic = can not play a wrong note.')}</label>
@@ -3350,7 +3364,18 @@
     function toggleMetronome(btn) {
         fetch('/api/metronome/toggle', {method:'POST'}).then(r=>r.json()).then(d => {
             if (btn) btn.textContent = 'Metronome: ' + (d.metronome ? 'ON' : 'OFF');
-            document.getElementById('statusText').textContent = d.metronome ? 'Metronome ON' : 'Metronome OFF';
+            document.getElementById('statusText').textContent = d.metronome ? 'Metronome ON — plays during playback' : 'Metronome OFF';
+            // Play a preview click so you know it's on
+            if (d.metronome) {
+                const ctx = getAudioCtx();
+                const osc = ctx.createOscillator();
+                osc.frequency.value = 1500;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 0.05);
+            }
         });
     }
 
@@ -3675,6 +3700,76 @@
         el.dataset.on = on ? '0' : '1';
         el.style.background = on ? '#0a0a14' : '#9b59b6';
     }
+
+    // ═══ MIDI INPUT ═══
+    function loadMidiDevices() {
+        fetch('/api/midi/devices').then(r=>r.json()).then(d => {
+            const sel = document.getElementById('midiDeviceSelect');
+            if (!sel) return;
+            sel.innerHTML = (d.devices || []).map(name =>
+                `<option value="${name}">${name}</option>`
+            ).join('') || '<option>No MIDI devices found</option>';
+        });
+    }
+
+    function connectMidi() {
+        const sel = document.getElementById('midiDeviceSelect');
+        const device = sel?.value;
+        if (!device) return;
+        fetch('/api/midi/connect', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({device})
+        }).then(r=>r.json()).then(d => {
+            const status = document.getElementById('midiStatus');
+            if (d.ok) {
+                status.textContent = 'Connected: ' + d.connected;
+                status.style.color = 'var(--teal)';
+                startMidiPolling();
+            } else {
+                status.textContent = d.error || 'Failed';
+                status.style.color = 'var(--red)';
+            }
+        });
+    }
+
+    function disconnectMidi() {
+        fetch('/api/midi/disconnect', {method:'POST'});
+        const status = document.getElementById('midiStatus');
+        if (status) { status.textContent = 'Disconnected'; status.style.color = 'var(--text-muted)'; }
+        _midiPolling = false;
+    }
+
+    let _midiPolling = false;
+    function startMidiPolling() {
+        if (_midiPolling) return;
+        _midiPolling = true;
+        const poll = () => {
+            if (!_midiPolling) return;
+            fetch('/api/midi/notes').then(r=>r.json()).then(d => {
+                (d.notes || []).forEach(n => {
+                    if (n.type === 'on') {
+                        playNote(n.note, 0.5);
+                        // If pad recording, add to sequence
+                        if (_padRecording) {
+                            const now = performance.now();
+                            const beat = (now - _padRecordStart) / (60000 / (parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120));
+                            _padSequence.push({ note: n.note, start_beat: Math.round(beat*4)/4, duration_beats: 0.25, velocity: n.velocity });
+                            updatePadDisplay();
+                        }
+                    }
+                });
+            }).catch(()=>{});
+            setTimeout(poll, 50); // 20Hz polling for low latency
+        };
+        poll();
+    }
+
+    // Load MIDI devices when panel opens
+    const _origShowPanel4 = showPanel;
+    showPanel = function(name, btn) {
+        _origShowPanel4(name, btn);
+        if (name === 'midi_input') setTimeout(loadMidiDevices, 100);
+    };
 
     // ═══ PAD INSTRUMENT ═══
     const SCALE_INTERVALS = {

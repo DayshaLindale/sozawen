@@ -786,6 +786,77 @@ async def create_midi_pattern(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# ═══════════════════════════════════════════════════════════════════
+# MIDI INPUT DEVICES
+# ═══════════════════════════════════════════════════════════════════
+
+_midi_port = None
+_midi_notes_active = set()
+_midi_last_notes = []  # recent notes for the frontend to poll
+
+@api.get("/api/midi/devices")
+async def list_midi_devices():
+    """List available MIDI input devices (keyboards, controllers)."""
+    try:
+        import mido
+        inputs = mido.get_input_names()
+        return JSONResponse({"devices": inputs})
+    except Exception as e:
+        return JSONResponse({"devices": [], "error": str(e)})
+
+@api.post("/api/midi/connect")
+async def connect_midi(request: Request):
+    """Connect to a MIDI input device for live playing."""
+    global _midi_port
+    data = await request.json()
+    device_name = data.get("device", "")
+
+    try:
+        import mido
+        if _midi_port:
+            _midi_port.close()
+            _midi_port = None
+
+        _midi_port = mido.open_input(device_name, callback=_on_midi_message)
+        return JSONResponse({"ok": True, "connected": device_name})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+@api.post("/api/midi/disconnect")
+async def disconnect_midi():
+    """Disconnect the MIDI input device."""
+    global _midi_port
+    if _midi_port:
+        _midi_port.close()
+        _midi_port = None
+    return JSONResponse({"ok": True})
+
+@api.get("/api/midi/notes")
+async def get_midi_notes():
+    """Poll for recent MIDI notes — the frontend uses this for live display."""
+    global _midi_last_notes
+    notes = list(_midi_last_notes)
+    _midi_last_notes = []  # clear after reading
+    return JSONResponse({"notes": notes, "active": list(_midi_notes_active)})
+
+def _on_midi_message(msg):
+    """Handle incoming MIDI messages from the connected controller."""
+    global _midi_last_notes
+    if msg.type == 'note_on' and msg.velocity > 0:
+        _midi_notes_active.add(msg.note)
+        _midi_last_notes.append({
+            "type": "on", "note": msg.note, "velocity": msg.velocity,
+            "channel": msg.channel, "time": __import__('time').time()
+        })
+    elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
+        _midi_notes_active.discard(msg.note)
+        _midi_last_notes.append({
+            "type": "off", "note": msg.note, "channel": msg.channel,
+        })
+    # Keep last 100 events max
+    if len(_midi_last_notes) > 100:
+        _midi_last_notes = _midi_last_notes[-50:]
+
 @api.get("/api/instrument/drum-sounds")
 async def list_drum_sounds():
     from sozawen.instruments import DRUM_SOUNDS

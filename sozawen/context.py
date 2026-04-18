@@ -99,6 +99,7 @@ TOOLS = {
     "synth":        {"label": "Synth",            "icon": "🎹", "group": "record"},
     "drums":        {"label": "Drum Machine",     "icon": "🥁", "group": "record"},
     "pad":          {"label": "Pad",              "icon": "🎛", "group": "record"},
+    "midi_input":   {"label": "MIDI Input",       "icon": "🎹", "group": "record"},
     "tuner":        {"label": "Tuner",            "icon": "🎵", "group": "record"},
     "learn":        {"label": "Learn",            "icon": "📖", "group": "master"},
     "piano_roll":   {"label": "Piano Roll",       "icon": "🎹", "group": "edit"},
