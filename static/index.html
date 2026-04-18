@@ -30,8 +30,8 @@
         .orb-teal { width: 500px; height: 500px; bottom: -10%; right: -5%; background: radial-gradient(circle, rgba(45,212,168,.1) 0%, transparent 70%); animation: breathe 10s ease-in-out infinite 5s, drift 25s ease-in-out infinite reverse; }
         .orb-center { width: 800px; height: 800px; top: 50%; left: 50%; transform: translate(-50%,-50%); background: radial-gradient(circle, rgba(155,89,182,.04) 0%, transparent 60%); animation: breathe 15s ease-in-out infinite 2s; }
 
-        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; background: rgba(8,8,15,.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,.03); transform: translateY(-100%); transition: transform .4s ease; }
-        .nav.visible { transform: translateY(0); }
+        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 1px solid transparent; transition: background .4s ease, border-color .4s ease, backdrop-filter .4s ease; }
+        .nav.solid { background: rgba(8,8,15,.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom-color: rgba(255,255,255,.04); }
         .nav-logo { font-size: 14px; font-weight: 400; letter-spacing: 6px; color: var(--text-dim); text-decoration: none; transition: color .3s; }
         .nav-logo:hover { color: var(--teal); }
         .nav-logo img { height: 22px; vertical-align: middle; margin-right: 10px; }
@@ -276,9 +276,9 @@ const hero = document.querySelector('.hero');
 let navVisible = false;
 
 function checkNav() {
-    const past = window.scrollY > hero.offsetHeight * 0.6;
-    if (past && !navVisible) { nav.classList.add('visible'); navVisible = true; }
-    else if (!past && navVisible) { nav.classList.remove('visible'); navVisible = false; }
+    const past = window.scrollY > 100;
+    if (past && !navVisible) { nav.classList.add('solid'); navVisible = true; }
+    else if (!past && navVisible) { nav.classList.remove('solid'); navVisible = false; }
 }
 
 const reveals = document.querySelectorAll('.reveal');
