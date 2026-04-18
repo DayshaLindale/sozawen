@@ -67,10 +67,16 @@ _context = ContextEngine()
 @api.get("/api/status")
 async def status():
     """System status — GPU availability, loaded models, version."""
-    import torch
-    gpu_available = torch.cuda.is_available()
-    gpu_name = torch.cuda.get_device_name(0) if gpu_available else None
-    gpu_vram = torch.cuda.get_device_properties(0).total_memory / 1e9 if gpu_available else 0
+    gpu_available = False
+    gpu_name = None
+    gpu_vram = 0
+    try:
+        import torch
+        gpu_available = torch.cuda.is_available()
+        gpu_name = torch.cuda.get_device_name(0) if gpu_available else None
+        gpu_vram = torch.cuda.get_device_properties(0).total_memory / 1e9 if gpu_available else 0
+    except ImportError:
+        pass  # torch not installed — core DAW works without it
 
     return JSONResponse({
         "version": SETTINGS.get("version", "0.1.0"),

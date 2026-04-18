@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sozawen — Features</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Crimson+Pro:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg: #08080f; --text: #d8d8e8; --text-dim: #7878a0; --text-muted: #4a4a70; --violet: #9b59b6; --violet-glow: #c084e0; --teal: #2dd4a8; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; font-weight: 300; }
+
+        @keyframes wave-crawl { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+        @keyframes breathe { 0%,100%{opacity:.25} 50%{opacity:.5} }
+        @keyframes drift { 0%{transform:translate(0,0)} 33%{transform:translate(40px,-30px)} 66%{transform:translate(-30px,20px)} 100%{transform:translate(0,0)} }
+
+        .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(100px); z-index: 0; }
+        .orb-violet { width: 600px; height: 600px; top: -10%; left: -5%; background: radial-gradient(circle, rgba(155,89,182,.08) 0%, transparent 70%); animation: breathe 10s ease-in-out infinite, drift 30s ease-in-out infinite; }
+        .orb-teal { width: 500px; height: 500px; bottom: -10%; right: -5%; background: radial-gradient(circle, rgba(45,212,168,.06) 0%, transparent 70%); animation: breathe 10s ease-in-out infinite 5s, drift 25s ease-in-out infinite reverse; }
+
+        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; background: rgba(8,8,15,.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,.03); }
+        .nav-logo { font-size: 14px; font-weight: 400; letter-spacing: 6px; color: var(--text-dim); text-decoration: none; }
+        .nav-logo:hover { color: var(--teal); }
+        .nav-logo img { height: 22px; vertical-align: middle; margin-right: 10px; }
+        .nav-links { display: flex; gap: 28px; }
+        .nav-links a { font-size: 12px; color: var(--text-muted); text-decoration: none; letter-spacing: 2px; text-transform: uppercase; transition: color .3s; }
+        .nav-links a:hover { color: var(--teal); }
+        .nav-links a.active { color: var(--teal); }
+
+        .wave { height: 1px; margin: 0 auto; max-width: 600px; background: linear-gradient(90deg, transparent, var(--violet), var(--teal), transparent); background-size: 200% 100%; animation: wave-crawl 8s linear infinite; opacity: .5; }
+
+        .page { position: relative; z-index: 1; padding-top: 60px; }
+        .section { max-width: 680px; margin: 0 auto; padding: 80px 32px; }
+        .section-wide { max-width: 900px; margin: 0 auto; padding: 80px 32px; }
+
+        .page-title { text-align: center; padding: 80px 32px 40px; }
+        .page-title h1 { font-size: 36px; font-weight: 200; letter-spacing: 8px; background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .page-title p { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 16px; color: var(--text-dim); margin-top: 12px; }
+
+        .feature-flow { list-style: none; }
+        .feature-flow li { padding: 28px 0; border-bottom: 1px solid rgba(255,255,255,.04); display: flex; gap: 24px; align-items: baseline; }
+        .feature-flow li:last-child { border-bottom: none; }
+        .feature-flow .f-name { font-size: 13px; font-weight: 500; color: var(--violet-glow); letter-spacing: 2px; text-transform: uppercase; min-width: 160px; flex-shrink: 0; }
+        .feature-flow .f-desc { font-size: 15px; color: var(--text-dim); line-height: 1.8; }
+
+        .changelog { max-width: 680px; margin: 0 auto; padding: 60px 32px; }
+        .changelog-title { font-size: 14px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 48px; text-align: center; }
+        .log-entry { margin-bottom: 48px; position: relative; padding-left: 24px; }
+        .log-entry::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: linear-gradient(135deg, var(--violet), var(--teal)); }
+        .log-entry .log-date { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+        .log-entry .log-ver { font-size: 15px; color: var(--teal); font-weight: 400; margin-bottom: 8px; }
+        .log-entry .log-body { font-size: 14px; color: var(--text-dim); line-height: 1.8; }
+        .log-entry .log-body ul { padding-left: 16px; margin-top: 6px; }
+        .log-entry .log-body li { margin-bottom: 4px; }
+        .log-line { width: 1px; background: rgba(255,255,255,.06); position: absolute; left: 2px; top: 20px; bottom: -32px; }
+        .log-entry:last-child .log-line { display: none; }
+
+        .cta { text-align: center; padding: 80px 32px; }
+        .btn-glow { display: inline-block; padding: 20px 64px; background: linear-gradient(135deg, var(--violet), var(--teal)); color: #fff; text-decoration: none; border-radius: 50px; font-weight: 500; font-size: 14px; letter-spacing: 3px; text-transform: uppercase; transition: all .4s; position: relative; }
+        .btn-glow::after { content: ''; position: absolute; inset: -2px; border-radius: 52px; background: linear-gradient(135deg, var(--violet), var(--teal)); z-index: -1; filter: blur(20px); opacity: .4; transition: opacity .4s; }
+        .btn-glow:hover { transform: translateY(-3px); }
+        .btn-glow:hover::after { opacity: .7; }
+
+        .footer { text-align: center; padding: 48px 32px; font-size: 12px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,.04); }
+        .footer a { color: var(--text-muted); text-decoration: none; margin: 0 8px; transition: color .3s; }
+        .footer a:hover { color: var(--teal); }
+        .footer .bandmate { font-family: 'Crimson Pro', serif; font-style: italic; color: var(--teal); font-size: 15px; margin-top: 12px; opacity: .7; }
+
+        @media (max-width: 768px) { .feature-flow li { flex-direction: column; gap: 6px; } .feature-flow .f-name { min-width: unset; } .section, .section-wide, .changelog { padding: 60px 24px; } .nav-links { gap: 16px; } .nav-links a { font-size: 11px; } }
+    </style>
+</head>
+<body>
+
+<div class="orb orb-violet"></div>
+<div class="orb orb-teal"></div>
+
+<nav class="nav">
+    <a href="index.html" class="nav-logo"><img src="favicon.svg" alt="">SOZAWEN</a>
+    <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="features.html" class="active">Features</a>
+        <a href="https://sozawen.lemonsqueezy.com/checkout/buy/e16a7e23-f6b3-411d-8f8b-92892735f262">Download</a>
+        <a href="https://discord.gg/WhzuhTeVsU" target="_blank">Discord</a>
+    </div>
+</nav>
+
+<div class="page">
+
+<div class="page-title">
+    <h1>FEATURES</h1>
+    <p>Everything you need. Nothing you don't. Every control teaches the real thing.</p>
+</div>
+
+<div class="wave"></div>
+
+<section class="section-wide">
+    <ul class="feature-flow">
+        <li><span class="f-name">Record</span><span class="f-desc">Multi-track recording with click track, count-in, and input monitoring. Multi-channel interfaces supported — guitar on input 1, vocals on input 2, each to its own track. Low-latency ASIO.</span></li>
+        <li><span class="f-name">AI Stem Split</span><span class="f-desc">Drop any song. Get back vocals, drums, bass, guitar, piano, and more — each on its own track. Learn from the greats by hearing what they did.</span></li>
+        <li><span class="f-name">Bleed Removal</span><span class="f-desc">Recording guitar DI and vocals at the same time? The mic picks up guitar bleed. Sozawen uses the clean DI signal to mathematically subtract the bleed. Same tech as noise-cancelling headphones.</span></li>
+        <li><span class="f-name">Lyrics</span><span class="f-desc">Hit transcribe and it writes the words as the song plays. Timestamps and all. Export as LRC, SRT, or plain text.</span></li>
+        <li><span class="f-name">The Bandmate</span><span class="f-desc">An AI collaborator that sees your session — key, BPM, tracks, effects — and suggests chords, arrangement ideas, production techniques. Like having a musician friend who listens without judging.</span></li>
+        <li><span class="f-name">Mix & Master</span><span class="f-desc">Full parametric EQ (HPF + 4 bands + LPF), compressor with sidechain, Schroeder reverb, delay with BPM sync, brick-wall limiter. LUFS metering for streaming platforms. Hardware-depth controls.</span></li>
+        <li><span class="f-name">16 Effects</span><span class="f-desc">EQ, compressor, reverb, delay, limiter, noise gate, de-esser, hum removal, normalize, crossfade, time stretch, pitch shift, stereo width, de-clip, reverse, and bleed removal. All modeled after real hardware.</span></li>
+        <li><span class="f-name">Edit by Feel</span><span class="f-desc">Split, trim, stretch, pitch shift, crossfade. Click-drag to select ranges. Every tool has plain-English tooltips that teach the hardware equivalent.</span></li>
+        <li><span class="f-name">Adaptive UI</span><span class="f-desc">The program reads the room. Recording? Recording tools appear. Mixing? EQ and compressor come forward. No modes. No menus. It just knows.</span></li>
+        <li><span class="f-name">Key & BPM</span><span class="f-desc">Load a track and instantly know the key, tempo, loudness, and duration. Match tempos between tracks. Build from what's already there.</span></li>
+        <li><span class="f-name">Export</span><span class="f-desc">WAV, MP3, FLAC, OGG, AIFF. Any sample rate, any bit depth, with dithering. Stem export. One click.</span></li>
+    </ul>
+</section>
+
+<div class="wave"></div>
+
+<section class="changelog">
+    <div class="changelog-title">What's New</div>
+    <div class="log-entry">
+        <div class="log-line"></div>
+        <div class="log-date">April 17, 2026</div>
+        <div class="log-ver">The First Light</div>
+        <div class="log-body">Everything at once. The engine, the ears, the hands, and the voice.
+            <ul>
+                <li>16 audio effects — all modeled after real hardware, all GPL-free</li>
+                <li>AI stem separation — vocals, drums, bass, guitar, piano, and more</li>
+                <li>Bleed removal — subtract mic bleed using a clean reference signal</li>
+                <li>The Bandmate — AI session collaborator that listens and suggests</li>
+                <li>Lyric transcription with timestamps</li>
+                <li>Full parametric EQ, hardware-depth compressor, Schroeder reverb</li>
+                <li>Multi-channel recording — assign each input to its own track</li>
+                <li>76 tooltips — every control explained, beginner to pro</li>
+                <li>LUFS metering, key/BPM detection, export to 5 formats</li>
+            </ul>
+        </div>
+    </div>
+    <div class="log-entry">
+        <div class="log-date">Coming Soon</div>
+        <div class="log-ver">The Deep End</div>
+        <div class="log-body">VST3 plugin hosting. Custom stem separation model that goes beyond 6 stems. Spectrogram view. And whatever our community asks for.</div>
+    </div>
+</section>
+
+<div class="wave"></div>
+
+<section class="cta">
+    <a href="https://sozawen.lemonsqueezy.com/checkout/buy/e16a7e23-f6b3-411d-8f8b-92892735f262" class="btn-glow">Get Sozawen — $79</a>
+    <p style="font-size: 11px; color: var(--text-muted); margin-top: 20px;">Windows 10/11 &middot; ~500MB &middot; No admin required &middot; No account &middot; 30-day money-back guarantee</p>
+</section>
+
+<footer class="footer">
+    Sozawen &copy; 2026 Daysha Lindale
+    <div style="margin-top:8px;"><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="eula.html">EULA</a><a href="https://discord.gg/WhzuhTeVsU" target="_blank">Discord</a></div>
+    <div class="bandmate">A bandmate who listens.</div>
+</footer>
+
+</div>
+</body>
+</html>
