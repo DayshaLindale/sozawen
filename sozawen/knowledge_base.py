@@ -421,6 +421,112 @@ Each link matters:
 **Don't copy — calibrate.** The goal isn't to sound identical. It's to make sure your mix is in the same ballpark. Your song has its own identity. The reference just keeps you honest."""
     },
 
+    "modulation": {
+        "title": "Key Changes & Modulation",
+        "category": "Music Theory",
+        "content": """A modulation (key change) shifts the entire harmonic center of a song to a new key. It's one of the most powerful emotional tools in music — when a chorus lifts a half step, you FEEL it before you understand it.
+
+**Types of Modulation:**
+
+**1. Direct / Abrupt (Truck Driver's Modulation)**
+- Simply jump to the new key with no preparation.
+- Most common: shift UP a half step or whole step for the final chorus.
+- Effect: instant energy lift. The audience feels it physically.
+- Examples: "I Will Always Love You" (Whitney Houston) — E to F to F#. "She Used to Love Me a Lot" (Johnny Cash) — steps up mid-song. "Man in the Mirror" (Michael Jackson) — steps up at the climax. "Livin' on a Prayer" (Bon Jovi) — Em to Gm, up a minor 3rd.
+
+**2. Pivot Chord Modulation**
+- Uses a chord that exists in BOTH the old key and the new key as a bridge.
+- Example: In C major, the Am chord is vi. In G major, Am is ii. Use Am as the pivot.
+- Effect: smooth, natural. The listener barely notices the key changed.
+- Classical and jazz use this extensively.
+
+**3. Relative Major/Minor**
+- Shift between a major key and its relative minor (or vice versa). They share all the same notes.
+- C major → A minor. The mood changes but the notes don't.
+- Effect: emotional shift without harmonic disruption. Verse in minor, chorus in relative major.
+- Example: "Stairway to Heaven" (Led Zeppelin) — moves between Am and C.
+
+**4. Parallel Major/Minor**
+- Same root, different mode. C major → C minor.
+- Only 3 notes change (3rd, 6th, 7th are lowered).
+- Effect: dramatic mood shift. Bright to dark on the same root.
+- Example: "Creep" (Radiohead) — borrows from parallel minor in the pre-chorus.
+
+**5. Chromatic Modulation**
+- Uses a chromatic line (notes moving by half step) to slide into the new key.
+- The bass or an inner voice walks chromatically until it lands in the new key.
+- Effect: cinematic, sophisticated. Film scores use this constantly.
+
+**6. Circle of Fifths Modulation**
+- Move through the circle of fifths: each step is a V→I resolution.
+- C → G → D → A. Each step feels natural because V resolves to I.
+- Effect: purposeful journey. The listener feels momentum.
+
+**How to transpose in Sozawen:**
+1. Detect the key (Key & BPM detection)
+2. Use Pitch Shift to move the audio up/down by the desired interval
+3. For a half-step up: +1 semitone. Whole step: +2 semitones.
+4. For the "truck driver" modulation: split the track at the modulation point, pitch shift the second half.
+
+**How to detect modulation in a song:**
+- If the key detection gives you one key but parts of the song sound "off" — the song modulates.
+- Separate into stems. Analyze each section independently.
+- The Bandmate can help identify where modulations happen.
+
+**Nashville Number System:**
+Professional session musicians use numbers instead of note names:
+- 1 = root, 2 = second scale degree, etc.
+- A "1-4-5" in ANY key means the same progression.
+- When a song modulates, you just change the reference note — the numbers stay the same.
+- This is why Nashville players can transpose on the fly. They think in relationships, not absolute notes."""
+    },
+
+    "transposition": {
+        "title": "Transposition",
+        "category": "Music Theory",
+        "content": """Transposition means moving music to a different key — same intervals, same relationships, different pitch level.
+
+**Why transpose:**
+- A vocalist's range doesn't fit the original key
+- Matching keys between two songs for a medley
+- A guitar capo changes the sounding key
+- Moving from guitar-friendly keys (E, A, G) to horn-friendly keys (Bb, Eb, F)
+
+**How to transpose intervals:**
+
+| From → To | Semitones | Direction | Example |
+|-----------|-----------|-----------|---------|
+| C → C# / Db | +1 | Up half step | Everything shifts up one fret |
+| C → D | +2 | Up whole step | Common "energy lift" modulation |
+| C → Eb | +3 | Up minor 3rd | Dramatic shift |
+| C → E | +4 | Up major 3rd | Distant but powerful |
+| C → F | +5 | Up perfect 4th | Subdominant shift |
+| C → G | +7 | Up perfect 5th | Dominant shift |
+| C → A | -3 or +9 | To relative minor | Same notes, different mood |
+
+**The Capo shortcut (guitar):**
+A capo on fret N transposes everything up N semitones while you play the same chord shapes:
+- Capo 1 = half step up
+- Capo 2 = whole step up
+- Capo 3 = minor 3rd up
+- Capo 5 = 4th up (play G shapes, get C)
+- Capo 7 = 5th up (play C shapes, get G)
+
+**In Sozawen:**
+- Use Pitch Shift (semitones) to transpose recorded audio
+- Formant preservation keeps vocals sounding natural
+- The synth patterns auto-match the detected key
+- Export at the new pitch — the original file is never modified
+
+**Transposing instruments:**
+Some instruments are "transposing" — they sound a different pitch than written:
+- Bb Trumpet: written C sounds as Bb. Transpose UP a whole step for concert pitch.
+- Eb Alto Sax: written C sounds as Eb. Transpose DOWN a minor 3rd.
+- F Horn: written C sounds as F. Transpose DOWN a 5th.
+- Guitar: sounds one octave lower than written in standard notation.
+- Bass: sounds two octaves lower than written."""
+    },
+
     # ═══════════════════════════════════════════════════════════════
     # INSTRUMENTS & GEAR
     # ═══════════════════════════════════════════════════════════════
