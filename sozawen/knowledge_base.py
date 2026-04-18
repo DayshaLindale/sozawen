@@ -835,15 +835,15 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
     "microphone_guide": {
         "title": "Microphone Types & Selection",
         "category": "Instruments",
-        "content": """**Dynamic:** Rugged, handles loud sources. SM57 ($99, amps/snare/everything), SM58 (vocals live), SM7B ($399, broadcast/studio vocals). Use in untreated rooms and loud environments.
+        "content": """**Dynamic:** Rugged, handles loud sources. SM57 (amps, snare, everything — the Swiss army knife), SM58 (live vocals standard), SM7B (broadcast/studio vocals, smooth and warm). Use in untreated rooms and loud environments.
 
-**Condenser:** Sensitive, detailed. AT2020 ($99, honest entry), Rode NT1 ($269, ultra-quiet), AKG C414 ($1,099, multi-pattern workhorse), Neumann U87 ($3,200, the standard). Requires 48V phantom power. Captures room acoustics.
+**Condenser:** Sensitive, detailed, full frequency response. AT2020 (honest entry-level), Rode NT1 (ultra-quiet, great first studio mic), AKG C414 (multi-pattern workhorse), Neumann U87 (the professional standard). Requires 48V phantom power. More sensitive to room acoustics — treat your space.
 
-**Ribbon:** Smooth, warm, vintage. Royer R-121 ($1,295, amps/brass). Figure-8 pattern. NEVER use phantom power with passive ribbons.
+**Ribbon:** Smooth, warm, vintage character. Royer R-121 (amps, brass, vocals). Figure-8 polar pattern. NEVER use phantom power with passive ribbons — it can destroy the element.
 
-**Polar Patterns:** Cardioid (front only, most common), Figure-8 (front+back), Omnidirectional (everything, most natural), Supercardioid (tighter rejection).
+**Polar Patterns:** Cardioid (front only, most common, good isolation), Figure-8 (front+back, rejects sides), Omnidirectional (everything equally, most natural), Supercardioid (tighter than cardioid, more rejection).
 
-**Buy first:** SM57 ($99) → large-diaphragm condenser ($99-269) → matched pencil pair ($200-400). Everything after is luxury."""
+**Buy order:** Start with a dynamic all-rounder (SM57) → add a large-diaphragm condenser for vocals → add a matched pair of pencil condensers for stereo recording. Everything after that is refinement, not necessity."""
     },
     # ═══════════════════════════════════════════════════════════════
     # HARDWARE & STUDIO
@@ -854,11 +854,17 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
         "category": "Hardware",
         "content": """The interface converts analog to digital and back. The most important piece of gear you'll buy.
 
-**By budget:** Under $100: Focusrite Scarlett Solo, M-Audio Solo (1 input). $100-200: Scarlett 2i2, M-Track Duo (2 inputs — guitar + vocals). $200-500: UA Volt, Audient iD14, SSL 2+ (better preamps). $500+: Apollo, RME Babyface (professional converters, DSP).
+**Entry level (1 input):** Focusrite Scarlett Solo, M-Audio M-Track Solo. One mic or instrument at a time. Good preamps for the price.
 
-**Inputs:** 1-2 for solo. 4 for a band. 8+ for drums. Sozawen maps each input to its own track.
+**Mid range (2 inputs):** Focusrite Scarlett 2i2, M-Audio M-Track Duo, PreSonus AudioBox. Record guitar and vocals simultaneously. The sweet spot for most home studios.
 
-**Sample rate:** 44.1kHz is fine. 48kHz for video. Higher = bigger files, marginal audible difference. **Latency:** Buffer 128 = ~3ms (monitoring). 256 = ~6ms (safe). 512+ = mixing only."""
+**Professional (2-4 inputs, better converters):** Universal Audio Volt, Audient iD14, SSL 2+. Cleaner preamps, lower noise floor, more routing options.
+
+**High end (4+ inputs, DSP):** Universal Audio Apollo, RME Babyface Pro, Audient iD44. Multiple simultaneous inputs for full band or drum recording.
+
+**Inputs needed:** 1-2 for singer-songwriter. 4 for a band rehearsal. 8+ for drums with multiple mics. Sozawen maps each input to its own track.
+
+**Sample rate:** 44.1kHz is fine for music. 48kHz for video sync. Higher rates double file size with marginal audible difference. **Latency:** Buffer 128 samples = ~3ms (monitoring). 256 = ~6ms (safe default). 512+ = mixing only."""
     },
 
     "monitors_headphones": {
@@ -866,11 +872,11 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
         "category": "Hardware",
         "content": """Studio monitors are flat — they show what your mix actually sounds like, not what sounds fun.
 
-**Monitors:** Yamaha HS5 ($350/pair, industry standard flat), JBL 305P ($300, wider sweet spot), KRK Rokit 5 ($300, slight bass hype). Place in equilateral triangle with your head, tweeters at ear height, 6+ inches from walls.
+**Monitors to research:** Yamaha HS5 (industry standard flat response), JBL 305P (wider sweet spot), KRK Rokit 5 (slightly enhanced low end), Adam Audio T7V (detailed highs). Place in equilateral triangle with your head, tweeters at ear height, 6+ inches from walls.
 
-**Headphones — Open-back (mixing):** AKG K240 ($70), Sennheiser HD 600 ($400). Natural imaging, sound leaks. **Closed-back (tracking):** ATH-M50x ($150), DT 770 ($160). No bleed into mic.
+**Headphones — Open-back (mixing):** AKG K240, Beyerdynamic DT 990, Sennheiser HD 600. Natural imaging but sound leaks out. **Closed-back (tracking):** Audio-Technica ATH-M50x, Beyerdynamic DT 770, Sony MDR-7506. No bleed into the mic during recording.
 
-**The truth is between both.** Mix on monitors, check on headphones, check on earbuds, check in the car. Never mix on headphones alone — they exaggerate stereo width and bass detail."""
+**The truth is between both.** Mix on monitors, check on headphones, check on earbuds, check in the car. Every system reveals different problems. Never mix on headphones alone — they exaggerate stereo width and bass detail."""
     },
 
     "cables_connections": {
@@ -900,44 +906,43 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
     "studio_budget_guide": {
         "title": "Building a Studio on Any Budget",
         "category": "Hardware",
-        "content": """Everything here works with Sozawen. Build what you can afford — upgrade when you outgrow it.
+        "content": """Everything here works with Sozawen. Build what you can afford — upgrade when you outgrow it. Prices change, so research current pricing before buying.
 
-**$200 — The Essentials:**
-- Audio interface: Focusrite Scarlett Solo ($110)
-- Microphone: Audio-Technica AT2020 ($99) or SM57 ($99)
-- Headphones: use what you have, upgrade later
-- Software: Sozawen ($79)
-- Total: ~$290. You can record, edit, mix, master, and export a finished song.
+**Tier 1 — The Essentials:**
+- Entry-level audio interface (1 input — Scarlett Solo, M-Track Solo)
+- One microphone (AT2020 condenser or SM57 dynamic)
+- Headphones you already own
+- Sozawen
+- This is enough to record, edit, mix, master, and export a finished song.
 
-**$500 — The Bedroom Studio:**
-- Interface: Focusrite Scarlett 2i2 ($170) — 2 inputs
-- Mic: Rode NT1 ($269)
-- Headphones: ATH-M50x ($150)
-- Pop filter + mic stand + XLR cable ($40)
-- Sozawen ($79)
-- Total: ~$710. Record vocals and guitar simultaneously. Monitor properly.
+**Tier 2 — The Bedroom Studio:**
+- 2-input interface (Scarlett 2i2, M-Track Duo)
+- Quality condenser mic (Rode NT1 or similar)
+- Closed-back headphones (ATH-M50x, DT 770)
+- Pop filter, mic stand, XLR cable
+- Sozawen
+- Record vocals and guitar simultaneously. Monitor properly.
 
-**$1,000 — The Serious Setup:**
-- Interface: Audient iD14 ($300)
-- Mic: Rode NT1 ($269)
-- Monitors: Yamaha HS5 pair ($350)
-- Headphones: DT 770 ($160)
-- Cables + stands + pop filter ($60)
-- Basic acoustic treatment ($100 DIY)
-- Sozawen ($79)
-- Total: ~$1,320. Professional monitoring. Treated room. Multiple input options.
+**Tier 3 — The Serious Setup:**
+- Mid-range interface (Audient iD14, SSL 2+)
+- Condenser mic + dynamic mic (covers most sources)
+- Studio monitors (Yamaha HS5, JBL 305P)
+- Quality headphones for reference
+- Basic acoustic treatment (DIY corner traps and first reflections)
+- Sozawen
+- Professional monitoring. Treated room. Real results.
 
-**$2,000+ — The Home Studio:**
-- Interface: Universal Audio Volt 276 ($400)
-- Mics: Rode NT1 + SM57 ($370)
-- Monitors: Adam Audio T7V pair ($500)
-- Headphones: Sennheiser HD 600 ($400)
-- Full acoustic treatment ($300 DIY)
-- MIDI controller ($100-200)
-- Sozawen ($79)
+**Tier 4 — The Home Studio:**
+- Professional interface (Universal Audio Volt, Apollo Solo)
+- Multiple mics (condenser + dynamic + maybe a ribbon)
+- Accurate monitors (Adam Audio T7V, Focal Alpha)
+- Reference headphones (Sennheiser HD 600)
+- Full room treatment
+- MIDI controller
+- Sozawen
 - Everything you need to make records that compete with professional studios.
 
-**The truth:** The gear ceiling stopped mattering years ago. A $300 interface and a $100 mic with Sozawen can make a record that sounds as good as what came out of Abbey Road in the 1960s. The difference is the performance, the songs, and the time you put in. Not the price tag."""
+**The truth:** The gear ceiling stopped mattering years ago. An entry-level interface and a decent mic with Sozawen can make a record that sounds as good as what came out of Abbey Road in the 1960s. The difference is the performance, the songs, and the time you put in. Not the price tag."""
     },
 }
 
