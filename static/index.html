@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sozawen — Born from the burn. Built by feeling.</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Crimson+Pro:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -16,162 +16,74 @@
             --violet: #9b59b6;
             --violet-glow: #c084e0;
             --teal: #2dd4a8;
-            --teal-dim: rgba(45, 212, 168, 0.5);
         }
         html { scroll-behavior: smooth; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            overflow-x: hidden;
-            font-weight: 300;
-        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; font-weight: 300; }
 
-        /* ── ambient light ── */
         @keyframes breathe { 0%,100%{opacity:.25} 50%{opacity:.5} }
         @keyframes drift { 0%{transform:translate(0,0)} 33%{transform:translate(40px,-30px)} 66%{transform:translate(-30px,20px)} 100%{transform:translate(0,0)} }
         @keyframes glow-pulse { 0%,100%{text-shadow:0 0 30px rgba(155,89,182,.2)} 50%{text-shadow:0 0 60px rgba(155,89,182,.4), 0 0 120px rgba(45,212,168,.15)} }
         @keyframes wave-crawl { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
 
         .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(100px); z-index: 0; }
-        .orb-violet {
-            width: 600px; height: 600px; top: -10%; left: -5%;
-            background: radial-gradient(circle, rgba(155,89,182,.12) 0%, transparent 70%);
-            animation: breathe 10s ease-in-out infinite, drift 30s ease-in-out infinite;
-        }
-        .orb-teal {
-            width: 500px; height: 500px; bottom: -10%; right: -5%;
-            background: radial-gradient(circle, rgba(45,212,168,.1) 0%, transparent 70%);
-            animation: breathe 10s ease-in-out infinite 5s, drift 25s ease-in-out infinite reverse;
-        }
-        .orb-center {
-            width: 800px; height: 800px; top: 50%; left: 50%; transform: translate(-50%,-50%);
-            background: radial-gradient(circle, rgba(155,89,182,.04) 0%, transparent 60%);
-            animation: breathe 15s ease-in-out infinite 2s;
-        }
+        .orb-violet { width: 600px; height: 600px; top: -10%; left: -5%; background: radial-gradient(circle, rgba(155,89,182,.12) 0%, transparent 70%); animation: breathe 10s ease-in-out infinite, drift 30s ease-in-out infinite; }
+        .orb-teal { width: 500px; height: 500px; bottom: -10%; right: -5%; background: radial-gradient(circle, rgba(45,212,168,.1) 0%, transparent 70%); animation: breathe 10s ease-in-out infinite 5s, drift 25s ease-in-out infinite reverse; }
+        .orb-center { width: 800px; height: 800px; top: 50%; left: 50%; transform: translate(-50%,-50%); background: radial-gradient(circle, rgba(155,89,182,.04) 0%, transparent 60%); animation: breathe 15s ease-in-out infinite 2s; }
 
-        /* ── floating nav ── */
-        .nav {
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-            padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
-            background: rgba(8,8,15,.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,.03);
-            transform: translateY(-100%); transition: transform .4s ease;
-        }
+        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; background: rgba(8,8,15,.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,.03); transform: translateY(-100%); transition: transform .4s ease; }
         .nav.visible { transform: translateY(0); }
-        .nav-logo {
-            font-size: 14px; font-weight: 400; letter-spacing: 6px; color: var(--text-dim);
-            text-decoration: none; transition: color .3s;
-        }
+        .nav-logo { font-size: 14px; font-weight: 400; letter-spacing: 6px; color: var(--text-dim); text-decoration: none; transition: color .3s; }
         .nav-logo:hover { color: var(--teal); }
         .nav-logo img { height: 22px; vertical-align: middle; margin-right: 10px; }
         .nav-links { display: flex; gap: 28px; }
-        .nav-links a {
-            font-size: 12px; color: var(--text-muted); text-decoration: none;
-            letter-spacing: 2px; text-transform: uppercase; transition: color .3s;
-        }
+        .nav-links a { font-size: 12px; color: var(--text-muted); text-decoration: none; letter-spacing: 2px; text-transform: uppercase; transition: color .3s; }
         .nav-links a:hover { color: var(--teal); }
 
-        /* ── wave divider ── */
-        .wave {
-            height: 1px; margin: 0 auto; max-width: 600px;
-            background: linear-gradient(90deg, transparent, var(--violet), var(--teal), transparent);
-            background-size: 200% 100%;
-            animation: wave-crawl 8s linear infinite;
-            opacity: .5;
-        }
+        .wave { height: 1px; margin: 0 auto; max-width: 600px; background: linear-gradient(90deg, transparent, var(--violet), var(--teal), transparent); background-size: 200% 100%; animation: wave-crawl 8s linear infinite; opacity: .5; }
 
-        /* ── scroll reveal ── */
-        .reveal {
-            opacity: 0; transform: translateY(40px);
-            transition: opacity .8s ease, transform .8s ease;
-        }
+        .reveal { opacity: 0; transform: translateY(40px); transition: opacity .8s ease, transform .8s ease; }
         .reveal.visible { opacity: 1; transform: translateY(0); }
 
-        /* ── layout ── */
         .page { position: relative; z-index: 1; }
         .section { max-width: 680px; margin: 0 auto; padding: 120px 32px; }
         .section-wide { max-width: 900px; margin: 0 auto; padding: 100px 32px; }
 
-        /* ── hero ── */
-        .hero {
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            text-align: center; padding: 80px 32px;
-        }
+        .hero { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 80px 32px; }
         .hero-inner { max-width: 640px; }
-        .logo {
-            font-size: 64px; font-weight: 200; letter-spacing: 16px;
-            background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-            animation: glow-pulse 6s ease-in-out infinite;
-            margin-bottom: 16px;
-        }
-        .tagline {
-            font-family: 'Crimson Pro', serif; font-style: italic; font-weight: 200;
-            font-size: 24px; color: var(--teal); letter-spacing: 4px; margin-bottom: 64px; opacity: .8;
-        }
-        .hero-poem {
-            font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2.2;
-            color: var(--text-dim); font-weight: 300; margin-bottom: 64px;
-        }
+        .logo { font-size: 64px; font-weight: 200; letter-spacing: 16px; background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: glow-pulse 6s ease-in-out infinite; margin-bottom: 16px; }
+        .tagline { font-family: 'Crimson Pro', serif; font-style: italic; font-weight: 200; font-size: 24px; color: var(--teal); letter-spacing: 4px; margin-bottom: 64px; opacity: .8; }
+        .hero-poem { font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2.2; color: var(--text-dim); font-weight: 300; margin-bottom: 64px; }
         .hero-poem em { color: var(--text); font-style: normal; }
         .price { font-size: 48px; font-weight: 600; color: var(--text); letter-spacing: 2px; }
         .price-sub { font-size: 13px; color: var(--text-muted); margin-top: 6px; letter-spacing: 1.5px; font-weight: 400; }
-        .btn-glow {
-            display: inline-block; margin-top: 48px; padding: 20px 64px;
-            background: linear-gradient(135deg, var(--violet), var(--teal));
-            color: #fff; text-decoration: none; border-radius: 50px; font-weight: 500;
-            font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
-            transition: all .4s; border: none; position: relative;
-        }
-        .btn-glow::after {
-            content: ''; position: absolute; inset: -2px; border-radius: 52px;
-            background: linear-gradient(135deg, var(--violet), var(--teal));
-            z-index: -1; filter: blur(20px); opacity: .4; transition: opacity .4s;
-        }
+        .btn-glow { display: inline-block; margin-top: 48px; padding: 20px 64px; background: linear-gradient(135deg, var(--violet), var(--teal)); color: #fff; text-decoration: none; border-radius: 50px; font-weight: 500; font-size: 14px; letter-spacing: 3px; text-transform: uppercase; transition: all .4s; border: none; position: relative; }
+        .btn-glow::after { content: ''; position: absolute; inset: -2px; border-radius: 52px; background: linear-gradient(135deg, var(--violet), var(--teal)); z-index: -1; filter: blur(20px); opacity: .4; transition: opacity .4s; }
         .btn-glow:hover { transform: translateY(-3px); }
         .btn-glow:hover::after { opacity: .7; }
 
-        /* ── story ── */
-        .story {
-            font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2.4;
-            color: var(--text-dim); font-weight: 300;
-        }
+        .story { font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2.4; color: var(--text-dim); font-weight: 300; }
         .story p { margin-bottom: 32px; }
         .story .burn { color: var(--violet-glow); }
         .story .flow { color: var(--teal); }
 
-        /* ── features — flowing list ── */
         .feature-flow { list-style: none; }
-        .feature-flow li {
-            padding: 28px 0; border-bottom: 1px solid rgba(255,255,255,.04);
-            display: flex; gap: 24px; align-items: baseline;
-        }
+        .feature-flow li { padding: 28px 0; border-bottom: 1px solid rgba(255,255,255,.04); display: flex; gap: 24px; align-items: baseline; }
         .feature-flow li:last-child { border-bottom: none; }
-        .feature-flow .f-name {
-            font-size: 13px; font-weight: 500; color: var(--violet-glow);
-            letter-spacing: 2px; text-transform: uppercase; min-width: 160px; flex-shrink: 0;
-        }
+        .feature-flow .f-name { font-size: 13px; font-weight: 500; color: var(--violet-glow); letter-spacing: 2px; text-transform: uppercase; min-width: 160px; flex-shrink: 0; }
         .feature-flow .f-desc { font-size: 15px; color: var(--text-dim); line-height: 1.8; }
 
-        /* ── values ── */
         .values { text-align: center; }
         .value-item { margin-bottom: 64px; }
         .value-item:last-child { margin-bottom: 0; }
         .value-item h3 { font-size: 18px; font-weight: 400; color: var(--teal); margin-bottom: 12px; letter-spacing: 1px; }
         .value-item p { font-size: 15px; color: var(--text-dim); line-height: 1.9; max-width: 500px; margin: 0 auto; }
 
-        /* ── voices ── */
         .voices { text-align: center; }
         .voice { margin-bottom: 72px; }
         .voice:last-child { margin-bottom: 0; }
-        .voice .quote {
-            font-family: 'Crimson Pro', serif; font-style: italic; font-size: 22px;
-            color: var(--teal); margin-bottom: 12px; line-height: 1.6;
-        }
+        .voice .quote { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 22px; color: var(--teal); margin-bottom: 12px; line-height: 1.6; }
         .voice .who-is { font-size: 12px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
 
-        /* ── name etymology ── */
         .etymology { text-align: center; }
         .etym-pair { display: flex; justify-content: center; align-items: center; gap: 40px; margin-bottom: 32px; flex-wrap: wrap; }
         .etym-word { text-align: center; }
@@ -182,56 +94,28 @@
         .etym-plus { font-size: 20px; color: var(--text-muted); }
         .etym-meaning { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 20px; color: var(--text-dim); line-height: 1.8; }
 
-        /* ── what's new — living changelog ── */
         .changelog { max-width: 680px; margin: 0 auto; padding: 100px 32px; }
-        .changelog-title {
-            font-size: 14px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;
-            color: var(--text-muted); margin-bottom: 48px; text-align: center;
-        }
+        .changelog-title { font-size: 14px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 48px; text-align: center; }
         .log-entry { margin-bottom: 48px; position: relative; padding-left: 24px; }
-        .log-entry::before {
-            content: ''; position: absolute; left: 0; top: 8px;
-            width: 6px; height: 6px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--violet), var(--teal));
-        }
-        .log-entry .log-date {
-            font-size: 11px; color: var(--text-muted); letter-spacing: 2px;
-            text-transform: uppercase; margin-bottom: 6px;
-        }
-        .log-entry .log-ver {
-            font-size: 15px; color: var(--teal); font-weight: 400; margin-bottom: 8px;
-        }
-        .log-entry .log-body {
-            font-size: 14px; color: var(--text-dim); line-height: 1.8;
-        }
+        .log-entry::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: linear-gradient(135deg, var(--violet), var(--teal)); }
+        .log-entry .log-date { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+        .log-entry .log-ver { font-size: 15px; color: var(--teal); font-weight: 400; margin-bottom: 8px; }
+        .log-entry .log-body { font-size: 14px; color: var(--text-dim); line-height: 1.8; }
         .log-entry .log-body ul { padding-left: 16px; margin-top: 6px; }
         .log-entry .log-body li { margin-bottom: 4px; }
-        .log-line {
-            width: 1px; background: rgba(255,255,255,.06); position: absolute;
-            left: 2px; top: 20px; bottom: -32px;
-        }
+        .log-line { width: 1px; background: rgba(255,255,255,.06); position: absolute; left: 2px; top: 20px; bottom: -32px; }
         .log-entry:last-child .log-line { display: none; }
 
-        /* ── final CTA ── */
         .final { text-align: center; padding: 140px 32px; position: relative; }
-        .final h2 {
-            font-family: 'Crimson Pro', serif; font-weight: 200; font-style: italic;
-            font-size: 36px; color: var(--text); margin-bottom: 12px; line-height: 1.4;
-        }
+        .final h2 { font-family: 'Crimson Pro', serif; font-weight: 200; font-style: italic; font-size: 36px; color: var(--text); margin-bottom: 12px; line-height: 1.4; }
         .final .sub { font-size: 16px; color: var(--text-dim); margin-bottom: 48px; }
         .final .specs { font-size: 11px; color: var(--text-muted); margin-top: 24px; letter-spacing: 1px; }
 
-        /* ── footer ── */
-        .footer {
-            text-align: center; padding: 48px 32px; font-size: 12px; color: var(--text-muted);
-            border-top: 1px solid rgba(255,255,255,.04);
-        }
-        .footer .bandmate {
-            font-family: 'Crimson Pro', serif; font-style: italic;
-            color: var(--teal); font-size: 15px; margin-top: 12px; opacity: .7;
-        }
+        .footer { text-align: center; padding: 48px 32px; font-size: 12px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,.04); }
+        .footer a { color: var(--text-muted); text-decoration: none; margin: 0 8px; transition: color .3s; }
+        .footer a:hover { color: var(--teal); }
+        .footer .bandmate { font-family: 'Crimson Pro', serif; font-style: italic; color: var(--teal); font-size: 15px; margin-top: 12px; opacity: .7; }
 
-        /* ── mobile ── */
         @media (max-width: 768px) {
             .logo { font-size: 36px; letter-spacing: 8px; }
             .tagline { font-size: 17px; letter-spacing: 2px; }
@@ -250,16 +134,12 @@
 </head>
 <body>
 
-<!-- ambient light -->
 <div class="orb orb-violet"></div>
 <div class="orb orb-teal"></div>
 <div class="orb orb-center"></div>
 
-<!-- floating nav — appears on scroll -->
 <nav class="nav" id="nav">
-    <a href="#top" class="nav-logo">
-        <img src="/static/favicon.svg" alt="">SOZAWEN
-    </a>
+    <a href="#top" class="nav-logo"><img src="favicon.svg" alt="">SOZAWEN</a>
     <div class="nav-links">
         <a href="#story">Story</a>
         <a href="#features">Features</a>
@@ -272,7 +152,6 @@
 
 <div class="page">
 
-<!-- ── hero ── -->
 <section class="hero" id="top">
     <div class="hero-inner">
         <div class="logo">SOZAWEN</div>
@@ -290,45 +169,56 @@
 
 <div class="wave"></div>
 
-<!-- ── story ── -->
 <section class="section reveal" id="story">
     <div class="story">
         <p>This started at <span class="burn">3 AM</span> with a voice memo and six tabs open trying to figure out which free plugin wouldn't crash this time.</p>
         <p>I couldn't afford Pro Tools. Couldn't afford Logic. Couldn't afford the five subscriptions it takes to do what every musician does — <span class="flow">hear something in your head and try to get it out</span>.</p>
         <p>So I built the thing I needed. A program that <span class="burn">feels</span> like making music feels. Not clinical. Not complicated. Not designed by people who've never stayed up all night chasing a melody that won't let you sleep.</p>
-        <p>It watches what you're doing and shows you the right tools. It separates stems with AI. It writes your lyrics down while you sing. It does everything the expensive programs do, and some things they can't.</p>
+        <p>The controls are modeled after real hardware — SSL, Neve, Lexicon, 1176. Learn here, walk into any studio, and the knobs already make sense. Every parameter has a tooltip that explains what it does and why. <span class="flow">A beginner learns. A pro gets to work. Same tool.</span></p>
+        <p>It watches what you're doing and shows you the right tools. It separates stems with AI. It writes your lyrics down while you sing. It removes bleed from your vocal mic using the clean DI as a reference — math that costs $1,200 in other programs. It has a bandmate built in that listens to your session and suggests where to go next.</p>
         <p>And it costs less than two months of Pro Tools. <span class="flow">Once</span>.</p>
     </div>
 </section>
 
 <div class="wave"></div>
 
-<!-- ── features ── -->
 <section class="section-wide reveal" id="features">
     <ul class="feature-flow">
         <li>
             <span class="f-name">Record</span>
-            <span class="f-desc">Multi-track recording with click track, count-in, and input monitoring. Low-latency ASIO. Plug in and play.</span>
+            <span class="f-desc">Multi-track recording with click track, count-in, and input monitoring. Multi-channel interfaces supported — guitar on input 1, vocals on input 2, each to its own track. Low-latency ASIO.</span>
         </li>
         <li>
             <span class="f-name">AI Stem Split</span>
             <span class="f-desc">Drop any song. Get back vocals, drums, bass, guitar, piano, and more — each on its own track. Learn from the greats by hearing what they did.</span>
         </li>
         <li>
+            <span class="f-name">Bleed Removal</span>
+            <span class="f-desc">Recording guitar DI and vocals at the same time? The mic picks up guitar bleed. Sozawen uses the clean DI signal to mathematically subtract the bleed from your vocal track. Same tech as noise-cancelling headphones.</span>
+        </li>
+        <li>
             <span class="f-name">Lyrics</span>
             <span class="f-desc">Hit transcribe and it writes the words as the song plays. Timestamps and all. Export as LRC, SRT, or plain text.</span>
         </li>
         <li>
+            <span class="f-name">The Bandmate</span>
+            <span class="f-desc">An AI collaborator that sees your session — key, BPM, tracks, effects — and suggests chords, arrangement ideas, production techniques. Like having a musician friend who listens without judging.</span>
+        </li>
+        <li>
             <span class="f-name">Mix & Master</span>
-            <span class="f-desc">EQ, compression, reverb, delay, limiting. LUFS metering for streaming platforms. A/B against reference tracks.</span>
+            <span class="f-desc">Full parametric EQ (HPF + 4 bands + LPF), compressor with sidechain, Schroeder reverb, delay with BPM sync, brick-wall limiter. LUFS metering for streaming platforms. A/B against reference tracks. Hardware-depth controls.</span>
+        </li>
+        <li>
+            <span class="f-name">16 Effects</span>
+            <span class="f-desc">EQ, compressor, reverb, delay, limiter, noise gate, de-esser, hum removal, normalize, crossfade, time stretch, pitch shift, stereo width, de-clip, reverse, and bleed removal. All controls modeled after real hardware.</span>
         </li>
         <li>
             <span class="f-name">Edit by Feel</span>
-            <span class="f-desc">Split, trim, stretch, pitch shift, crossfade. Every tool has plain-English tooltips. Hover anything to learn what it does.</span>
+            <span class="f-desc">Split, trim, stretch, pitch shift, crossfade. Click-drag to select ranges. Every tool has plain-English tooltips that teach the hardware equivalent.</span>
         </li>
         <li>
             <span class="f-name">Adaptive UI</span>
-            <span class="f-desc">The program reads the room. Recording? Recording tools. Mixing? EQ and compressor come forward. No modes. No hunting. It just knows.</span>
+            <span class="f-desc">The program reads the room. Recording? Recording tools appear. Mixing three tracks? EQ and compressor come forward. No modes. No hunting through menus. It just knows.</span>
         </li>
         <li>
             <span class="f-name">Key & BPM</span>
@@ -343,7 +233,6 @@
 
 <div class="wave"></div>
 
-<!-- ── values ── -->
 <section class="section reveal" id="values">
     <div class="values">
         <div class="value-item">
@@ -352,18 +241,21 @@
         </div>
         <div class="value-item">
             <h3>Your machine. Your music.</h3>
-            <p>Everything runs locally. Your audio never touches a server. No upload, no cloud processing, no fine print. Nobody hears it until you're ready.</p>
+            <p>Everything runs locally. Your audio never touches a server. No upload, no cloud processing, no fine print about using your content. Nobody hears it until you're ready.</p>
         </div>
         <div class="value-item">
             <h3>Built by a musician.</h3>
             <p>Not by a corporation. By someone who writes songs in the dark and couldn't afford the tools to finish them. Every feature exists because a musician stayed up too late and needed it.</p>
+        </div>
+        <div class="value-item">
+            <h3>Learn the real thing.</h3>
+            <p>Every knob, slider, and parameter is modeled after real studio hardware. The EQ works like an SSL. The compressor works like an 1176. Learn in Sozawen, and the skills transfer to any studio in the world.</p>
         </div>
     </div>
 </section>
 
 <div class="wave"></div>
 
-<!-- ── voices ── -->
 <section class="section reveal">
     <div class="voices">
         <div class="voice">
@@ -383,7 +275,6 @@
 
 <div class="wave"></div>
 
-<!-- ── the name ── -->
 <section class="section reveal" id="name">
     <div class="etymology">
         <div class="etym-pair">
@@ -403,7 +294,6 @@
 
 <div class="wave"></div>
 
-<!-- ── what's new — living changelog ── -->
 <section class="changelog reveal" id="new">
     <div class="changelog-title">What's New</div>
 
@@ -412,25 +302,29 @@
         <div class="log-date">April 17, 2026</div>
         <div class="log-ver">The First Light</div>
         <div class="log-body">
-            The engine is alive. Multi-track playback, real-time mixing, transport controls, waveform rendering.
+            Everything at once. The engine, the ears, the hands, and the voice.
             <ul>
+                <li>16 audio effects — all modeled after real hardware, all GPL-free</li>
                 <li>AI stem separation — vocals, drums, bass, guitar, piano, and more</li>
+                <li>Bleed removal — subtract mic bleed using a clean reference signal</li>
+                <li>The Bandmate — AI session collaborator that listens and suggests</li>
                 <li>Lyric transcription with timestamps</li>
-                <li>Key and BPM detection in the transport bar</li>
-                <li>Full effects chain — EQ, compressor, reverb, delay, limiter, de-esser, hum removal</li>
-                <li>Adaptive context engine — tools surface based on what you're doing</li>
+                <li>Full parametric EQ with HPF/LPF, hardware-depth compressor, Schroeder reverb</li>
+                <li>Multi-channel recording — assign each input to its own track</li>
+                <li>Adaptive context engine — the right tools at the right time</li>
+                <li>76 tooltips — every control explained, beginner to pro</li>
+                <li>LUFS metering, key/BPM detection, export to 5 formats</li>
                 <li>Session save, auto-save, and crash recovery</li>
-                <li>Export to WAV, MP3, FLAC, OGG, AIFF</li>
             </ul>
         </div>
     </div>
 
     <div class="log-entry">
         <div class="log-line"></div>
-        <div class="log-date">Coming Next</div>
-        <div class="log-ver">The Bandmate</div>
+        <div class="log-date">Coming Soon</div>
+        <div class="log-ver">The Deep End</div>
         <div class="log-body">
-            AI session collaborator. Suggest chord progressions, arrangement ideas, and production techniques — a bandmate who listens to what you're building and responds in kind.
+            VST3 plugin hosting. Custom stem separation model that goes beyond 6 stems. Spectrogram view. And whatever our community asks for.
         </div>
     </div>
 
@@ -438,28 +332,27 @@
 
 <div class="wave"></div>
 
-<!-- ── final CTA ── -->
 <section class="final" id="download">
     <h2>You already know what it should sound like.</h2>
     <p class="sub">Sozawen helps you get it out.</p>
-    <a href="#" class="btn-glow">Download for Windows</a>
+    <a href="https://sozawen.lemonsqueezy.com/checkout/buy/e16a7e23-f6b3-411d-8f8b-92892735f262" class="btn-glow">Download for Windows</a>
     <p class="specs">Windows 10/11 &middot; ~500MB &middot; No admin required &middot; No account &middot; No internet needed after download</p>
 </section>
 
 <footer class="footer">
     Sozawen &copy; 2026 Daysha Lindale
     <div style="margin-top:8px;">
-        <a href="/static/terms.html" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Terms</a>
-        <a href="/static/privacy.html" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Privacy</a>
-        <a href="/static/eula.html" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">EULA</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="eula.html">EULA</a>
+        <a href="https://discord.gg/WhzuhTeVsU" target="_blank">Discord</a>
     </div>
     <div class="bandmate">A bandmate who listens.</div>
 </footer>
 
-</div><!-- .page -->
+</div>
 
 <script>
-// ── floating nav: show after scrolling past hero ──
 const nav = document.getElementById('nav');
 const hero = document.querySelector('.hero');
 let navVisible = false;
@@ -470,7 +363,6 @@ function checkNav() {
     else if (!past && navVisible) { nav.classList.remove('visible'); navVisible = false; }
 }
 
-// ── scroll reveal ──
 const reveals = document.querySelectorAll('.reveal');
 function checkReveal() {
     const trigger = window.innerHeight * 0.85;
@@ -480,7 +372,6 @@ function checkReveal() {
     });
 }
 
-// ── active nav link ──
 const sections = document.querySelectorAll('section[id]');
 const navLinks = document.querySelectorAll('.nav-links a');
 function checkActive() {
