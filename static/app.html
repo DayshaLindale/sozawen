@@ -820,8 +820,8 @@
         // Track headers (left panel — fixed)
         const headers = document.getElementById('trackHeaders');
         headers.innerHTML = tracks.map(t => `
-            <div class="track-header" data-id="${t.id}" style="border-left: 3px solid ${t.color || 'var(--violet)'};">
-                <input class="track-name" value="${t.name}" onchange="renameTrack(${t.id}, this.value)">
+            <div class="track-header" data-id="${t.id}" onclick="selectTrack(${t.id})" style="border-left: 3px solid ${t.color || 'var(--violet)'}; cursor:pointer; ${_activeTrackId===t.id?'outline:1px solid #2dd4a8;outline-offset:-1px;':''}">
+                <input class="track-name" value="${t.name}" onchange="renameTrack(${t.id}, this.value)" onclick="event.stopPropagation()">
                 <div class="track-controls">
                     <button class="track-ctrl ${t.muted?'active-m':''}" onclick="toggleMute(${t.id})" title="Mute">M</button>
                     <button class="track-ctrl ${t.solo?'active-s':''}" onclick="toggleSolo(${t.id})" title="Solo">S</button>
@@ -1915,9 +1915,32 @@
     };
 
     // ═══ ACTIONS ═══
+    let _activeTrackId = null;
+
+    function selectTrack(id) {
+        _activeTrackId = id;
+        // Update visual
+        document.querySelectorAll('.track-header').forEach(el => {
+            const tid = parseInt(el.dataset.id);
+            el.style.outline = tid === id ? '1px solid var(--teal)' : 'none';
+            el.style.outlineOffset = '-1px';
+        });
+        document.querySelectorAll('.track-row').forEach(el => {
+            const tid = parseInt(el.dataset.id);
+            el.style.outline = tid === id ? '1px solid var(--teal)' : 'none';
+            el.style.outlineOffset = '-1px';
+        });
+        const t = tracks.find(t => t.id === id);
+        if (t) document.getElementById('statusText').textContent = `Selected: ${t.name}`;
+    }
+
     function getActiveTrack() {
-        // Return first track with audio, or null
-        return tracks.find(t => t.file) || null;
+        if (_activeTrackId !== null) {
+            const t = tracks.find(t => t.id === _activeTrackId);
+            if (t) return t;
+        }
+        // Fallback: first track with audio
+        return tracks.find(t => t.file || t.hasAudio) || tracks[0] || null;
     }
 
     function applyEffect(effect, params) {

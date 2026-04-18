@@ -208,7 +208,8 @@ class ContextEngine:
         phase_weights = {
             Phase.EMPTY: {
                 "open_file": 1.0, "input_select": 0.8,
-                "synth": 0.7, "drums": 0.7,
+                "synth": 0.7, "drums": 0.7, "pad": 0.7,
+                "piano_roll": 0.6, "learn": 0.5,
             },
             Phase.IMPORT: {
                 "stem_split": 1.0, "lyrics": 0.9, "analyze": 0.9,
@@ -219,6 +220,7 @@ class ContextEngine:
             },
             Phase.RECORD: {
                 "input_select": 1.0, "metronome": 0.9, "count_in": 0.8,
+                "synth": 0.6, "drums": 0.6, "pad": 0.6,
             },
             Phase.EDIT: {
                 "split": 1.0, "trim": 0.9, "crossfade": 0.8,
