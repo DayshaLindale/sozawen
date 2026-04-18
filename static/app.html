@@ -3599,6 +3599,12 @@
 
     function clearPadSequence() {
         _padSequence = [];
+        _activePads.clear();
+        // Reset all pad visuals
+        document.querySelectorAll('.pad-btn').forEach(el => {
+            el.style.background = 'var(--bg-card)';
+            el.style.borderColor = 'var(--border)';
+        });
         updatePadDisplay();
     }
 
