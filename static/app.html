@@ -277,6 +277,10 @@
                 <button class="menu-option" onclick="showPanel('community')">Community & Feedback</button>
                 <button class="menu-option" onclick="window.open('https://discord.gg/WhzuhTeVsU','_blank')">Join Discord</button>
                 <div class="menu-sep"></div>
+                <button class="menu-option" onclick="window.open('https://sozawen.com/terms.html','_blank')">Terms of Service</button>
+                <button class="menu-option" onclick="window.open('https://sozawen.com/privacy.html','_blank')">Privacy Policy</button>
+                <button class="menu-option" onclick="window.open('https://sozawen.com/eula.html','_blank')">License Agreement</button>
+                <div class="menu-sep"></div>
                 <button class="menu-option" onclick="showAbout()">About Sozawen</button>
             </div>
         </div>
@@ -419,6 +423,12 @@
             <button onclick="activateLicense()" style="width:100%; padding:14px; background:linear-gradient(135deg,var(--violet),var(--teal)); color:#fff; border:none; border-radius:50px; font-size:14px; font-weight:500; letter-spacing:2px; cursor:pointer; text-transform:uppercase;">Activate</button>
             <div style="margin-top:16px;">
                 <a href="https://sozawen.lemonsqueezy.com/checkout/buy/e16a7e23-f6b3-411d-8f8b-92892735f262" target="_blank" style="font-size:11px; color:var(--violet-glow); text-decoration:none;">Don't have a key? Purchase here</a>
+            </div>
+            <div style="margin-top:16px; font-size:10px; color:var(--text-muted); line-height:1.6;">
+                By activating, you agree to the
+                <a href="https://sozawen.com/eula.html" target="_blank" style="color:var(--text-dim); text-decoration:underline;">End User License Agreement</a>,
+                <a href="https://sozawen.com/terms.html" target="_blank" style="color:var(--text-dim); text-decoration:underline;">Terms of Service</a>, and
+                <a href="https://sozawen.com/privacy.html" target="_blank" style="color:var(--text-dim); text-decoration:underline;">Privacy Policy</a>.
             </div>
         </div>
     </div>
@@ -2067,7 +2077,7 @@
         window._renderMixer = renderMixer;
     }
     function toggleHelpMode() { document.body.classList.toggle('help-mode'); }
-    function showAbout() { alert('Sozawen v0.1.0\nBorn from the burn. Built by feeling.\n\nA bandmate who listens.\n\n\u00a9 2026 Daysha Lindale'); }
+    function showAbout() { alert('Sozawen v0.1.0\nBorn from the burn. Built by feeling.\n\nA bandmate who listens.\n\n\u00a9 2026 Daysha Lindale\n\nTerms: sozawen.com/terms.html\nPrivacy: sozawen.com/privacy.html\nEULA: sozawen.com/eula.html'); }
 
     // ═══ EFFECTS — wire Apply/Preview buttons to backend ═══
     function getActiveTrackEngineId() {
