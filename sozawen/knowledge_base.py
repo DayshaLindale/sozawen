@@ -967,6 +967,52 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
 **Amp sims vs real amps:** Modern amp simulation (Neural DSP, Line 6 Helix, amp plugins) has reached the point where blind tests fool professionals. If you're recording at home, a good amp sim through your interface is often better than a real amp in an untreated room — no mic bleed, no volume complaints, consistent tone. Record with the sim, reamp later if you want."""
     },
 
+    "bass_amp_tones": {
+        "title": "Bass Amps & Their Character",
+        "category": "Instruments",
+        "content": """**Ampeg SVT** — THE bass amp. Tube-driven, massive, authoritative. The 8x10 cab moves air like nothing else. Warm, gritty when pushed, enormous low end with midrange presence that cuts through any band. Used on more hit records than every other bass amp combined. Geddy Lee, Flea, Chris Squire. Best for: rock, punk, metal, anything that needs bass you can feel in your chest.
+
+**Ampeg B-15 (Portaflex)** — The studio classic. Smaller, warmer, rounder than the SVT. James Jamerson recorded Motown through a B-15. Smoother breakup, more controlled low end. Best for: studio recording, Motown, R&B, jazz, anything that needs warmth without overwhelming the room.
+
+**Fender Bassman** — Originally a bass amp, became a legendary guitar amp too. Clean, bright, punchy. Less low-end weight than Ampeg but more clarity and note definition. Best for: country, classic rock, clean tones, sessions where bass needs to stay tight and defined.
+
+**Darkglass** — Modern, aggressive, defined. Their Microtubes preamps (B7K, Alpha Omega) add harmonic distortion that stays tight even with drop tunings. The sound of modern metal bass. Best for: djent, progressive metal, modern rock. Surgical distortion without mud.
+
+**Gallien-Krueger (GK)** — Clean, hi-fi, articulate. The 800RB powered 80s and 90s bass tone. Bright, punchy, cuts through without grit. Flea's Red Hot Chili Peppers slap tone. Best for: slap, funk, pop, anything that needs clarity and snap.
+
+**Orange** — Warm, woolly, thick. Same midrange chewiness as their guitar amps. The AD200B is all-tube warmth. Best for: stoner, doom, sludge, psychedelic — when you want bass that feels like a blanket of sound.
+
+**Hartke** — Aluminum cone speakers give a distinctive bright, punchy attack. Larry Graham. Best for: slap, gospel, R&B where bass needs to pop.
+
+**Recording bass amps:** Close mic (SM57 or RE20) 1-3 inches from the speaker for grit and character. Blend with the DI signal for clarity. The DI gives you the clean low end, the mic gives you the personality. In Sozawen, these are two tracks — mix to taste."""
+    },
+
+    "drum_brands": {
+        "title": "Drum Brands & Their Sound",
+        "category": "Instruments",
+        "content": """**DW (Drum Workshop)** — Premium American-made. Known for their VLT (Vertical Low Timbre) shell construction. Warm, controlled, focused. Studio drums — they record beautifully because DW tunes the shell resonance to specific notes. Best for: studio recording, any genre where drum tone matters.
+
+**Pearl** — Versatile, reliable, wide range from student to professional. The Reference series is world-class. The Export series is the best-selling kit in history for a reason — it sounds good out of the box at every price point. Best for: everything. A Pearl kit serves any genre.
+
+**Tama** — Punchy, bright, articulate. The Starclassic series (birch/walnut) has a focused attack that engineers love. The Iron Cobra pedals are legendary. Best for: rock, metal, fusion — anything that needs drums with presence and cut.
+
+**Yamaha** — Balanced, honest, consistent. Like their monitors and pianos, Yamaha drums are designed to be accurate rather than colored. The Recording Custom series is a studio standard. Steve Gadd, Dave Weckl. Best for: studio, jazz, session work, education.
+
+**Ludwig** — The sound of classic rock. John Bonham's kit was Ludwig. The Vistalite (acrylic shells) is iconic. Warm, open, big. Best for: classic rock, blues, anything that needs drums to breathe and ring.
+
+**Gretsch** — Warm, round, vintage. The Broadkaster series has a natural warmth that records beautifully without heavy dampening. Best for: jazz, blues, Americana, anything that needs organic drum tone.
+
+**Mapex** — Modern, versatile, aggressive. The Saturn series (hybrid walnut/maple) balances warmth with attack. Strong fundamental without excessive overtones. Best for: modern rock, metal, pop — focused sound at every volume.
+
+**Cymbals — the other half:**
+- **Zildjian:** Bright, traditional. A Custom (bright, cutting), K series (dark, complex, jazz).
+- **Sabian:** Versatile range. AAX (bright, modern), HHX (dark, washy, expressive).
+- **Meinl:** Dark, dry, complex. Byzance series is the standard for jazz and modern worship. Extra Dry for hip-hop and R&B ghost notes.
+- **Paiste:** Bright, clean, defined. The 2002 series is the brightest major cymbal. Formula 602 is warm and vintage.
+
+**The cymbal matters as much as the drum.** A cheap kit with great cymbals sounds better than an expensive kit with cheap cymbals. Upgrade cymbals first."""
+    },
+
     "studio_budget_guide": {
         "title": "Building a Studio on Any Budget",
         "category": "Hardware",
