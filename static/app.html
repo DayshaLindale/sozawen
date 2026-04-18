@@ -828,6 +828,7 @@
                     <button class="track-ctrl" onclick="armRecord(${t.id})" title="Record arm">R</button>
                     <button class="track-ctrl ${t.phaseInvert?'active-m':''}" onclick="togglePhase(${t.id})" title="Phase invert">&oslash;</button>
                     <input type="color" value="${t.color || '#9b59b6'}" onchange="setTrackColor(${t.id}, this.value)" style="width:18px; height:18px; border:none; padding:0; cursor:pointer; background:transparent;" title="Track color">
+                    <button class="track-ctrl" onclick="if(confirm('Remove this track?'))removeTrack(${t.id})" title="Remove track" style="margin-left:auto;color:var(--red);border-color:var(--red);">&times;</button>
                     <input type="range" class="track-volume" min="0" max="100" value="${t.volume}" oninput="setVolume(${t.id}, this.value)" title="Volume">
                     <span style="font-size:8px;color:var(--text-muted);">L</span>
                     <input type="range" class="track-pan" min="-100" max="100" value="${t.pan || 0}" oninput="setPan(${t.id}, this.value)" title="Pan">
@@ -1595,6 +1596,7 @@
                 <div style="display:flex; gap:6px;">
                     <button class="btn btn-primary" style="flex:1;" onclick="renderPianoRoll()">Render to Track</button>
                     <button class="btn btn-secondary" onclick="clearPianoRoll()">Clear</button>
+                    <button class="btn btn-secondary" style="padding:8px 10px;" onclick="popOutPianoRoll()" title="Open piano roll in full screen">&#8599;</button>
                 </div>
                 <div style="display:flex; gap:4px; margin-top:6px;">
                     <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="pianoRollTranspose(1)">+1 semi</button>
@@ -2266,6 +2268,18 @@
         reloadAllWaveforms();
         document.getElementById('statusText').textContent = 'Pasted';
     }
+    function removeTrack(id) {
+        pushUndo('remove track');
+        const t = tracks.find(t => t.id === id);
+        tracks = tracks.filter(t => t.id !== id);
+        if (t && t.engineId !== null) {
+            fetch(`/api/track/${t.engineId}/delete`, {method:'POST'}).catch(()=>{});
+        }
+        renderTracks();
+        if (tracks.length === 0) document.getElementById('emptyState').style.display = 'flex';
+        document.getElementById('statusText').textContent = `Removed "${t?.name || 'track'}"`;
+    }
+
     function deleteSelection() {
         const track = getActiveTrack();
         if (!track) return;
@@ -3392,13 +3406,81 @@
             const cells = Array.from({length: steps}, (_, i) => {
                 const on = _drumState[sound][i];
                 const barLine = i % 4 === 0 ? 'border-left:2px solid var(--border-light);' : '';
-                return `<div onclick="toggleDrumCell(this);this.style.background=this.style.background==='var(--violet)'?'var(--bg-deep)':'var(--violet)'" data-sound="${sound}" data-step="${i}" style="width:24px;height:24px;background:${on?'var(--violet)':'var(--bg-deep)'};border:1px solid var(--border);border-radius:3px;cursor:pointer;flex-shrink:0;${barLine}"></div>`;
+                return `<div onclick="toggleOverlayCell(this)" data-sound="${sound}" data-step="${i}" data-on="${on?1:0}" style="width:24px;height:24px;background:${on?'#9b59b6':'#0a0a14'};border:1px solid #2a2a44;border-radius:3px;cursor:pointer;flex-shrink:0;${barLine}"></div>`;
             }).join('');
             return `<div style="display:flex;gap:3px;align-items:center;margin-bottom:3px;">
                 <span style="font-size:11px;color:var(--text-muted);width:50px;text-align:right;margin-right:8px;">${DRUM_LABELS[sound]}</span>
                 ${cells}
             </div>`;
         }).join('');
+    }
+
+    function toggleOverlayCell(el) {
+        const sound = el.dataset.sound;
+        const step = parseInt(el.dataset.step);
+        const on = el.dataset.on === '1';
+        _drumState[sound][step] = !on;
+        el.dataset.on = on ? '0' : '1';
+        el.style.background = on ? '#0a0a14' : '#9b59b6';
+    }
+
+    // ═══ PIANO ROLL POP-OUT ═══
+    function popOutPianoRoll() {
+        let overlay = document.getElementById('pianoOverlay');
+        if (overlay) { overlay.style.display = 'flex'; rebuildPianoOverlay(); return; }
+
+        overlay = document.createElement('div');
+        overlay.id = 'pianoOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.97);z-index:300;display:flex;flex-direction:column;padding:24px;overflow:auto;';
+
+        overlay.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:20px;font-weight:200;letter-spacing:6px;color:var(--violet-glow);">PIANO ROLL</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <select id="pianoOverlayOctave" onchange="rebuildPianoOverlay()" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                        <option value="2">Oct 2</option><option value="3">Oct 3</option><option value="4" selected>Oct 4</option><option value="5">Oct 5</option><option value="6">Oct 6</option>
+                    </select>
+                    <button onclick="pianoRollTranspose(1)" style="padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:4px;cursor:pointer;font-size:10px;">+1</button>
+                    <button onclick="pianoRollTranspose(-1)" style="padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:4px;cursor:pointer;font-size:10px;">-1</button>
+                    <button onclick="pianoRollTranspose(12)" style="padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:4px;cursor:pointer;font-size:10px;">+Oct</button>
+                    <button onclick="pianoRollTranspose(-12)" style="padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:4px;cursor:pointer;font-size:10px;">-Oct</button>
+                    <button onclick="clearPianoRoll();rebuildPianoOverlay()" style="padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:4px;cursor:pointer;font-size:10px;">Clear</button>
+                    <button onclick="document.getElementById('pianoOverlay').style.display='none'" style="background:none;border:none;color:#7878a0;font-size:24px;cursor:pointer;margin-left:8px;">&times;</button>
+                </div>
+            </div>
+            <div id="pianoOverlayGrid" style="flex:1;overflow:auto;border:1px solid #2a2a44;border-radius:4px;"></div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button onclick="renderPianoRoll();document.getElementById('pianoOverlay').style.display='none'" style="padding:10px 24px;background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;">Render to Track</button>
+                <button onclick="document.getElementById('pianoOverlay').style.display='none'" style="padding:10px 24px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:20px;cursor:pointer;font-size:13px;">Close</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        rebuildPianoOverlay();
+    }
+
+    function rebuildPianoOverlay() {
+        const grid = document.getElementById('pianoOverlayGrid');
+        if (!grid) return;
+        const octave = parseInt(document.getElementById('pianoOverlayOctave')?.value || 4);
+        const gridSize = 0.25;
+        const steps = 64; // 4 bars of 16th notes
+        let html = '';
+        for (let n = 11; n >= 0; n--) {
+            const pitch = octave * 12 + 12 + n;
+            const noteName = NOTE_LABELS[n];
+            const isBlack = [1,3,6,8,10].includes(n);
+            html += `<div style="display:flex;height:22px;border-bottom:1px solid ${isBlack?'rgba(255,255,255,.02)':'rgba(255,255,255,.05)'};">`;
+            html += `<div style="width:40px;font-size:10px;color:${isBlack?'#4a4a70':'#7878a0'};text-align:right;padding-right:6px;line-height:22px;background:${isBlack?'#0a0a14':'#12121f'};flex-shrink:0;">${noteName}${octave}</div>`;
+            for (let s = 0; s < steps; s++) {
+                const beat = s * gridSize;
+                const key = `${pitch}_${beat.toFixed(3)}`;
+                const on = _pianoRollNotes[key];
+                const barLine = s % 16 === 0 ? 'border-left:2px solid #353555;' : s % 4 === 0 ? 'border-left:1px solid rgba(255,255,255,.05);' : '';
+                html += `<div data-key="${key}" onclick="_pianoRollNotes[this.dataset.key]=!_pianoRollNotes[this.dataset.key];this.style.background=_pianoRollNotes[this.dataset.key]?'#9b59b6':'transparent'" style="width:18px;height:22px;background:${on?'#9b59b6':'transparent'};${barLine}cursor:pointer;flex-shrink:0;"></div>`;
+            }
+            html += '</div>';
+        }
+        grid.innerHTML = html;
     }
 
     function _buildDrumGridFromState(steps) {
