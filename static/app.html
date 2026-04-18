@@ -895,6 +895,10 @@
                     <button class="track-ctrl" onclick="armRecord(${t.id})" title="Record arm">R</button>
                     <button class="track-ctrl ${t.phaseInvert?'active-m':''}" onclick="togglePhase(${t.id})" title="Phase invert">&oslash;</button>
                     <input type="color" value="${t.color || '#9b59b6'}" onchange="setTrackColor(${t.id}, this.value)" style="width:18px; height:18px; border:none; padding:0; cursor:pointer; background:transparent;" title="Track color">
+                    <select onchange="remapChannel(${t.id}, parseInt(this.value))" style="width:38px;font-size:8px;padding:1px 2px;background:var(--bg-card);border:1px solid var(--border);color:${t.inputChannel>=0?'var(--teal)':'var(--text-muted)'};border-radius:3px;cursor:pointer;" title="Input channel — remap anytime">
+                        <option value="-1" ${t.inputChannel===undefined||t.inputChannel<0?'selected':''}>—</option>
+                        ${[0,1,2,3,4,5,6,7].map(ch => `<option value="${ch}" ${t.inputChannel===ch?'selected':''}>Ch${ch+1}</option>`).join('')}
+                    </select>
                     <button class="track-ctrl" onclick="showDialog('Remove this track?','confirm',function(yes){if(yes)removeTrack(${t.id})})" title="Remove track" style="margin-left:auto;color:var(--red);border-color:var(--red);">&times;</button>
                     <input type="range" class="track-volume" min="0" max="100" value="${t.volume}" oninput="setVolume(${t.id}, this.value)" title="Volume">
                     <span style="font-size:8px;color:var(--text-muted);">L</span>
@@ -2886,6 +2890,25 @@
 
         const chLabel = chSel?.selectedOptions[0]?.textContent || 'Mono';
         document.getElementById('statusText').textContent = `Armed — ${chLabel} — hit Record`;
+    }
+
+    function remapChannel(trackId, channel) {
+        const t = tracks.find(t => t.id === trackId);
+        if (!t) return;
+        t.inputChannel = channel;
+        if (channel >= 0) {
+            t.recordArmed = true;
+            if (t.engineId !== null) {
+                fetch(`/api/track/${t.engineId}/input-channel`, {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({channel})
+                });
+            }
+            showStatus(`${t.name} → Input ${channel+1}`);
+        } else {
+            t.recordArmed = false;
+        }
+        renderTracks();
     }
 
     // ═══ LIVE INPUT METERING ═══
