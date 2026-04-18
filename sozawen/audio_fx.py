@@ -583,6 +583,46 @@ def apply_declip(path, sensitivity=50):
 # ═══════════════════════════════════════════════════════════════════
 
 
+def apply_click_removal(path, bpm=120, time_sig=4):
+    """Remove metronome click bleed from recordings.
+
+    Uses known click frequencies (1500Hz/1000Hz) and beat timing to
+    surgically notch out clicks without affecting the rest of the audio.
+    """
+    from scipy.signal import iirnotch, filtfilt
+    data, sr = _load(path)
+    result = data.copy()
+
+    beat_sec = 60.0 / max(30, float(bpm))
+    click_samples = int(0.02 * sr)  # 20ms click window
+
+    total_beats = int(len(data) / sr / beat_sec) + 1
+
+    for ch in range(result.shape[1]):
+        for beat in range(total_beats):
+            beat_sample = int(beat * beat_sec * sr)
+            end_sample = min(beat_sample + click_samples, len(result))
+            if beat_sample >= len(result):
+                break
+
+            is_downbeat = (beat % int(time_sig)) == 0
+            click_freq = 1500 if is_downbeat else 1000
+
+            segment = result[beat_sample:end_sample, ch].copy()
+            if len(segment) < 4:
+                continue
+
+            for freq in [click_freq, click_freq * 2]:
+                if freq >= sr / 2:
+                    continue
+                b, a = iirnotch(freq, 15, sr)
+                segment = filtfilt(b, a, segment).astype(np.float32)
+
+            result[beat_sample:end_sample, ch] = segment
+
+    return _save(result, sr, path, "click_removed")
+
+
 def apply_noise_reduction(path, strength=0.5):
     """Spectral noise reduction — reduces steady-state noise (hiss, hum, room tone).
 

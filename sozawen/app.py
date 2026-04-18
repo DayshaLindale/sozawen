@@ -231,7 +231,7 @@ from sozawen.audio_fx import (apply_noise_gate, apply_eq, apply_compressor,
     apply_deesser, apply_normalize, apply_crossfade, apply_time_stretch,
     apply_pitch_shift, apply_stereo_width, apply_declip, apply_reverse,
     apply_bleed_removal, apply_sidechain_compression,
-    apply_noise_reduction, measure_loudness, export_mix)
+    apply_noise_reduction, apply_click_removal, measure_loudness, export_mix)
 from sozawen.music_theory import (get_scale, get_chord, get_diatonic_chords,
     get_progression, get_compatible_keys, SCALES, CHORDS, PROGRESSIONS)
 from sozawen.midi_engine import MidiPattern, detect_chords, audio_to_midi
@@ -438,6 +438,7 @@ async def apply_effect(request: Request):
         "de_clip": lambda: apply_declip(source_path, **params),
         "reverse": lambda: apply_reverse(source_path),
         "noise_reduction": lambda: apply_noise_reduction(source_path, **params),
+        "click_removal": lambda: apply_click_removal(source_path, bpm=_engine.bpm, time_sig=_engine.time_sig_num),
     }
 
     if effect not in fx_map:
