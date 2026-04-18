@@ -2505,6 +2505,18 @@
         }, 10);
     }
 
+    // Right-click empty space deselects
+    document.addEventListener('contextmenu', function(e) {
+        // If the click wasn't on a track header or inside a menu, deselect
+        if (!e.target.closest('.track-header') && !e.target.closest('#trackMenu')) {
+            _activeTrackId = null;
+            document.querySelectorAll('.track-header').forEach(el => { el.style.outline = 'none'; });
+            document.querySelectorAll('.track-row').forEach(el => { el.style.outline = 'none'; });
+            document.getElementById('trackMenu')?.remove();
+            showStatus('Deselected');
+        }
+    });
+
     function moveTrack(trackId, direction) {
         const idx = tracks.findIndex(t => t.id === trackId);
         if (idx < 0) return;
