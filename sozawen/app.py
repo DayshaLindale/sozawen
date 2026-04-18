@@ -523,22 +523,27 @@ async def list_input_devices():
                 "sample_rate": int(d['default_samplerate']),
             })
 
-    # Deduplicate by clean name — keep the one with highest sample rate
+    # Deduplicate by clean name — keep the one with highest channel count + sample rate
     seen = {}
     for dev in raw:
-        # Clean the name: remove truncation artifacts, normalize
         clean = dev['name']
-        # Skip system mapper entries
-        if 'Sound Mapper' in clean or 'Primary Sound' in clean:
+        # Skip system entries
+        if 'Sound Mapper' in clean or 'Primary Sound' in clean or 'Input (' in clean:
             continue
-        # Extract the core device name (inside parentheses usually)
+        # Extract the core device name (inside parentheses)
         match = re.search(r'\((.+?)(?:\)|$)', clean)
-        core = match.group(1) if match else clean
-        # Prefer: highest channel count, then highest sample rate
-        key = core.lower()
+        core = match.group(1).strip() if match else clean.strip()
+        # Normalize: take first 2-3 significant words for dedup key
+        words = re.sub(r'[^a-zA-Z0-9 ]', '', core.lower()).split()
+        # Use first 2 words as dedup key — catches truncated names like "CORSAIR HS5" / "CORSAIR HS55"
+        key = ' '.join(words[:2])
+        if not key:
+            continue
+        # Prefer: highest channel count, then highest sample rate at 44100+
+        sr = dev['sample_rate'] if dev['sample_rate'] >= 44100 else 0
         if key not in seen or dev['channels'] > seen[key]['channels'] or \
-           (dev['channels'] == seen[key]['channels'] and dev['sample_rate'] > seen[key]['sample_rate']):
-            seen[key] = {**dev, 'core_name': core}
+           (dev['channels'] == seen[key]['channels'] and sr > (seen[key].get('_sr_score', 0))):
+            seen[key] = {**dev, 'core_name': core, '_sr_score': sr}
 
     # Build clean list grouped by type
     devices = []
