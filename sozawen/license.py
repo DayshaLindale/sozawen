@@ -117,9 +117,18 @@ def activate_key(key):
             return True, "License activated!"
         else:
             error = data.get("error", "Activation failed")
-            # Already activated on this machine — try validate instead
-            if "already" in error.lower() or "limit" in error.lower():
-                return validate_key_online(key)
+            # Already activated / limit reached — the key is valid, just used
+            # If the key status is "active", accept it on this machine
+            key_status = data.get("license_key", {}).get("status", "")
+            if key_status == "active" and ("already" in error.lower() or "limit" in error.lower()):
+                _save_cache({
+                    "key": key,
+                    "machine_id": _get_machine_id(),
+                    "valid": True,
+                    "instance_id": None,
+                    "meta": data.get("meta", {}),
+                })
+                return True, "License activated!"
             return False, error
     except Exception as e:
         return False, str(e)
