@@ -509,17 +509,58 @@ async def export_audio(request: Request):
 
 @api.get("/api/input-devices")
 async def list_input_devices():
-    """List available audio input devices for recording."""
+    """List available audio input devices — deduplicated and grouped."""
     import sounddevice as sd
-    devices = []
+    import re
+
+    raw = []
     for i, d in enumerate(sd.query_devices()):
         if d['max_input_channels'] > 0:
-            devices.append({
+            raw.append({
                 "id": i,
-                "name": d['name'],
+                "name": d['name'].strip(),
                 "channels": d['max_input_channels'],
                 "sample_rate": int(d['default_samplerate']),
             })
+
+    # Deduplicate by clean name — keep the one with highest sample rate
+    seen = {}
+    for dev in raw:
+        # Clean the name: remove truncation artifacts, normalize
+        clean = dev['name']
+        # Skip system mapper entries
+        if 'Sound Mapper' in clean or 'Primary Sound' in clean:
+            continue
+        # Extract the core device name (inside parentheses usually)
+        match = re.search(r'\((.+?)(?:\)|$)', clean)
+        core = match.group(1) if match else clean
+        # Prefer: highest channel count, then highest sample rate
+        key = core.lower()
+        if key not in seen or dev['channels'] > seen[key]['channels'] or \
+           (dev['channels'] == seen[key]['channels'] and dev['sample_rate'] > seen[key]['sample_rate']):
+            seen[key] = {**dev, 'core_name': core}
+
+    # Build clean list grouped by type
+    devices = []
+    for dev in seen.values():
+        label = dev['core_name']
+        if dev['channels'] == 1:
+            label += ' (Mono)'
+        elif dev['channels'] == 2:
+            label += ' (Stereo)'
+        else:
+            label += f' ({dev["channels"]}ch)'
+
+        devices.append({
+            "id": dev['id'],
+            "name": label,
+            "channels": dev['channels'],
+            "sample_rate": dev['sample_rate'],
+        })
+
+    # Sort: multi-channel interfaces first, then by name
+    devices.sort(key=lambda d: (-d['channels'], d['name']))
+
     return JSONResponse({"devices": devices})
 
 @api.post("/api/fx/bleed-removal")
