@@ -486,6 +486,39 @@
     let _autoScroll = true;
     let _undoStack = [];
 
+    // ═══ CLEAN DIALOGS — replace all browser alert/confirm/prompt ═══
+    function showDialog(message, type, callback) {
+        let dialog = document.getElementById('sozDialog');
+        if (!dialog) {
+            dialog = document.createElement('div');
+            dialog.id = 'sozDialog';
+            dialog.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.8);z-index:500;display:flex;align-items:center;justify-content:center;';
+            document.body.appendChild(dialog);
+        }
+        dialog.style.display = 'flex';
+
+        let body = `<div style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.6;white-space:pre-line;">${message}</div>`;
+
+        if (type === 'alert') {
+            body += `<button onclick="document.getElementById('sozDialog').style.display='none'" style="width:100%;padding:10px;background:linear-gradient(135deg,var(--violet),var(--teal));color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:12px;">OK</button>`;
+        } else if (type === 'confirm') {
+            body += `<div style="display:flex;gap:8px;">
+                <button onclick="document.getElementById('sozDialog').style.display='none';(${callback?.toString() || 'function(){}'})(true)" style="flex:1;padding:10px;background:linear-gradient(135deg,var(--violet),var(--teal));color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:12px;">Yes</button>
+                <button onclick="document.getElementById('sozDialog').style.display='none';(${callback?.toString() || 'function(){}'})(false)" style="flex:1;padding:10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer;font-size:12px;">Cancel</button>
+            </div>`;
+        }
+
+        dialog.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6);">${body}</div>`;
+    }
+
+    function showStatus(msg) {
+        document.getElementById('statusText').textContent = msg;
+    }
+
+    function showError(msg) {
+        showStatus(msg);
+    }
+
     // ═══ SNAP TO GRID ═══
     let _snapEnabled = true;
     let _snapValue = 0.25; // snap to quarter beats by default
@@ -861,7 +894,7 @@
                     <button class="track-ctrl" onclick="armRecord(${t.id})" title="Record arm">R</button>
                     <button class="track-ctrl ${t.phaseInvert?'active-m':''}" onclick="togglePhase(${t.id})" title="Phase invert">&oslash;</button>
                     <input type="color" value="${t.color || '#9b59b6'}" onchange="setTrackColor(${t.id}, this.value)" style="width:18px; height:18px; border:none; padding:0; cursor:pointer; background:transparent;" title="Track color">
-                    <button class="track-ctrl" onclick="if(confirm('Remove this track?'))removeTrack(${t.id})" title="Remove track" style="margin-left:auto;color:var(--red);border-color:var(--red);">&times;</button>
+                    <button class="track-ctrl" onclick="showDialog('Remove this track?','confirm',function(yes){if(yes)removeTrack(${t.id})})" title="Remove track" style="margin-left:auto;color:var(--red);border-color:var(--red);">&times;</button>
                     <input type="range" class="track-volume" min="0" max="100" value="${t.volume}" oninput="setVolume(${t.id}, this.value)" title="Volume">
                     <span style="font-size:8px;color:var(--text-muted);">L</span>
                     <input type="range" class="track-pan" min="-100" max="100" value="${t.pan || 0}" oninput="setPan(${t.id}, this.value)" title="Pan">
@@ -869,6 +902,7 @@
                 </div>
                 <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">
                     ${t.file ? t.file.split(/[/\\]/).pop() : t.hasAudio ? 'Audio loaded' : 'Empty'}
+                    ${t.recordArmed || t.inputChannel ? `<span style="color:var(--teal);"> · Ch ${(t.inputChannel||0)+1}</span>` : ''}
                 </div>
                 ${t.effects && t.effects.length ? `<div style="display:flex; flex-wrap:wrap; gap:2px; margin-top:2px;">${t.effects.map(fx => `<span style="font-size:8px; padding:1px 4px; background:var(--violet-soft); border:1px solid var(--violet); border-radius:3px; color:var(--violet-glow);">${fx}</span>`).join('')}</div>` : ''}
             </div>
@@ -1978,7 +2012,7 @@
 
     function applyEffect(effect, params) {
         const track = getActiveTrack();
-        if (!track || track.engineId === null) { alert('Load a track first'); return; }
+        if (!track || track.engineId === null) { showStatus('Load a track first'); return; }
         document.getElementById('statusText').textContent = `Applying ${effect}...`;
         fetch('/api/fx/apply', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -1994,7 +2028,7 @@
 
     function measureLoudness() {
         const track = getActiveTrack();
-        if (!track || track.engineId === null) { alert('Load a track first'); return; }
+        if (!track || track.engineId === null) { showStatus('Load a track first'); return; }
         fetch('/api/fx/measure', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({track_id: track.engineId})
@@ -2030,7 +2064,7 @@
     function runSmartSplit() {
         const mode = document.getElementById('splitMode')?.value || 'full';
         const track = getActiveTrack();
-        if (!track || !track.file) { alert('Load a track first'); return; }
+        if (!track || !track.file) { showStatus('Load a track first'); return; }
 
         // Show progress
         const prog = document.getElementById('splitProgress');
@@ -2113,7 +2147,7 @@
     function runSeparation(stems) {
         stems = stems || 4;
         const track = getActiveTrack();
-        if(!track || !track.file) { alert('Load a track first'); return; }
+        if(!track || !track.file) { showStatus('Load a track first'); return; }
         document.getElementById('statusText').textContent = 'Separating stems...';
         fetch('/api/separate', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -2142,7 +2176,7 @@
 
     function runLyrics() {
         const track = tracks[0];
-        if(!track || !track.file) { alert('Load a track first'); return; }
+        if(!track || !track.file) { showStatus('Load a track first'); return; }
         document.getElementById('statusText').textContent = 'Transcribing lyrics...';
         fetch('/api/transcribe-lyrics', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -2499,12 +2533,12 @@
         window._renderMixer = renderMixer;
     }
     function toggleHelpMode() { document.body.classList.toggle('help-mode'); }
-    function showAbout() { alert('Sozawen v0.1.0\nBorn from the burn. Built by feeling.\n\nA bandmate who listens.\n\n\u00a9 2026 Daysha Lindale\n\nTerms: sozawen.com/terms.html\nPrivacy: sozawen.com/privacy.html\nEULA: sozawen.com/eula.html'); }
+    function showAbout() { showDialog('Sozawen v0.1.0\nBorn from the burn. Built by feeling.\n\nA bandmate who listens.\n\n\u00a9 2026 Daysha Lindale\n\nsozawen.com', 'alert'); }
 
     // ═══ EFFECTS — wire Apply/Preview buttons to backend ═══
     function getActiveTrackEngineId() {
         const t = getActiveTrack();
-        if (!t || t.engineId === null) { alert('Select a track first'); return null; }
+        if (!t || t.engineId === null) { showStatus('Select a track first'); return null; }
         return t.engineId;
     }
 
@@ -2674,8 +2708,8 @@
         const target = document.getElementById('bleedTarget')?.value;
         const ref = document.getElementById('bleedReference')?.value;
         const strength = document.getElementById('toolPanel')?.querySelector('input[type="range"]')?.value || 10;
-        if (!target || !ref) { alert('Select both tracks'); return; }
-        if (target === ref) { alert('Target and reference must be different tracks'); return; }
+        if (!target || !ref) { showStatus('Select both tracks'); return; }
+        if (target === ref) { showStatus('Target and reference must be different tracks'); return; }
         pushUndo('bleed removal');
         document.getElementById('statusText').textContent = 'Removing bleed...';
         fetch('/api/fx/bleed-removal', {
@@ -2782,13 +2816,18 @@
         const channel = chSel ? parseInt(chSel.value) : 0;
         window._recordDeviceId = deviceId;
 
-        // Set the input channel on the active track
+        // Set the input channel on the active track and show it
         const t = getActiveTrack();
-        if (t && t.engineId !== null) {
-            fetch(`/api/track/${t.engineId}/input-channel`, {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ channel })
-            });
+        if (t) {
+            t.inputChannel = channel;
+            t.recordArmed = true;
+            if (t.engineId !== null) {
+                fetch(`/api/track/${t.engineId}/input-channel`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ channel })
+                });
+            }
+            renderTracks();
         }
 
         const chLabel = chSel?.selectedOptions[0]?.textContent || 'Mono';
@@ -2997,7 +3036,7 @@
             const [pitch, beat] = key.split('_');
             notes.push({ note: parseInt(pitch), start_beat: parseFloat(beat), duration_beats: grid, velocity: 100 });
         }
-        if (notes.length === 0) { alert('Draw some notes first!'); return; }
+        if (notes.length === 0) { showStatus('Draw some notes first'); return; }
 
         const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || 120);
         const params = {
@@ -3052,7 +3091,7 @@
     // ═══ CHORD DETECTION ═══
     function detectChords() {
         const t = getActiveTrack();
-        if (!t || t.engineId === null) { alert('Select a track first'); return; }
+        if (!t || t.engineId === null) { showStatus('Select a track first'); return; }
         document.getElementById('statusText').textContent = 'Detecting chords...';
         fetch('/api/chords/detect', {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -3077,7 +3116,7 @@
     // ═══ AUDIO TO MIDI ═══
     function convertAudioToMidi() {
         const t = getActiveTrack();
-        if (!t || t.engineId === null) { alert('Select a track first'); return; }
+        if (!t || t.engineId === null) { showStatus('Select a track first'); return; }
         document.getElementById('statusText').textContent = 'Converting audio to MIDI...';
         fetch('/api/audio-to-midi', {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -3374,7 +3413,7 @@
             });
         }
 
-        if (pattern.length === 0) { alert('Click some cells first!'); return; }
+        if (pattern.length === 0) { showStatus('Click some cells first'); return; }
 
         document.getElementById('statusText').textContent = 'Rendering drums...';
         fetch('/api/instrument/drums', {
@@ -3650,7 +3689,7 @@
     }
 
     function renderPadSequence() {
-        if (_padSequence.length === 0) { alert('Record some notes by tapping pads first!'); return; }
+        if (_padSequence.length === 0) { showStatus('Tap some pads first'); return; }
         const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120;
         const params = {
             waveform: document.getElementById('synthWaveform')?.value || 'saw',
