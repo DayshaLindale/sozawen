@@ -3632,7 +3632,9 @@
                     <button onclick="document.getElementById('pianoOverlay').style.display='none'" style="background:none;border:none;color:#7878a0;font-size:24px;cursor:pointer;margin-left:8px;">&times;</button>
                 </div>
             </div>
-            <div id="pianoOverlayGrid" style="flex:1;overflow:auto;border:1px solid #2a2a44;border-radius:4px;"></div>
+            <div id="pianoOverlayGrid" style="flex:1;overflow:auto;border:1px solid #2a2a44;border-radius:4px;position:relative;">
+                <div id="pianoOverlayInner" style="display:inline-block;min-width:max-content;"></div>
+            </div>
             <div style="display:flex;gap:8px;margin-top:12px;">
                 <button onclick="renderPianoRoll();document.getElementById('pianoOverlay').style.display='none'" style="padding:10px 24px;background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;">Render to Track</button>
                 <button onclick="document.getElementById('pianoOverlay').style.display='none'" style="padding:10px 24px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:20px;cursor:pointer;font-size:13px;">Close</button>
@@ -3643,7 +3645,7 @@
     }
 
     function rebuildPianoOverlay() {
-        const grid = document.getElementById('pianoOverlayGrid');
+        const grid = document.getElementById('pianoOverlayInner') || document.getElementById('pianoOverlayGrid');
         if (!grid) return;
         const octave = parseInt(document.getElementById('pianoOverlayOctave')?.value || 4);
         const gridSize = 0.25;
