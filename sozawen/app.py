@@ -234,6 +234,7 @@ from sozawen.audio_fx import (apply_noise_gate, apply_eq, apply_compressor,
     measure_loudness, export_mix)
 from sozawen.music_theory import (get_scale, get_chord, get_diatonic_chords,
     get_progression, get_compatible_keys, SCALES, CHORDS, PROGRESSIONS)
+from sozawen.knowledge_base import search_knowledge, get_article, get_categories
 @api.post("/api/project/save")
 async def save_project(request: Request):
     """Save the current project state."""
@@ -612,6 +613,31 @@ async def render_drums(request: Request):
         return JSONResponse({"ok": True, "track_id": track.id})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# ═══════════════════════════════════════════════════════════════════
+# KNOWLEDGE BASE — learn everything
+# ═══════════════════════════════════════════════════════════════════
+
+@api.get("/api/learn")
+async def learn_categories():
+    """Get all knowledge base categories and articles."""
+    return JSONResponse(get_categories())
+
+@api.get("/api/learn/{article_id}")
+async def learn_article(article_id: str):
+    """Get a specific knowledge base article."""
+    article = get_article(article_id)
+    if article:
+        return JSONResponse(article)
+    return JSONResponse({"error": "Article not found"}, status_code=404)
+
+@api.post("/api/learn/search")
+async def learn_search(request: Request):
+    """Search the knowledge base."""
+    data = await request.json()
+    query = data.get("query", "")
+    results = search_knowledge(query)
+    return JSONResponse({"results": results})
 
 @api.get("/api/theory/scales")
 async def list_scales():

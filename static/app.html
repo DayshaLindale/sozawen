@@ -271,6 +271,7 @@
                 <button class="menu-option" onclick="showPanel('help')">Getting Started</button>
                 <button class="menu-option" onclick="toggleHelpMode()">What Does This Do? Mode</button>
                 <div class="menu-sep"></div>
+                <button class="menu-option" onclick="showPanel('learn')">Learn (Theory, Recording, Mixing, Mastering)</button>
                 <button class="menu-option" onclick="showPanel('glossary')">Glossary</button>
                 <button class="menu-option" onclick="showPanel('shortcuts')">Keyboard Shortcuts</button>
                 <div class="menu-sep"></div>
@@ -1587,6 +1588,13 @@
                 </div>
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Click cells to toggle hits. Each row is a different drum sound. Rendered at the current BPM.</p>`,
 
+            learn: `<h3>Learn</h3>
+                <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">From first note to final master. Search any topic or browse by category.</div>
+                <input type="text" id="learnSearch" placeholder="Search... (e.g. EQ, compression, scales, LUFS)"
+                    style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px; margin-bottom:12px;"
+                    oninput="searchLearn(this.value)">
+                <div id="learnResults" style="max-height:400px; overflow-y:auto; font-size:12px;"></div>`,
+
             community: `<h3>Community</h3>
                 <div style="font-size:12px; color:var(--text-dim); line-height:1.8; margin-bottom:16px;">
                     You're not alone in this. Sozawen is built by musicians for musicians — and we want to hear from you.
@@ -2765,6 +2773,71 @@
         showPanel('export');
         document.getElementById('statusText').textContent = 'Use Export All Stems in the Export panel';
     }
+
+    // ═══ LEARN — knowledge base ═══
+    function searchLearn(query) {
+        const results = document.getElementById('learnResults');
+        if (!results) return;
+
+        if (!query || query.length < 2) {
+            // Show categories
+            fetch('/api/learn').then(r=>r.json()).then(cats => {
+                results.innerHTML = Object.entries(cats).map(([cat, articles]) =>
+                    `<div style="margin-bottom:16px;">
+                        <div style="font-size:11px; color:var(--teal); font-weight:500; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">${cat}</div>
+                        ${articles.map(a => `<div style="padding:6px 8px; cursor:pointer; border-radius:4px; color:var(--text-dim); transition:background 0.15s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''" onclick="loadArticle('${a.id}')">${a.title}</div>`).join('')}
+                    </div>`
+                ).join('');
+            });
+            return;
+        }
+
+        fetch('/api/learn/search', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ query })
+        }).then(r=>r.json()).then(d => {
+            if (d.results.length === 0) {
+                results.innerHTML = '<div style="color:var(--text-muted); padding:12px;">No results. Try different words.</div>';
+                return;
+            }
+            results.innerHTML = d.results.map(a =>
+                `<div style="padding:8px; cursor:pointer; border-radius:4px; border-bottom:1px solid var(--border); transition:background 0.15s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''" onclick="loadArticle('${a.id}')">
+                    <div style="color:var(--text); font-weight:400;">${a.title}</div>
+                    <div style="font-size:10px; color:var(--text-muted);">${a.category}</div>
+                </div>`
+            ).join('');
+        });
+    }
+
+    function loadArticle(id) {
+        fetch(`/api/learn/${id}`).then(r=>r.json()).then(a => {
+            const results = document.getElementById('learnResults');
+            if (!results) return;
+            // Convert markdown-like formatting
+            let content = a.content
+                .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text);">$1</strong>')
+                .replace(/\n\n/g, '</p><p style="margin-bottom:8px;">')
+                .replace(/\n\|/g, '\n|')  // keep tables
+                .replace(/\n- /g, '<br>• ')
+                .replace(/\n(\d+)\. /g, '<br>$1. ');
+
+            results.innerHTML = `
+                <div style="margin-bottom:8px;">
+                    <button onclick="searchLearn('')" style="background:none; border:none; color:var(--violet-glow); cursor:pointer; font-size:11px; padding:0;">← Back to topics</button>
+                </div>
+                <div style="font-size:10px; color:var(--teal); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">${a.category}</div>
+                <div style="font-size:15px; color:var(--text); font-weight:400; margin-bottom:12px;">${a.title}</div>
+                <div style="color:var(--text-dim); line-height:1.8;"><p style="margin-bottom:8px;">${content}</p></div>
+            `;
+        });
+    }
+
+    // Load categories when Learn panel opens
+    const _origShowPanel2 = showPanel;
+    showPanel = function(name, btn) {
+        _origShowPanel2(name, btn);
+        if (name === 'learn') setTimeout(() => searchLearn(''), 100);
+    };
 
     // ═══ METRONOME ═══
     function toggleMetronome(btn) {

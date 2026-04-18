@@ -1,0 +1,680 @@
+"""Sozawen Knowledge Base — everything a musician needs to know.
+
+From music theory fundamentals to mastering for streaming platforms.
+Written by musicians, not textbooks. Plain language, real examples.
+"""
+
+KNOWLEDGE_BASE = {
+    # ═══════════════════════════════════════════════════════════════
+    # MUSIC THEORY
+    # ═══════════════════════════════════════════════════════════════
+
+    "notes": {
+        "title": "Notes & Pitch",
+        "category": "Music Theory",
+        "content": """Music uses 12 notes: C, C#, D, D#, E, F, F#, G, G#, A, A#, B. Then it repeats an octave higher. The distance between any two adjacent notes is a **semitone** (or half step). Two semitones = one **whole step**.
+
+**Middle C** is C4 (MIDI note 60, 261.6 Hz). Concert pitch A is A4 (MIDI 69, 440 Hz). Every octave up doubles the frequency.
+
+**Sharps (#)** raise a note by one semitone. **Flats (b)** lower by one. C# and Db are the same pitch — different names depending on context (called enharmonic equivalents).
+
+On a piano: white keys are the natural notes (C D E F G A B), black keys are the sharps/flats. On a guitar: each fret is one semitone."""
+    },
+
+    "intervals": {
+        "title": "Intervals",
+        "category": "Music Theory",
+        "content": """An interval is the distance between two notes, measured in semitones:
+
+| Semitones | Name | Sound | Example |
+|-----------|------|-------|---------|
+| 0 | Unison | Same note | C to C |
+| 1 | Minor 2nd | Tense, dissonant | Jaws theme |
+| 2 | Major 2nd | Stepping up | Happy Birthday (first two notes) |
+| 3 | Minor 3rd | Sad, dark | Greensleeves |
+| 4 | Major 3rd | Happy, bright | Oh When the Saints |
+| 5 | Perfect 4th | Open, suspended | Here Comes the Bride |
+| 6 | Tritone | Unstable, evil | The Simpsons theme |
+| 7 | Perfect 5th | Strong, powerful | Star Wars theme |
+| 8 | Minor 6th | Bittersweet | Love Story theme |
+| 9 | Major 6th | Warm, sweet | My Bonnie |
+| 10 | Minor 7th | Bluesy | Star Trek theme |
+| 11 | Major 7th | Dreamy, jazzy | |
+| 12 | Octave | Same note, higher | Somewhere Over the Rainbow |
+
+Intervals are the building blocks of melody (horizontal) and chords (vertical)."""
+    },
+
+    "scales": {
+        "title": "Scales",
+        "category": "Music Theory",
+        "content": """A scale is a set of notes that sound good together. The two most important:
+
+**Major scale** — happy, bright, resolved. Intervals: W W H W W W H (W=whole step, H=half step). Example: C D E F G A B.
+
+**Natural minor scale** — sad, dark, emotional. Intervals: W H W W H W W. Example: A B C D E F G.
+
+**Pentatonic scales** — remove the "tension" notes from major/minor. Only 5 notes. Can't play a wrong note. Used in blues, rock, pop, folk, and most guitar solos.
+- Major pentatonic: 1 2 3 5 6 (C D E G A)
+- Minor pentatonic: 1 b3 4 5 b7 (A C D E G)
+
+**Blues scale** — minor pentatonic plus the "blue note" (b5): 1 b3 4 b5 5 b7.
+
+**Modes** — starting a major scale from a different note changes the mood:
+- Dorian (from 2nd) — minor but brighter. Jazz, Santana.
+- Phrygian (from 3rd) — dark, Spanish. Flamenco, metal.
+- Lydian (from 4th) — dreamy, floating. Film scores.
+- Mixolydian (from 5th) — major but bluesy. Rock, funk.
+
+**The key of a song** = which scale its melody and chords are built from."""
+    },
+
+    "chords": {
+        "title": "Chords & Harmony",
+        "category": "Music Theory",
+        "content": """A chord is three or more notes played together. Built by stacking intervals:
+
+**Major chord** — root + major 3rd + perfect 5th (happy). C = C E G.
+**Minor chord** — root + minor 3rd + perfect 5th (sad). Am = A C E.
+**Diminished** — root + minor 3rd + diminished 5th (tense). Bdim = B D F.
+**Augmented** — root + major 3rd + augmented 5th (unstable). Caug = C E G#.
+
+**7th chords** add a 4th note:
+- Major 7th (Cmaj7) — dreamy, jazz. C E G B.
+- Minor 7th (Am7) — smooth, soulful. A C E G.
+- Dominant 7th (G7) — bluesy, wants to resolve. G B D F.
+
+**Diatonic chords** — chords built from a scale using only its notes:
+- In C major: C Dm Em F G Am Bdim (I ii iii IV V vi vii°)
+- In A minor: Am Bdim C Dm Em F G (i ii° III iv v VI VII)
+
+**Roman numerals** describe chord function regardless of key:
+- I = home (tonic)
+- IV = departure (subdominant)
+- V = tension that wants to go home (dominant)
+- vi = emotional, reflective"""
+    },
+
+    "circle_of_fifths": {
+        "title": "Circle of Fifths",
+        "category": "Music Theory",
+        "content": """The Circle of Fifths shows the relationship between all 12 keys:
+
+Going clockwise adds one sharp: C → G → D → A → E → B → F#
+Going counter-clockwise adds one flat: C → F → Bb → Eb → Ab → Db
+
+**Why it matters:**
+- Keys next to each other share 6 out of 7 notes — they blend well
+- The key directly opposite is the most distant — maximum contrast
+- V chord (dominant) is one step clockwise
+- IV chord (subdominant) is one step counter-clockwise
+
+**Each major key has a relative minor** (shares the same notes):
+C/Am, G/Em, D/Bm, A/F#m, E/C#m, B/G#m, F#/D#m, F/Dm, Bb/Gm, Eb/Cm, Ab/Fm, Db/Bbm
+
+**Common modulations:** Move one step on the circle for a smooth key change. Move to the relative minor/major for an emotional shift."""
+    },
+
+    "song_structure": {
+        "title": "Song Structure",
+        "category": "Music Theory",
+        "content": """Most songs follow predictable structures. Knowing them helps you arrange:
+
+**Verse-Chorus** (most pop/rock):
+Intro → Verse → Chorus → Verse → Chorus → Bridge → Chorus → Outro
+
+**AABA** (jazz standards, older pop):
+A section → A section → B section (bridge) → A section
+
+**Verse-Verse** (folk, storytelling):
+Verse → Verse → Verse (each with different lyrics, same melody)
+
+**Common section lengths:**
+- Intro: 4-8 bars
+- Verse: 8-16 bars
+- Pre-chorus: 4-8 bars
+- Chorus: 8-16 bars
+- Bridge: 8 bars
+- Outro: 4-8 bars
+
+**Dynamics matter more than structure.** A song that's the same volume the whole way through is boring. Build up. Pull back. The chorus should feel bigger than the verse — not necessarily louder, but wider, fuller, more energy."""
+    },
+
+    "rhythm": {
+        "title": "Rhythm & Time",
+        "category": "Music Theory",
+        "content": """**Time signature** tells you how beats are grouped:
+- **4/4** — four beats per bar, quarter note gets one beat. Most music.
+- **3/4** — three beats per bar. Waltz, some ballads.
+- **6/8** — six eighth notes per bar, grouped in two. Compound feel. "Nothing Else Matters."
+- **5/4** — five beats. "Take Five." Progressive rock.
+- **7/8** — seven eighth notes. Tool, King Crimson.
+
+**BPM (beats per minute)** = tempo:
+- 60-80: Slow ballad, downtempo
+- 80-100: Hip-hop, R&B
+- 100-120: Pop, indie rock
+- 120-140: Dance, EDM, punk
+- 140-170: Drum and bass, fast metal
+- 170-200: Thrash, speed metal
+
+**Swing** — instead of straight eighth notes, the first is held longer. Makes it "groove." Jazz, blues, shuffle.
+
+**Syncopation** — accenting the off-beats. Makes rhythm feel alive and human."""
+    },
+
+    # ═══════════════════════════════════════════════════════════════
+    # RECORDING
+    # ═══════════════════════════════════════════════════════════════
+
+    "signal_chain": {
+        "title": "The Signal Chain",
+        "category": "Recording",
+        "content": """The path your sound takes from source to recording:
+
+**Instrument/Voice → Microphone → Cable → Preamp/Interface → DAW**
+
+Each link matters:
+1. **Source** — the performance. No amount of gear fixes a bad take.
+2. **Microphone** — converts sound waves to electrical signal. Type matters:
+   - **Dynamic** (SM57/SM58) — rugged, handles loud sources. Guitar amps, snare, vocals live.
+   - **Condenser** (AT2020, Rode NT1) — detailed, sensitive. Vocals, acoustic guitar, overheads.
+   - **Ribbon** — smooth, warm. Vintage sound. Fragile. Never use phantom power with ribbon mics.
+3. **Preamp** — amplifies the tiny mic signal. Built into your audio interface.
+4. **Interface** — converts analog to digital (A/D). Sample rate and bit depth set here.
+5. **DAW** — records, edits, mixes. That's where you are now.
+
+**Gain staging** — set each stage's level so nothing clips but the signal is strong:
+- Interface preamp: peaks hitting about -12 to -6 dBFS
+- Track fader: start at 0dB (unity)
+- Master: peaks below -1 dBTP"""
+    },
+
+    "mic_placement": {
+        "title": "Microphone Placement",
+        "category": "Recording",
+        "content": """Where you put the mic matters more than which mic you use:
+
+**Vocals:** 6-10 inches from the mouth. Pop filter between singer and mic. Slightly off-axis (not pointed directly at mouth) reduces plosives. Height at mouth level or slightly above.
+
+**Acoustic guitar:** Aim at the 12th fret from 6-12 inches away. NOT at the sound hole (too boomy). For more body, angle slightly toward the bridge.
+
+**Electric guitar amp:** SM57 pointed at the speaker cone. On-axis (center) = brighter. Off-axis (edge) = warmer. 1-3 inches from the grille cloth.
+
+**Multi-mic recording:** When using two mics on the same source, check phase (the phase invert button). If it sounds thin or hollow when both are on, flip the phase on one.
+
+**Room sound:** Further from the source = more room. Closer = more direct. In an untreated room, get close to minimize room reflections.
+
+**The 3:1 rule:** If using multiple mics, the distance between mics should be at least 3x the distance from each mic to its source. Prevents phase cancellation."""
+    },
+
+    "gain_staging": {
+        "title": "Gain Staging",
+        "category": "Recording",
+        "content": """Gain staging means setting the right level at every point in the signal chain:
+
+**During recording:**
+- Set the interface preamp so peaks hit around **-12 to -6 dBFS**
+- Leave headroom — you can always make it louder later, you can't un-clip
+- 24-bit recording has so much dynamic range that recording "too quiet" is not a real problem
+
+**During mixing:**
+- Start every fader at 0dB (unity gain)
+- Balance by bringing things DOWN, not up
+- If everything is loud, nothing is loud
+- Aim for the mix bus (master) peaking around **-6 to -3 dBFS** before mastering
+
+**The golden rule:** If you need to turn something up, first try turning everything else down. Headroom is free. Distortion is permanent."""
+    },
+
+    # ═══════════════════════════════════════════════════════════════
+    # MIXING
+    # ═══════════════════════════════════════════════════════════════
+
+    "eq_guide": {
+        "title": "EQ Strategy",
+        "category": "Mixing",
+        "content": """EQ shapes the tone of each track so everything has its own space:
+
+**The frequency spectrum — where instruments live:**
+- **20-80 Hz** — Sub bass. Kick drum thump, bass guitar low end. Too much = muddy.
+- **80-250 Hz** — Bass/warmth. Fullness of vocals, body of guitar. Too much = boomy.
+- **250-500 Hz** — Low mids. Boxiness lives here. Often CUT in this range.
+- **500Hz-2kHz** — Midrange. Body of most instruments. Nasal around 1kHz.
+- **2-4 kHz** — Presence. Vocal clarity, guitar bite. Harsh if boosted too much.
+- **4-8 kHz** — Clarity/sibilance. "S" and "T" sounds. De-esser territory.
+- **8-20 kHz** — Air. Sparkle, shimmer, cymbal sizzle. Hiss also lives here.
+
+**Rules of thumb:**
+1. **Cut before you boost.** If something is muddy, cut the mud — don't boost the brightness to compensate.
+2. **Boost wide, cut narrow.** Wide boosts sound natural. Narrow cuts are surgical.
+3. **Use the HPF (high-pass filter)** on everything except kick and bass. Cuts low-end rumble that you can't hear but eats headroom.
+4. **Solo is a lie.** A track that sounds great solo may not fit the mix. Always check in context.
+5. **If two tracks fight for the same frequency, one should give way.** Cut 250Hz on the guitar so the vocal has room there."""
+    },
+
+    "compression_guide": {
+        "title": "Compression Guide",
+        "category": "Mixing",
+        "content": """Compression reduces the dynamic range — makes quiet parts louder and loud parts quieter:
+
+**When to use compression:**
+- Vocals that vary too much in volume (whisper to shout)
+- Drums that need more consistent punch
+- Bass that disappears and reappears
+- Mix bus to "glue" everything together
+
+**Settings by source:**
+
+| Source | Threshold | Ratio | Attack | Release |
+|--------|-----------|-------|--------|---------|
+| Vocals | -20 to -15dB | 2:1 to 4:1 | 5-15ms | 50-100ms |
+| Drums (punch) | -15 to -10dB | 4:1 to 8:1 | 10-30ms (slow = more punch) | 50-100ms |
+| Bass | -20 to -15dB | 3:1 to 6:1 | 5-10ms | 50-80ms |
+| Mix bus | -3 to -6dB | 1.5:1 to 2:1 | 10-30ms | auto or 100-300ms |
+
+**The attack trick:** Slow attack lets the initial transient through — more punch, more snap. Fast attack catches the transient — smoother, more controlled. For drums, try slow attack. For vocals, try medium.
+
+**Parallel compression:** Mix the compressed signal with the uncompressed original. Gets the consistency of compression without killing the dynamics. Also called "New York compression." """
+    },
+
+    "reverb_guide": {
+        "title": "Reverb & Space",
+        "category": "Mixing",
+        "content": """Reverb creates the sense of a physical space:
+
+**Types:**
+- **Room** — small, tight, natural. Good for drums, guitars.
+- **Hall** — large, lush. Orchestral, cinematic, ballads.
+- **Plate** — smooth, even. Classic vocal reverb.
+- **Chamber** — warm, mid-sized. All-purpose.
+- **Spring** — bouncy, vintage. Surf rock, lo-fi.
+
+**Key parameters:**
+- **Pre-delay** — gap before reverb starts. Creates depth without muddying the source. 20-60ms for vocals.
+- **Decay** — how long the reverb lasts. Short (0.5-1s) for tight spaces. Long (2-4s) for halls.
+- **Damping** — how quickly high frequencies die in the reverb tail. High damping = warmer, like a carpeted room.
+- **Wet/dry** — how much reverb vs. original. Less is usually more. 10-25% for vocals.
+
+**The send trick:** Instead of putting reverb directly on each track, create a bus track with reverb, then SEND audio to it. Multiple tracks share the same reverb space — sounds like they're in the same room.
+
+**Dry in the center, wet on the sides.** Keep the dry vocal centered and pan the reverb returns wider. Creates width without losing clarity."""
+    },
+
+    "panning_guide": {
+        "title": "Panning & Stereo Image",
+        "category": "Mixing",
+        "content": """Panning places instruments left, right, or center in the stereo field:
+
+**The standard layout:**
+- **Center:** Kick, snare, bass, lead vocal. The anchor.
+- **Slight left/right (20-40%):** Rhythm guitars, keys, backing vocals.
+- **Wide left/right (60-100%):** Stereo guitars, percussion, pads, double-tracked parts.
+- **Overheads/room mics:** Hard left/right for width.
+
+**Rules:**
+1. **Low frequencies stay center.** Bass and kick below 200Hz should be mono. Low frequencies panned hard cause phase issues on mono systems.
+2. **If it's on the left, balance it on the right.** Something similar in energy on the opposite side. Otherwise the mix feels lopsided.
+3. **Automate panning for movement.** A background element that slowly pans creates interest.
+4. **Check in mono.** Hit the mono button. If something disappears, there's a phase issue. Fix it before it goes to a phone speaker."""
+    },
+
+    # ═══════════════════════════════════════════════════════════════
+    # MASTERING
+    # ═══════════════════════════════════════════════════════════════
+
+    "mastering_basics": {
+        "title": "What Is Mastering?",
+        "category": "Mastering",
+        "content": """Mastering is the final step before release. It ensures your mix sounds good on every system — phone speakers, car stereo, club PA, earbuds, studio monitors.
+
+**What mastering does:**
+1. **Overall EQ** — subtle tonal adjustments across the whole mix
+2. **Compression/limiting** — controls dynamics and maximizes loudness
+3. **Stereo enhancement** — widens or focuses the stereo image
+4. **Loudness matching** — meets platform standards (LUFS)
+5. **Format conversion** — correct sample rate, bit depth, dithering
+
+**What mastering does NOT do:**
+- Fix a bad mix. If the vocals are buried, go back and fix the mix.
+- Make everything louder. Louder ≠ better. Dynamics are what make music breathe.
+
+**The order:**
+1. EQ first (subtle — ±1-2dB max)
+2. Compression (gentle — 1-2dB gain reduction)
+3. Stereo width (if needed)
+4. Limiter last (sets the ceiling)
+5. Dithering (if converting bit depth)"""
+    },
+
+    "loudness_standards": {
+        "title": "Loudness Standards (LUFS)",
+        "category": "Mastering",
+        "content": """Streaming platforms normalize your track's loudness. If your master is too loud or too quiet, they adjust it. Target the right LUFS to sound your best:
+
+| Platform | Target LUFS | True Peak Ceiling |
+|----------|-------------|-------------------|
+| **Spotify** | -14 LUFS | -1 dBTP |
+| **Apple Music** | -16 LUFS | -1 dBTP |
+| **YouTube** | -14 LUFS | -1 dBTP |
+| **Tidal** | -14 LUFS | -1 dBTP |
+| **Amazon Music** | -14 LUFS | -2 dBTP |
+| **CD** | -9 to -12 LUFS | -0.3 dBTP |
+| **Podcast** | -16 to -18 LUFS | -1 dBTP |
+| **Broadcast (EBU)** | -23 LUFS | -1 dBTP |
+
+**Why -14 matters:** If your master is -8 LUFS (very loud), Spotify turns it DOWN 6dB — and your song sounds quieter relative to its compressed dynamics. A -14 LUFS master with good dynamics actually sounds LOUDER and better on Spotify than a brick-walled -8 LUFS master.
+
+**The lesson:** Master for dynamics, not loudness. The platforms handle the rest."""
+    },
+
+    "export_formats": {
+        "title": "Export Formats Guide",
+        "category": "Mastering",
+        "content": """Which format to use depends on where your music is going:
+
+**WAV (Waveform Audio)**
+- Uncompressed, full quality. Standard for mastering and delivery to platforms.
+- 16-bit/44.1kHz = CD quality. 24-bit/48kHz = studio standard.
+- Large files (~10MB per minute at 16/44.1).
+
+**FLAC (Free Lossless Audio)**
+- Compressed but no quality loss. 50-70% the size of WAV.
+- Great for archiving and platforms that accept it (Tidal, Bandcamp).
+
+**MP3**
+- Lossy compression. Small files. 320kbps is the highest quality.
+- Fine for demos, previews, sharing. Not for final delivery.
+
+**OGG Vorbis**
+- Open-source lossy. Slightly better than MP3 at the same bitrate.
+- Used by Spotify internally.
+
+**AIFF**
+- Apple's uncompressed format. Same quality as WAV, different container.
+- Use if delivering to Apple-centric workflows.
+
+**Dithering:** When converting from 24-bit to 16-bit (e.g., for CD), add dither. It's a very quiet noise that prevents audible distortion from bit-depth truncation. TPDF (triangular) is standard. Apply ONCE, at the very last step."""
+    },
+
+    "reference_mixing": {
+        "title": "Using Reference Tracks",
+        "category": "Mastering",
+        "content": """A reference track is a professionally mixed/mastered song you compare your mix against:
+
+**Why:** Your ears adapt. After hours of mixing, you lose perspective. A reference snaps you back to reality.
+
+**How:**
+1. Choose a song in a similar genre that sounds great on every system
+2. Load it into Sozawen (use Reference A/B or just add it as a track)
+3. Match the loudness (turn the reference down to match your mix level)
+4. A/B between your mix and the reference
+5. Listen for: bass balance, vocal level, high-end brightness, stereo width, dynamics
+
+**What to compare:**
+- Is your low end as tight?
+- Are your vocals as clear and present?
+- Is the stereo image as wide?
+- Does your mix breathe (dynamic range)?
+- Does your mix translate to different speakers?
+
+**Don't copy — calibrate.** The goal isn't to sound identical. It's to make sure your mix is in the same ballpark. Your song has its own identity. The reference just keeps you honest."""
+    },
+
+    # ═══════════════════════════════════════════════════════════════
+    # INSTRUMENTS & GEAR
+    # ═══════════════════════════════════════════════════════════════
+
+    "guitar_types": {
+        "title": "Guitar Types & When to Use Them",
+        "category": "Instruments",
+        "content": """**Classical / Nylon String**
+- Nylon strings, wider neck, softer tone. Fingerpicking, classical, flamenco, bossa nova.
+- Use when: you want warmth without volume. Intimate recordings. The nylon softness sits beautifully in a mix without competing with other instruments.
+- Recording: condenser mic, 12-16 inches, pointed at 12th fret.
+
+**Steel-String Acoustic (Dreadnought / Full Body)**
+- Bright, loud, powerful projection. Strumming, singer-songwriter, folk, country, rock.
+- The dreadnought shape projects more low end — fills a room.
+- Use when: you need the guitar to cut through or be the primary instrument. Strumming chords. Campfire energy.
+- Recording: condenser at 12th fret, 8-12 inches. Add a second mic at the bridge for body.
+
+**Parlor / Small Body Acoustic**
+- Quieter, more focused, midrange-forward. Fingerpicking, blues, intimate settings.
+- Use when: the guitar needs to sit in a mix without dominating. Pairs well with vocals because it doesn't compete in the low end.
+
+**Acoustic-Electric**
+- Same as acoustic but with a built-in pickup. Can go direct into your interface.
+- DI (direct input) sounds thinner than a mic'd acoustic. Use both: DI for clarity, mic for warmth. Blend to taste.
+
+**Electric Guitar**
+- Solid body, needs an amplifier. Clean, overdrive, distortion. Infinite tonal range.
+- Recording options: mic the amp (SM57, 1-3 inches from speaker), use an amp sim plugin, or DI with cabinet impulse responses.
+
+**Bass Guitar**
+- Standard: 4 strings (E A D G). Extended range: 5-string adds low B, 6-string adds high C.
+- **4-string** — standard for most genres. Covers 90% of music.
+- **5-string** — the low B (30.87 Hz) gives sub-bass that 4-string can't reach. Metal, modern worship, hip-hop, R&B.
+- **6-string** — adds high C for chordal and solo work. Jazz, progressive, fusion.
+- Recording: DI is standard for bass. Mic the amp too for grit and blend.
+
+**7 and 8 String Guitars**
+- Extended range guitars. 7-string adds low B (like a bass). 8-string adds low F#.
+- Used in djent, progressive metal, ambient, modern heavy music.
+- Tuning is critical — heavier strings needed. Standard gauge won't intonate properly on extended range."""
+    },
+
+    "tuning_reference": {
+        "title": "Tunings & Alternative Tunings",
+        "category": "Instruments",
+        "content": """**Standard Guitar Tuning (6-string):** E A D G B E (low to high)
+- MIDI notes: E2(40) A2(45) D3(50) G3(55) B3(59) E4(64)
+
+**Standard Bass Tuning (4-string):** E A D G
+- MIDI notes: E1(28) A1(33) D2(38) G2(43)
+
+**5-String Bass:** B E A D G — adds B0 (23.12 Hz, MIDI 23)
+**6-String Bass:** B E A D G C — adds high C3 (MIDI 48)
+
+**7-String Guitar:** B E A D G B E — adds low B1 (MIDI 35)
+**8-String Guitar:** F# B E A D G B E — adds low F#1 (MIDI 30)
+
+**Common Alternative Tunings:**
+- **Drop D:** D A D G B E — low E dropped to D. Power chords with one finger. Rock, metal, grunge.
+- **Drop C:** C G C F A D — everything down a whole step, then drop. Heavy metal.
+- **Open G:** D G D G B D — slide guitar, Keith Richards (Rolling Stones).
+- **Open D:** D A D F# A D — blues slide, folk.
+- **Open E:** E B E G# B E — slide, Duane Allman.
+- **DADGAD:** D A D G A D — Celtic, folk, ambient. Jimmy Page.
+- **Half Step Down:** Eb Ab Db Gb Bb Eb — Hendrix, Stevie Ray Vaughan. Slightly darker, easier string bending.
+- **Whole Step Down:** D G C F A D — heavier feel. Alice in Chains.
+- **Nashville Tuning:** Replace low E A D G with their octave-up equivalents. Bright, chimey, doubles beautifully with standard tuning.
+
+**Equal Temperament vs Just Intonation:**
+- **Equal temperament** — standard modern tuning. Divides the octave into 12 equal semitones. Every key sounds equally "in tune" (and equally slightly out). What your tuner uses.
+- **Just intonation** — intervals based on pure frequency ratios. Sounds more consonant in one key but goes out of tune in others. Used in a cappella, barbershop, some world music.
+- **Pythagorean tuning** — based on stacking perfect fifths. Very pure fifths but harsh thirds.
+- **Meantone temperament** — compromise between just and equal. Renaissance and Baroque keyboard music.
+
+For recording: use equal temperament (your tuner) unless you're specifically going for a historical or microtonal sound."""
+    },
+
+    "vocal_recording": {
+        "title": "Recording Vocals",
+        "category": "Recording",
+        "content": """**The chain:** Singer → Pop filter (2-4 inches from mic) → Condenser mic → Preamp → Interface → DAW
+
+**Mic choice:**
+- Large-diaphragm condenser (Rode NT1, AT2020, U87) for studio vocals
+- Dynamic (SM7B, SM58) for loud singers or untreated rooms — less room pickup
+- Ribbon (Royer 121) for warm, vintage vocal tone — never use phantom power
+
+**Room matters more than the mic.** An untreated room with reflections will make any expensive mic sound bad. Quick fixes:
+- Hang blankets behind and to the sides of the singer
+- Record in a closet full of clothes (natural absorption)
+- Use a reflection filter behind the mic
+
+**Performance tips:**
+- Record multiple takes (3-5) and "comp" the best phrases from each
+- Keep the energy consistent between takes
+- Warm up the voice before recording
+- Keep water nearby — room temperature, not cold
+
+**Levels:** Peaks at -12 to -6 dBFS. Leave headroom. Louder is NOT better.
+
+**Double tracking:** Record the same part twice. Pan one left, one right. Instant width. Works for vocals, guitars, anything. The slight natural timing differences create thickness that plugins can't replicate."""
+    },
+
+    "drum_recording": {
+        "title": "Recording Drums",
+        "category": "Recording",
+        "content": """**Minimal setup (2 mics):**
+- Overhead: condenser above the kit, captures everything
+- Kick: dynamic (SM57, Beta 52) inside or just outside the kick drum port
+- This covers 80% of what you need. Pan overhead slightly for stereo.
+
+**Standard setup (4 mics):**
+- Kick (inside), Snare (SM57 on top), Overheads (matched pair, spaced or X-Y)
+
+**Full setup (8+ mics):**
+- Kick in, kick out, snare top, snare bottom (phase inverted), hi-hat, 2 overheads, room mic
+- Each tom gets its own mic
+- The room mic (3-6 feet away) captures the natural ambience
+
+**Phase is critical.** Multiple mics on the same kit create phase cancellation if the distances aren't right. Use the 3:1 rule. Check phase: mute the overhead, listen to snare close. Unmute overhead — if the snare gets thinner, flip the phase on the overhead.
+
+**Tuning drums:** Tune before recording, not after. A poorly tuned kit wastes everyone's time. Kick: tight batter head, loose resonant. Snare: medium tension, snare wires snug but not choked. Toms: even tension around each head.
+
+**If you don't have a drummer:** Use the built-in drum machine. Program a pattern, render it, record your instruments on top. Then replace the programmed drums with a real drummer later if you want."""
+    },
+
+    "mixing_order": {
+        "title": "Mixing Order & Workflow",
+        "category": "Mixing",
+        "content": """There's no single right order, but here's a workflow that works:
+
+**1. Organization (before you touch a fader)**
+- Name every track
+- Color-code by group (drums = blue, guitars = green, vocals = purple)
+- Delete unused tracks and empty regions
+- Set up groups/buses (drum bus, guitar bus, vocal bus)
+
+**2. Static balance**
+- All faders at 0dB, pan centered
+- Solo nothing — listen to everything together
+- Set rough volume balance by pulling faders DOWN to taste
+- Get the lead vocal at the right level first — everything else serves it
+
+**3. Panning**
+- Center: kick, snare, bass, lead vocal
+- Slight L/R: rhythm guitars, keys, background vocals
+- Wide: stereo guitars, percussion, pads, reverb returns
+
+**4. EQ (subtractive first)**
+- HPF on everything except kick and bass
+- Cut mud (200-400Hz) on guitars and keys
+- Clear space for the vocal (2-4kHz) by cutting other instruments there
+
+**5. Compression**
+- Vocals: even out the performance
+- Drums: control dynamics, add punch
+- Bass: consistent low end
+- Mix bus: gentle glue (1-2dB reduction)
+
+**6. Space (reverb, delay)**
+- Send-based: one reverb bus, multiple tracks feeding it
+- Less is more — you can always add, hard to remove
+
+**7. Automation**
+- Ride the vocal fader — every phrase at the right level
+- Automate panning for movement
+- Push the chorus slightly louder than the verse
+
+**8. Reference check**
+- Compare to a professional mix in the same genre
+- Check on multiple speakers (monitors, headphones, phone, car)
+- Take breaks — fresh ears catch problems"""
+    },
+
+    "frequency_chart": {
+        "title": "Instrument Frequency Chart",
+        "category": "Mixing",
+        "content": """Where each instrument lives in the frequency spectrum:
+
+| Instrument | Fundamental Range | Key Frequencies |
+|------------|------------------|-----------------|
+| **Kick drum** | 40-100 Hz | Thump: 60-80Hz. Click/attack: 2-5kHz |
+| **Snare** | 150-250 Hz | Body: 200Hz. Crack: 2-4kHz. Wires: 8-12kHz |
+| **Hi-hat** | 300Hz-15kHz | Stick: 8-10kHz. Shimmer: 12-16kHz |
+| **Bass guitar** | 40-400 Hz | Fundamental: 40-200Hz. Growl: 700Hz-1kHz. String noise: 2-4kHz |
+| **Electric guitar** | 80-5kHz | Body: 200-500Hz. Bite: 2-4kHz. Presence: 4-6kHz |
+| **Acoustic guitar** | 80-12kHz | Body: 100-250Hz. String: 2-5kHz. Air: 8-12kHz |
+| **Piano** | 27-4200 Hz | Warmth: 100-300Hz. Presence: 2-5kHz. Sparkle: 8-12kHz |
+| **Vocals (male)** | 80-500 Hz | Chest: 100-250Hz. Clarity: 2-4kHz. Air: 8-12kHz |
+| **Vocals (female)** | 150-1kHz | Body: 200-400Hz. Clarity: 3-5kHz. Air: 10-14kHz |
+| **Strings** | 200-8kHz | Warmth: 200-500Hz. Rosin: 7-10kHz |
+| **Brass** | 80-6kHz | Honk: 500Hz-1kHz. Brilliance: 3-6kHz |
+
+**The rule:** If two instruments share the same fundamental range, one needs to give way. Cut, don't boost. Make space, don't fight for it."""
+    },
+
+    "common_mistakes": {
+        "title": "Common Mixing Mistakes",
+        "category": "Mixing",
+        "content": """**1. Mixing too loud.** Turn your monitors down. If it sounds good quiet, it'll sound great loud. If it only sounds good loud, the mix has problems.
+
+**2. Too much low end.** Untreated rooms exaggerate bass. Use a spectrum analyzer. Compare to a reference. HPF everything that isn't kick or bass.
+
+**3. Solo-button syndrome.** A track that sounds amazing solo may not fit the mix. Always check in context. The mix is what the listener hears.
+
+**4. Over-processing.** Not every track needs EQ, compression, reverb, and saturation. If it sounds good raw, leave it alone. The best processing is the processing you don't do.
+
+**5. No breaks.** Your ears fatigue after 30-60 minutes. Take a 10-minute break every hour. Walk outside. Reset your hearing.
+
+**6. Not checking in mono.** 25% of listening happens on mono speakers (phones, smart speakers). Hit the mono button. If something disappears, there's a phase issue.
+
+**7. Mixing on headphones only.** Headphones exaggerate stereo width and detail. Check on speakers too. The truth is usually between both.
+
+**8. Not using a reference.** Without a reference track, you're mixing in the dark. Load one. Level-match it. Compare frequently.
+
+**9. Too much reverb.** Reverb hides problems. A dry, well-balanced mix sounds better than a washed-out one. Use just enough to create space. You should barely notice it's there.
+
+**10. Mastering in the mixing session.** Finish the mix. Export. Open a new session. THEN master. Fresh ears, fresh perspective."""
+    },
+
+}
+
+
+def search_knowledge(query):
+    """Search the knowledge base. Returns matching articles."""
+    query_lower = query.lower()
+    results = []
+    for key, article in KNOWLEDGE_BASE.items():
+        score = 0
+        if query_lower in article['title'].lower(): score += 10
+        if query_lower in article['category'].lower(): score += 5
+        if query_lower in article['content'].lower(): score += 1
+        # Check for word matches
+        for word in query_lower.split():
+            if word in article['title'].lower(): score += 3
+            if word in article['content'].lower(): score += 1
+        if score > 0:
+            results.append({**article, 'id': key, 'score': score})
+
+    results.sort(key=lambda x: -x['score'])
+    return results[:10]
+
+
+def get_article(article_id):
+    """Get a specific article by ID."""
+    return KNOWLEDGE_BASE.get(article_id)
+
+
+def get_categories():
+    """Get all categories with their article counts."""
+    cats = {}
+    for key, article in KNOWLEDGE_BASE.items():
+        cat = article['category']
+        if cat not in cats: cats[cat] = []
+        cats[cat].append({'id': key, 'title': article['title']})
+    return cats
