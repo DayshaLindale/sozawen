@@ -3380,29 +3380,42 @@
                 document.getElementById('statusText').textContent = 'Metronome ON';
             } else {
                 // Stop it
-                if (_metronomeInterval) { clearInterval(_metronomeInterval); _metronomeInterval = null; }
+                if (_metronomeInterval) { clearTimeout(_metronomeInterval); _metronomeInterval = null; }
                 document.getElementById('statusText').textContent = 'Metronome OFF';
             }
         });
     }
 
+    function getMetronomeBPM() {
+        // Check the metronome panel input first, then the transport display
+        const input = document.getElementById('metronomeBPM');
+        if (input && input.value) return parseFloat(input.value) || 120;
+        return parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120;
+    }
+
     function startWebMetronome() {
         if (_metronomeInterval) clearInterval(_metronomeInterval);
         _metronomeBeat = 0;
-        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120;
+        const bpm = getMetronomeBPM();
         const beatMs = 60000 / bpm;
         const timeSig = 4;
 
-        // Play first click immediately
         playClick(true);
         _metronomeBeat = 1;
 
-        _metronomeInterval = setInterval(() => {
+        // Use dynamic interval that checks BPM each beat
+        const tick = () => {
+            const currentBpm = getMetronomeBPM();
+            const currentMs = 60000 / currentBpm;
             const isDownbeat = (_metronomeBeat % timeSig) === 0;
             playClick(isDownbeat);
             _metronomeBeat++;
-        }, beatMs);
+            _metronomeInterval = setTimeout(tick, currentMs);
+        };
+        _metronomeInterval = setTimeout(tick, beatMs);
+        return; // skip the old setInterval below
     }
+
 
     function playClick(isDownbeat) {
         const ctx = getAudioCtx();
