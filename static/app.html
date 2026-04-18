@@ -1222,7 +1222,8 @@
                     </div></div>
                 <button class="btn btn-teal" style="width:100%" onclick="armRecording()">Arm for Recording</button>
                 <button class="btn btn-secondary" style="width:100%; margin-top:6px;" onclick="toggleMonitoring(this)">Input Monitor: Off</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your mic or interface and input channel, then hit Record. Each track can record from a different channel — guitar on 1, vocals on 2.</p>`,
+                <div id="channelHelp" style="margin-top:8px;"></div>
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your interface, choose which input this track records from, then Arm. Each track can record from a different input — guitar on 1, vocals on 2.</p>`,
 
             stem_split: `<h3>Separate ${h('Splits your audio into individual parts. The program detects what approach works best and handles the details.')}</h3>
                 <div id="channelInfo" style="font-size:11px; color:var(--teal); padding:6px 0 4px; margin-bottom:4px;">Analyzing your audio...</div>
@@ -2834,10 +2835,26 @@
         const channels = parseInt(opt?.dataset?.channels || 1);
         chSel.innerHTML = '';
         for (let i = 0; i < channels; i++) {
-            const label = channels === 1 ? 'Mono' :
-                          channels === 2 ? (i === 0 ? 'Left' : 'Right') :
-                          `Channel ${i + 1}`;
+            const label = channels === 1 ? 'Input (Mono)' :
+                          channels === 2 ? `Input ${i+1} (${i===0?'Left':'Right'})` :
+                          `Input ${i + 1}`;
             chSel.innerHTML += `<option value="${i}">${label}</option>`;
+        }
+
+        // Show routing help for multi-channel
+        const helpDiv = document.getElementById('channelHelp');
+        if (helpDiv) {
+            if (channels >= 2) {
+                helpDiv.innerHTML = `<div style="font-size:10px;color:var(--teal);padding:6px 8px;background:rgba(45,212,168,.08);border-radius:4px;line-height:1.6;">
+                    <strong>Multi-input detected (${channels} channels)</strong><br>
+                    To record each input separately:<br>
+                    1. Select this track → pick <strong>Input 1</strong> → Arm<br>
+                    2. Add a second track → pick <strong>Input 2</strong> → Arm<br>
+                    3. Hit Record — each track captures its own input
+                </div>`;
+            } else {
+                helpDiv.innerHTML = '';
+            }
         }
     }
 
