@@ -903,6 +903,70 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
 **Don't:** Cover everything in foam (only absorbs highs, makes room boomy). Make the room completely dead (unnatural, fatiguing). **Do:** Treat about 30% of wall area. Balance absorption and diffusion."""
     },
 
+    "acoustic_guitar_tones": {
+        "title": "Acoustic Guitar Brands & Their Sound",
+        "category": "Instruments",
+        "content": """Every acoustic guitar brand has a sonic signature shaped by their bracing, tonewoods, and body shape. Knowing the differences helps you pick the right one for a recording.
+
+**Taylor** — Bright, clear, articulate. Their V-Class and X-bracing emphasizes note separation and high-end sparkle. Sits beautifully in a mix without fighting other instruments. Grand Auditorium (GA) is their most versatile shape. Best for: recording (mics love Taylors), fingerpicking, modern pop/folk.
+
+**Martin** — Warm, thick, woody. Scalloped X-bracing gives deep bass response and rich midrange. The dreadnought shape (D-28, D-18) defines what "acoustic guitar" sounds like. Decades of strumming songs were recorded on Martins. Best for: singer-songwriter strumming, country, folk, Americana. The warmth fills a room.
+
+**Gibson** — Punchy, midrange-forward, gutsy. Shorter scale length (24.75" vs 25.5") means looser string tension — warmer, easier bends. The J-45 is the workhorse. Thicker neck. Best for: blues, rock, aggressive strumming, singer-songwriters who want body without sparkle.
+
+**Yamaha** — Honest, balanced, reliable. The FG/FS series punches above its price at every level. No extreme personality — records clean and sits where you put it in a mix. Best for: beginners, budget-conscious recording, versatile studio use.
+
+**Takamine** — Clear with a strong midrange. Known for excellent built-in electronics (live performance). Their NEX body shape is comfortable. Best for: live performance with plugged-in sound, country, pop.
+
+**Seagull** — Warm, cedar-topped. Canadian-made, cedar top instead of spruce gives an immediate warmth and faster break-in. Best for: fingerpicking, folk, intimate recording.
+
+**Collings** — Boutique perfection. Every note rings clearly. Unforgiving of sloppy playing (which means it rewards good technique). Best for: studio work where every detail matters.
+
+**Recording tip:** A bright guitar (Taylor) works when the vocal is warm. A warm guitar (Martin) works when the vocal is bright. Contrast creates clarity — two warm sources fight for the same space."""
+    },
+
+    "electric_guitar_tones": {
+        "title": "Electric Guitars & Their Sound",
+        "category": "Instruments",
+        "content": """**Fender Stratocaster** — Three single-coil pickups. Bright, glassy, chimey. The "quack" in positions 2 and 4 (between pickups) is unmistakable. Clean tones sparkle. Overdriven tones have bite without mud. Hendrix, Mayer, Gilmour, Knopfler. Best for: blues, funk, clean pop, anything that needs clarity and expression.
+
+**Fender Telecaster** — Two single-coils. Brighter and more aggressive than a Strat. The bridge pickup has twang and snap that defined country and indie rock. Simpler circuit = more direct signal. Keith Richards, Bruce Springsteen, Radiohead. Best for: country, indie, punk, anything raw and honest.
+
+**Gibson Les Paul** — Two humbuckers. Fat, thick, warm sustain. The mahogany body and set neck give weight that single-coils can't match. The PAF humbucker tone is the sound of classic rock. Slash, Jimmy Page, Duane Allman. Best for: rock, blues, jazz, anything that needs power and sustain.
+
+**Gibson SG** — Lighter than a Les Paul, slightly brighter, faster neck. Same humbuckers but the thinner body reduces low-end weight. Angus Young. Best for: hard rock, punk, aggressive playing.
+
+**PRS (Paul Reed Smith)** — The middle ground. Warm like a Gibson but with Fender-like clarity. Versatile — coil-split humbuckers switch between single-coil and humbucker voicings. Santana, Mark Tremonti. Best for: everything. The most versatile electric guitar.
+
+**Ibanez** — Thin, fast necks. Extended range (7/8 string). HSH pickup configurations. Built for speed and precision. Steve Vai, Joe Satriani, djent. Best for: metal, shred, progressive, fusion.
+
+**Gretsch** — Hollow/semi-hollow. Twangy, jangly, with natural feedback at volume. Filter'Tron pickups are brighter than PAFs. Brian Setzer, Malcolm Young, George Harrison. Best for: rockabilly, country, jangly indie, classic rock rhythm.
+
+**Rickenbacker** — Jangly, bright, cutting. The 12-string Rickenbacker defined the 60s. The Beatles, The Byrds, R.E.M. Best for: jangle pop, alternative, anything that needs shimmer.
+
+**Recording tip:** Single-coils hum under fluorescent lights and near monitors. Humbuckers are quiet. If your single-coil guitar hums during recording, face away from the monitor or use Sozawen's hum removal."""
+    },
+
+    "amp_tones": {
+        "title": "Guitar Amplifiers & Their Character",
+        "category": "Instruments",
+        "content": """Every amp has a voice. Knowing what each one does helps you choose the right tone before you record.
+
+**Fender** — Clean, headroom, sparkle. The Twin Reverb is the definition of clean guitar tone. The Deluxe Reverb breaks up beautifully at lower volumes. Fender cleans are the benchmark everything else is measured against. Best for: clean tones, blues breakup, country, jazz.
+
+**Marshall** — Midrange crunch, aggressive, British. The Plexi (JTM45/JMP) is the sound of 70s rock. The JCM800 is the sound of 80s metal. Marshalls push midrange — they cut through a band mix like nothing else. Best for: rock, hard rock, classic metal.
+
+**Vox** — Chimey, jangly, mid-focused but brighter than Marshall. The AC30 has a Class A circuit that compresses naturally as you push it. The Beatles, The Edge, Brian May. Top Boost channel is iconic. Best for: British invasion, indie, jangle, chimey clean-to-crunch.
+
+**Mesa/Boogie** — High gain, tight, precise. The Dual Rectifier defined modern metal tone. The Mark series (Mark V) is the most versatile amp ever made — Petrucci, Metallica. Tight low end that stays defined even with extreme distortion. Best for: metal, progressive, high-gain.
+
+**Orange** — Thick, fuzzy, woolly midrange. The Rockerverb and Thunderverb have a distinctive "chewiness" that no other amp has. Brent Hinds, Jim Root. Best for: stoner rock, doom, sludge, alternative.
+
+**Peavey 5150/6505** — The budget metal standard. Tight, aggressive, scooped. Designed with Eddie Van Halen. Best for: metal on a budget. Sounds huge recorded.
+
+**Amp sims vs real amps:** Modern amp simulation (Neural DSP, Line 6 Helix, amp plugins) has reached the point where blind tests fool professionals. If you're recording at home, a good amp sim through your interface is often better than a real amp in an untreated room — no mic bleed, no volume complaints, consistent tone. Record with the sim, reamp later if you want."""
+    },
+
     "studio_budget_guide": {
         "title": "Building a Studio on Any Budget",
         "category": "Hardware",
