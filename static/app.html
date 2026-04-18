@@ -3060,14 +3060,14 @@
                 // Fallback: open email client
                 const subject = encodeURIComponent(`Sozawen ${type}: from a user`);
                 const body = encodeURIComponent(`Type: ${type}\n\n${text}\n\nReply to: ${email || 'not provided'}`);
-                window.open(`mailto:support@sozawen.com?subject=${subject}&body=${body}`);
+                window.open(`mailto:lindale@sozawen.com?subject=${subject}&body=${body}`);
                 status.textContent = 'Opening email...'; status.style.color = 'var(--teal)';
             }
         }).catch(() => {
             // Fallback: open email client
             const subject = encodeURIComponent(`Sozawen ${type}`);
             const body = encodeURIComponent(`${text}\n\nReply to: ${email || 'not provided'}`);
-            window.open(`mailto:support@sozawen.com?subject=${subject}&body=${body}`);
+            window.open(`mailto:lindale@sozawen.com?subject=${subject}&body=${body}`);
             status.textContent = 'Opening email...'; status.style.color = 'var(--teal)';
         });
     }
