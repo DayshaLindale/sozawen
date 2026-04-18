@@ -1371,6 +1371,28 @@ async def submit_feedback(request: Request):
         return JSONResponse({"error": "Could not save feedback"}, status_code=500)
 
 
+@api.post("/api/browse-folder")
+async def browse_folder(request: Request):
+    """List audio files in a folder for the sample browser."""
+    data = await request.json()
+    folder = data.get("path", "")
+
+    if not folder or not Path(folder).is_dir():
+        return JSONResponse({"error": "Invalid folder"}, status_code=400)
+
+    audio_exts = {'.wav', '.mp3', '.flac', '.ogg', '.aiff', '.m4a', '.wma'}
+    files = []
+    try:
+        for f in sorted(Path(folder).iterdir()):
+            if f.is_file() and f.suffix.lower() in audio_exts:
+                size = f.stat().st_size
+                size_str = f"{size/1024:.0f}KB" if size < 1024*1024 else f"{size/1024/1024:.1f}MB"
+                files.append({"name": f.name, "path": str(f), "size": size_str})
+    except PermissionError:
+        return JSONResponse({"error": "Permission denied"}, status_code=403)
+
+    return JSONResponse({"files": files, "count": len(files)})
+
 @api.get("/api/pick-file")
 async def pick_file_endpoint():
     """Open native file picker via tkinter (works without pywebview window)."""

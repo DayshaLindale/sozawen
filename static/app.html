@@ -1576,6 +1576,57 @@
                     </div>
                 </div>`,
 
+            piano_roll: `<h3>Piano Roll ${h('Draw MIDI notes on a grid. Click to place notes, drag to resize. Each row is a pitch, each column is a beat subdivision. Renders through the built-in synth.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:8px; letter-spacing:1px;">MIDI NOTE EDITOR</div>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <select id="pianoRollOctave" style="font-size:10px; padding:3px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); border-radius:3px;">
+                        <option value="3">Octave 3 (bass)</option>
+                        <option value="4" selected>Octave 4 (middle)</option>
+                        <option value="5">Octave 5 (high)</option>
+                    </select>
+                    <select id="pianoRollGrid" style="font-size:10px; padding:3px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); border-radius:3px;">
+                        <option value="0.5">1/2 note</option>
+                        <option value="0.25" selected>1/4 note</option>
+                        <option value="0.125">1/8 note</option>
+                        <option value="0.0625">1/16 note</option>
+                    </select>
+                </div>
+                <div id="pianoRollGrid" style="max-height:250px; overflow:auto; border:1px solid var(--border); border-radius:4px; margin-bottom:8px;"></div>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="renderPianoRoll()">Render to Track</button>
+                    <button class="btn btn-secondary" onclick="clearPianoRoll()">Clear</button>
+                </div>
+                <div style="display:flex; gap:4px; margin-top:6px;">
+                    <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="pianoRollTranspose(1)">+1 semi</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="pianoRollTranspose(-1)">-1 semi</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="pianoRollTranspose(12)">+octave</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="pianoRollTranspose(-12)">-octave</button>
+                </div>`,
+
+            sample_browser: `<h3>Sample Browser ${h('Browse audio files on your computer. Click to preview, double-click to add to a track. Navigate folders to find your sounds.')}</h3>
+                <div class="field"><label>Folder</label>
+                    <div style="display:flex; gap:4px;">
+                        <input type="text" id="sampleBrowserPath" placeholder="C:/Users/Music/Samples" style="flex:1;">
+                        <button class="btn btn-secondary" style="padding:6px 10px;" onclick="browseSampleFolder()">Browse</button>
+                    </div></div>
+                <div id="sampleList" style="max-height:300px; overflow-y:auto; margin-top:8px;"></div>`,
+
+            noise_reduce: `<h3>Noise Reduction ${h('Spectral noise reduction — removes steady-state noise like hiss, room tone, and fan noise. Same principle as iZotope RX. Analyzes the quietest parts of your audio to build a noise profile, then subtracts it.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SPECTRAL DENOISING</div>
+                <div class="field"><label>Strength ${h('How aggressively to remove noise. Low (0.2-0.3) = subtle, preserves quality. Medium (0.4-0.6) = good balance. High (0.7-1.0) = aggressive, may affect wanted audio. Start low and increase until the noise is gone.')}</label>
+                    <input type="range" min="0" max="100" value="50" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"><span style="font-size:11px; color:var(--teal);">0.50</span></div>
+                <button class="btn btn-primary" style="width:100%" onclick="applyEffect('noise_reduction',{strength:parseFloat(document.querySelector('#toolPanel input[type=range]').value)/100})">Apply</button>
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Works best on recordings with consistent background noise. Record a few seconds of silence before your take — the algorithm uses quiet sections to learn the noise profile.</p>`,
+
+            chord_detect: `<h3>Chord Detection ${h('Analyzes your audio and identifies the chords being played at each moment. Uses chromagram analysis with template matching against major, minor, diminished, augmented, sus, and 7th chords.')}</h3>
+                <button class="btn btn-primary" style="width:100%" onclick="detectChords()">Detect Chords</button>
+                <div id="chordResults" style="max-height:300px; overflow-y:auto; margin-top:12px; font-size:12px;"></div>`,
+
+            audio_to_midi: `<h3>Audio to MIDI ${h('Converts a monophonic audio recording (single melody line) into MIDI notes. Works best on isolated tracks — try stem separation first, then convert the vocal or bass to MIDI.')}</h3>
+                <button class="btn btn-primary" style="width:100%" onclick="convertAudioToMidi()">Convert to MIDI</button>
+                <div id="a2mResults" style="margin-top:12px; font-size:12px; color:var(--text-dim);"></div>
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Best on: isolated vocals, bass lines, lead melodies. Not designed for chords or polyphonic material.</p>`,
+
             drums: `<h3>Drum Machine ${h('Every sound synthesized from math — no samples needed. Kick, snare, hi-hat, clap, toms, rim. Click the grid to program a pattern, hit Render to create a track.')}</h3>
                 <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SYNTHESIZED DRUM MACHINE</div>
                 <div id="drumGrid" style="margin-bottom:12px;"></div>
@@ -2774,6 +2825,186 @@
         document.getElementById('statusText').textContent = 'Use Export All Stems in the Export panel';
     }
 
+    // ═══ PIANO ROLL ═══
+    let _pianoRollNotes = {};  // {pitch_beat: true}
+    const NOTE_LABELS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+    function buildPianoRoll() {
+        const container = document.querySelectorAll('#pianoRollGrid')[1] || document.getElementById('pianoRollGrid');
+        if (!container || container.tagName === 'SELECT') return;
+        const octave = parseInt(document.getElementById('pianoRollOctave')?.value || 4);
+        const grid = parseFloat(document.querySelector('#toolPanel select[id="pianoRollGrid"]')?.value || 0.25);
+        const steps = Math.round(4 / grid); // 4 beats = 1 bar
+        const bars = 4;
+        const totalSteps = steps * bars;
+
+        let html = '';
+        // 12 notes per octave, highest at top
+        for (let n = 11; n >= 0; n--) {
+            const pitch = octave * 12 + 12 + n; // MIDI
+            const noteName = NOTE_LABELS[n];
+            const isBlack = [1,3,6,8,10].includes(n);
+            html += `<div style="display:flex; height:16px; border-bottom:1px solid ${isBlack?'rgba(255,255,255,.02)':'rgba(255,255,255,.05)'};">`;
+            html += `<div style="width:30px; font-size:8px; color:${isBlack?'var(--text-muted)':'var(--text-dim)'}; text-align:right; padding-right:4px; line-height:16px; background:${isBlack?'var(--bg-deep)':'var(--bg-card)'}; flex-shrink:0;">${noteName}</div>`;
+            for (let s = 0; s < totalSteps; s++) {
+                const beat = s * grid;
+                const key = `${pitch}_${beat.toFixed(3)}`;
+                const on = _pianoRollNotes[key];
+                const barLine = s % steps === 0 ? 'border-left:1px solid var(--border-light);' : s % (steps/4) === 0 ? 'border-left:1px solid rgba(255,255,255,.03);' : '';
+                html += `<div data-key="${key}" data-pitch="${pitch}" data-beat="${beat}" onclick="togglePianoNote(this)" style="width:${Math.max(10,200/totalSteps)}px; height:16px; background:${on?'var(--violet)':'transparent'}; ${barLine} cursor:pointer; flex-shrink:0;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"></div>`;
+            }
+            html += '</div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function togglePianoNote(el) {
+        const key = el.dataset.key;
+        _pianoRollNotes[key] = !_pianoRollNotes[key];
+        el.style.background = _pianoRollNotes[key] ? 'var(--violet)' : 'transparent';
+    }
+
+    function clearPianoRoll() {
+        _pianoRollNotes = {};
+        buildPianoRoll();
+    }
+
+    function pianoRollTranspose(semitones) {
+        const newNotes = {};
+        const grid = parseFloat(document.querySelector('#toolPanel select[id="pianoRollGrid"]')?.value || 0.25);
+        for (const [key, val] of Object.entries(_pianoRollNotes)) {
+            if (!val) continue;
+            const [pitch, beat] = key.split('_');
+            const newPitch = parseInt(pitch) + semitones;
+            if (newPitch >= 0 && newPitch <= 127) {
+                newNotes[`${newPitch}_${beat}`] = true;
+            }
+        }
+        _pianoRollNotes = newNotes;
+        buildPianoRoll();
+    }
+
+    function renderPianoRoll() {
+        const grid = parseFloat(document.querySelector('#toolPanel select[id="pianoRollGrid"]')?.value || 0.25);
+        const notes = [];
+        for (const [key, val] of Object.entries(_pianoRollNotes)) {
+            if (!val) continue;
+            const [pitch, beat] = key.split('_');
+            notes.push({ note: parseInt(pitch), start_beat: parseFloat(beat), duration_beats: grid, velocity: 100 });
+        }
+        if (notes.length === 0) { alert('Draw some notes first!'); return; }
+
+        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || 120);
+        const params = {
+            waveform: document.getElementById('synthWaveform')?.value || 'saw',
+            cutoff: parseFloat(document.getElementById('synthCutoff')?.value || 4000),
+            attack: parseFloat(document.getElementById('synthAttack')?.value || 0.01),
+            release: parseFloat(document.getElementById('synthRelease')?.value || 0.1),
+        };
+
+        document.getElementById('statusText').textContent = 'Rendering piano roll...';
+        fetch('/api/midi/pattern', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ pattern: { name: 'Piano Roll', length_beats: 16, notes }, bpm, synth_params: params, name: 'Piano Roll' })
+        }).then(r=>r.json()).then(d => {
+            document.getElementById('statusText').textContent = d.ok ? 'Rendered!' : (d.error || 'Failed');
+            if (d.ok) { refreshTracks(); reloadAllWaveforms(); }
+        });
+    }
+
+    // ═══ SAMPLE BROWSER ═══
+    function browseSampleFolder() {
+        fetch('/api/pick-file').then(r=>r.json()).then(d => {
+            if (d.path) {
+                // Get the folder from the selected file path
+                const folder = d.path.replace(/[/\\][^/\\]*$/, '');
+                document.getElementById('sampleBrowserPath').value = folder;
+                loadSampleFolder(folder);
+            }
+        });
+    }
+
+    function loadSampleFolder(folder) {
+        fetch('/api/browse-folder', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ path: folder })
+        }).then(r=>r.json()).then(d => {
+            const list = document.getElementById('sampleList');
+            if (!list) return;
+            if (d.error) { list.innerHTML = `<div style="color:var(--text-muted);padding:8px;">${d.error}</div>`; return; }
+
+            list.innerHTML = (d.files || []).map(f =>
+                `<div style="padding:6px 8px; cursor:pointer; border-radius:4px; border-bottom:1px solid rgba(255,255,255,.03); display:flex; justify-content:space-between; align-items:center;"
+                     onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''"
+                     onclick="addTrack('${f.name}', '${f.path.replace(/\\/g,'/')}')">
+                    <span style="font-size:11px; color:var(--text-dim);">${f.name}</span>
+                    <span style="font-size:9px; color:var(--text-muted);">${f.size}</span>
+                </div>`
+            ).join('') || '<div style="color:var(--text-muted);padding:8px;">No audio files found</div>';
+        }).catch(() => {});
+    }
+
+    // ═══ CHORD DETECTION ═══
+    function detectChords() {
+        const t = getActiveTrack();
+        if (!t || t.engineId === null) { alert('Select a track first'); return; }
+        document.getElementById('statusText').textContent = 'Detecting chords...';
+        fetch('/api/chords/detect', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ track_id: t.engineId })
+        }).then(r=>r.json()).then(d => {
+            const results = document.getElementById('chordResults');
+            if (!results) return;
+            if (d.ok && d.chords) {
+                results.innerHTML = d.chords.map(c =>
+                    `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.03);">
+                        <span style="color:var(--teal); font-weight:500; cursor:pointer;" onclick="seekToPosition(${c.time})">${c.chord}</span>
+                        <span style="color:var(--text-muted); font-size:10px;">${c.time}s</span>
+                    </div>`
+                ).join('');
+                document.getElementById('statusText').textContent = `${d.chords.length} chords detected`;
+            } else {
+                results.innerHTML = `<div style="color:var(--text-muted);">${d.error || 'No chords found'}</div>`;
+            }
+        });
+    }
+
+    // ═══ AUDIO TO MIDI ═══
+    function convertAudioToMidi() {
+        const t = getActiveTrack();
+        if (!t || t.engineId === null) { alert('Select a track first'); return; }
+        document.getElementById('statusText').textContent = 'Converting audio to MIDI...';
+        fetch('/api/audio-to-midi', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ track_id: t.engineId })
+        }).then(r=>r.json()).then(d => {
+            const results = document.getElementById('a2mResults');
+            if (d.ok) {
+                results.innerHTML = `<div style="color:var(--teal);">${d.notes} notes detected at ${d.bpm} BPM</div>
+                    <button class="btn btn-secondary" style="width:100%; margin-top:8px;" onclick="renderMidiFromDetected()">Render to Synth Track</button>`;
+                window._detectedMidiPattern = d.pattern;
+                window._detectedMidiBPM = d.bpm;
+                document.getElementById('statusText').textContent = `${d.notes} notes converted`;
+            } else {
+                results.innerHTML = `<div style="color:var(--text-muted);">${d.error || 'No notes detected — try an isolated melody'}</div>`;
+            }
+        });
+    }
+
+    function renderMidiFromDetected() {
+        if (!window._detectedMidiPattern) return;
+        fetch('/api/midi/pattern', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                pattern: window._detectedMidiPattern,
+                bpm: window._detectedMidiBPM || 120,
+                name: 'Transcribed'
+            })
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) { refreshTracks(); reloadAllWaveforms(); document.getElementById('statusText').textContent = 'MIDI rendered!'; }
+        });
+    }
+
     // ═══ LEARN — knowledge base ═══
     function searchLearn(query) {
         const results = document.getElementById('learnResults');
@@ -3081,11 +3312,12 @@
         });
     }
 
-    // Build drum grid when panel opens
+    // Build grids when panels open
     const _origShowPanel = showPanel;
     showPanel = function(name, btn) {
         _origShowPanel(name, btn);
         if (name === 'drums') setTimeout(buildDrumGrid, 100);
+        if (name === 'piano_roll') setTimeout(buildPianoRoll, 100);
     };
 
     // ═══ RESIZABLE PANELS ═══

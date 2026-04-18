@@ -100,6 +100,11 @@ TOOLS = {
     "drums":        {"label": "Drum Machine",     "icon": "🥁", "group": "record"},
     "tuner":        {"label": "Tuner",            "icon": "🎵", "group": "record"},
     "learn":        {"label": "Learn",            "icon": "📖", "group": "master"},
+    "piano_roll":   {"label": "Piano Roll",       "icon": "🎹", "group": "edit"},
+    "sample_browser":{"label": "Samples",         "icon": "📁", "group": "import"},
+    "noise_reduce": {"label": "Noise Reduction",  "icon": "🔇", "group": "cleanup"},
+    "chord_detect": {"label": "Detect Chords",    "icon": "🎶", "group": "import"},
+    "audio_to_midi":{"label": "Audio to MIDI",    "icon": "🎵", "group": "import"},
 
     # Recording
     "input_select": {"label": "Input Device",     "icon": "🎤", "group": "record"},
