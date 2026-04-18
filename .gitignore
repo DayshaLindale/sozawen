@@ -17,3 +17,9 @@ separated/
 recordings/
 projects/
 last_session.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
