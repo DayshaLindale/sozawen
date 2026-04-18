@@ -92,6 +92,9 @@ def validate_key_online(key):
 
 def activate_key(key):
     """Activate a license key on this machine."""
+    if not key or not isinstance(key, str):
+        return False, "No key provided"
+    key = key.strip()[:200]  # limit length, strip whitespace
     try:
         import requests
         r = requests.post(

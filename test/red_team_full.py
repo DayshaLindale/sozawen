@@ -139,7 +139,7 @@ print(f'       Key: {d.get("key")}, BPM: {d.get("bpm")}')
 # 9. EDITING
 print('\n--- [9] EDITING ---')
 test('Detect channels', 'POST', '/api/edit/detect-channels', {'file_path': TEST_FILE})
-test('Detect silence', 'POST', '/api/edit/detect-silence', {'path': TEST_FILE})
+test('Detect silence', 'POST', '/api/edit/detect-silence', {'track_id': tid})
 test('Count-in', 'POST', '/api/edit/count-in', {'bpm': 120, 'bars': 2})
 test('Split', 'POST', '/api/edit/split', {'track_id': tid})
 

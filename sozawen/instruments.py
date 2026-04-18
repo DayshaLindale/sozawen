@@ -116,25 +116,30 @@ def synth_note(note, duration, velocity=100, sr=44100,
     cutoff: lowpass filter frequency
     """
     freq = midi_to_freq(note)
+    duration = max(0.01, min(30.0, float(duration)))  # clamp duration
     n_samples = int(duration * sr)
     vel = velocity / 127.0
 
     # Generate oscillator
     osc_funcs = {'sine': sine, 'saw': saw, 'square': square, 'triangle': triangle}
     gen = osc_funcs.get(waveform, saw)
-    osc = gen(freq, duration, sr)
+    osc = gen(freq, duration, sr)[:n_samples]
 
     # Optional detuning (chorus-like thickness)
     if detune > 0:
-        osc2 = gen(freq * (1 + detune/100), duration, sr)
-        osc = (osc + osc2) * 0.5
+        osc2 = gen(freq * (1 + detune/100), duration, sr)[:n_samples]
+        min_l = min(len(osc), len(osc2))
+        osc = (osc[:min_l] + osc2[:min_l]) * 0.5
 
     # Filter
-    if cutoff < sr / 2 - 100:
-        osc = lowpass(osc, cutoff, sr)
+    if cutoff < sr / 2 - 100 and len(osc) > 10:
+        try:
+            osc = lowpass(osc, cutoff, sr)
+        except Exception:
+            pass  # skip filter if it fails
 
-    # Envelope
-    env = adsr(n_samples, attack, decay, sustain, release, sr)
+    # Envelope — force to exact oscillator length
+    env = adsr(len(osc), attack, decay, sustain, release, sr)[:len(osc)]
 
     return (osc * env * vel * 0.5).astype(np.float32)
 
@@ -156,13 +161,17 @@ def render_synth_pattern(notes, sr=44100, bpm=120, **synth_params):
     audio = np.zeros(total_samples, dtype=np.float64)
 
     for n in notes:
-        start_sample = int(n['start_beat'] * beat_sec * sr)
-        dur = n.get('duration_beats', 1) * beat_sec
-        vel = n.get('velocity', 100)
-        note_audio = synth_note(n['note'], dur, vel, sr, **synth_params)
+        try:
+            start_sample = int(n['start_beat'] * beat_sec * sr)
+            dur = n.get('duration_beats', 1) * beat_sec
+            vel = n.get('velocity', 100)
+            note_audio = synth_note(n['note'], dur, vel, sr, **synth_params)
 
-        end = min(start_sample + len(note_audio), total_samples)
-        audio[start_sample:end] += note_audio[:end - start_sample]
+            end = min(start_sample + len(note_audio), total_samples)
+            if end > start_sample:
+                audio[start_sample:end] += note_audio[:end - start_sample]
+        except Exception:
+            continue  # skip notes that fail to render
 
     audio = np.clip(audio, -1.0, 1.0).astype(np.float32)
     return np.column_stack([audio, audio])  # stereo

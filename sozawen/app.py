@@ -566,8 +566,8 @@ async def render_synth(request: Request):
     """Render synth notes to a new track."""
     import asyncio
     data = await request.json()
-    notes = data.get("notes", [])
-    bpm = data.get("bpm", 120)
+    notes = data.get("notes", [])[:500]  # limit to prevent resource exhaustion
+    bpm = max(20, min(400, data.get("bpm", 120)))
     params = data.get("params", {})
     name = data.get("name", "Synth")
 
@@ -1323,7 +1323,7 @@ async def license_activate(request: Request):
     """Activate a license key."""
     from sozawen.license import activate_key
     data = await request.json()
-    key = data.get("key", "").strip()
+    key = str(data.get("key") or "").strip()
     if not key:
         return JSONResponse({"valid": False, "message": "No key provided"})
     valid, msg = activate_key(key)
@@ -1345,6 +1345,10 @@ async def submit_feedback(request: Request):
 
     if not text:
         return JSONResponse({"error": "No feedback text"}, status_code=400)
+
+    # Sanitize type for filename safety
+    import re
+    fb_type = re.sub(r'[^a-zA-Z0-9_-]', '', str(fb_type))[:20] or "feedback"
 
     # Store locally
     feedback_dir = BASE_DIR / "feedback"
