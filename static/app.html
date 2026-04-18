@@ -3355,51 +3355,50 @@
     }
 
     function popOutDrumMachine() {
-        const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
-        const w = Math.max(800, steps * 18 + 100);
-        const h = DRUM_ROWS.length * 28 + 200;
-        const popup = window.open('', 'DrumMachine', `width=${w},height=${h},resizable=yes,scrollbars=yes`);
-        popup.document.write(`<!DOCTYPE html><html><head><title>Sozawen Drum Machine</title>
-            <style>body{background:#08080f;color:#d8d8e8;font-family:Inter,sans-serif;padding:20px;}
-            .cell{display:inline-block;width:20px;height:20px;border:1px solid #2a2a44;border-radius:3px;cursor:pointer;margin:1px;}
-            .cell.on{background:#9b59b6;} .cell:hover{opacity:0.7;}
-            .row{display:flex;align-items:center;margin:2px 0;}
-            .label{width:50px;font-size:11px;color:#7878a0;text-align:right;margin-right:8px;}
-            button{padding:8px 16px;background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;margin:4px;}
-            select,input{padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;}
-            </style></head><body>
-            <h2 style="font-weight:300;letter-spacing:4px;margin-bottom:16px;">DRUM MACHINE</h2>
-            <div id="grid"></div>
-            <div style="margin-top:12px;">
-                <button onclick="render()">Render to Track</button>
+        // Full-screen overlay inside the app — no window.open needed
+        let overlay = document.getElementById('drumOverlay');
+        if (overlay) { overlay.style.display = 'flex'; rebuildDrumOverlay(); return; }
+
+        overlay = document.createElement('div');
+        overlay.id = 'drumOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.97);z-index:300;display:flex;flex-direction:column;padding:24px;overflow:auto;';
+
+        overlay.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="font-size:20px;font-weight:200;letter-spacing:6px;color:var(--violet-glow);">DRUM MACHINE</div>
+                <button onclick="document.getElementById('drumOverlay').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;">&times;</button>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
                 ${['Rock','Hip-Hop','Funk','EDM','Jazz','Reggae','Latin','Metal','R&B'].map(g =>
-                    `<button onclick="parent.loadDrumPreset('${g.toLowerCase().replace(/[^a-z]/g,'')}');buildGrid()">${g}</button>`
+                    `<button onclick="loadDrumPreset('${g.toLowerCase().replace(/[^a-z]/g,'')}');rebuildDrumOverlay()" style="padding:6px 14px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer;font-size:11px;">${g}</button>`
                 ).join('')}
             </div>
-            <script>
-            const ROWS=${JSON.stringify(DRUM_ROWS)};
-            const LABELS=${JSON.stringify(DRUM_LABELS)};
-            const steps=${steps};
-            function buildGrid(){
-                const grid=document.getElementById('grid');
-                grid.innerHTML=ROWS.map(s=>{
-                    let cells='';
-                    for(let i=0;i<steps;i++){
-                        const on=parent._drumState[s]&&parent._drumState[s][i];
-                        const bar=i%4===0?'border-left:2px solid #353555;':'';
-                        cells+='<div class="cell'+(on?' on':'')+'" data-s="'+s+'" data-i="'+i+'" onclick="toggle(this)" style="'+bar+'"></div>';
-                    }
-                    return '<div class="row"><span class="label">'+LABELS[s]+'</span>'+cells+'</div>';
-                }).join('');
-            }
-            function toggle(el){
-                const s=el.dataset.s,i=parseInt(el.dataset.i);
-                parent._drumState[s][i]=!parent._drumState[s][i];
-                el.classList.toggle('on');
-            }
-            function render(){parent.renderDrumPattern();}
-            buildGrid();
-            <\/script></body></html>`);
+            <div id="drumOverlayGrid" style="flex:1;overflow:auto;"></div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button onclick="renderDrumPattern();document.getElementById('drumOverlay').style.display='none'" style="padding:10px 24px;background:linear-gradient(135deg,var(--violet),var(--teal));color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;">Render to Track</button>
+                <button onclick="document.getElementById('drumOverlay').style.display='none'" style="padding:10px 24px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer;font-size:13px;">Close</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        rebuildDrumOverlay();
+    }
+
+    function rebuildDrumOverlay() {
+        const grid = document.getElementById('drumOverlayGrid');
+        if (!grid) return;
+        const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
+        grid.innerHTML = DRUM_ROWS.map(sound => {
+            if (!_drumState[sound]) _drumState[sound] = new Array(steps).fill(false);
+            const cells = Array.from({length: steps}, (_, i) => {
+                const on = _drumState[sound][i];
+                const barLine = i % 4 === 0 ? 'border-left:2px solid var(--border-light);' : '';
+                return `<div onclick="toggleDrumCell(this);this.style.background=this.style.background==='var(--violet)'?'var(--bg-deep)':'var(--violet)'" data-sound="${sound}" data-step="${i}" style="width:24px;height:24px;background:${on?'var(--violet)':'var(--bg-deep)'};border:1px solid var(--border);border-radius:3px;cursor:pointer;flex-shrink:0;${barLine}"></div>`;
+            }).join('');
+            return `<div style="display:flex;gap:3px;align-items:center;margin-bottom:3px;">
+                <span style="font-size:11px;color:var(--text-muted);width:50px;text-align:right;margin-right:8px;">${DRUM_LABELS[sound]}</span>
+                ${cells}
+            </div>`;
+        }).join('');
     }
 
     function _buildDrumGridFromState(steps) {
