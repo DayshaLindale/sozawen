@@ -103,7 +103,7 @@
         <li><span class="f-name">Lyrics</span><span class="f-desc">Hit transcribe and it writes the words as the song plays. Timestamps and all. Export as LRC, SRT, or plain text.</span></li>
         <li><span class="f-name">The Bandmate</span><span class="f-desc">An AI collaborator that sees your session — key, BPM, tracks, effects — and suggests chords, arrangement ideas, production techniques. Like having a musician friend who listens without judging.</span></li>
         <li><span class="f-name">Mix & Master</span><span class="f-desc">Full parametric EQ (HPF + 4 bands + LPF), compressor with sidechain, Schroeder reverb, delay with BPM sync, brick-wall limiter. LUFS metering for streaming platforms. Hardware-depth controls.</span></li>
-        <li><span class="f-name">16 Effects</span><span class="f-desc">EQ, compressor, reverb, delay, limiter, noise gate, de-esser, hum removal, normalize, crossfade, time stretch, pitch shift, stereo width, de-clip, reverse, and bleed removal. All modeled after real hardware.</span></li>
+        <li><span class="f-name">18 Effects</span><span class="f-desc">EQ, compressor, reverb, delay, limiter, noise gate, de-esser, hum removal, normalize, crossfade, time stretch, pitch shift, stereo width, de-clip, reverse, bleed removal, sidechain compression, and spectral noise reduction. All modeled after real hardware. All GPL-free.</span></li>
         <li><span class="f-name">Edit by Feel</span><span class="f-desc">Split, trim, stretch, pitch shift, crossfade. Click-drag to select ranges. Every tool has plain-English tooltips that teach the hardware equivalent.</span></li>
         <li><span class="f-name">Adaptive UI</span><span class="f-desc">The program reads the room. Recording? Recording tools appear. Mixing? EQ and compressor come forward. No modes. No menus. It just knows.</span></li>
         <li><span class="f-name">Key & BPM</span><span class="f-desc">Load a track and instantly know the key, tempo, loudness, and duration. Match tempos between tracks. Build from what's already there.</span></li>
@@ -112,7 +112,16 @@
         <li><span class="f-name">Sidechain</span><span class="f-desc">Duck one track based on another's level. Classic kick-ducking-bass. Select trigger and target, set threshold and ratio.</span></li>
         <li><span class="f-name">Snap & Markers</span><span class="f-desc">Snap-to-grid (bar to 1/16). Named markers on the timeline. Jump between sections with [ ] keys.</span></li>
         <li><span class="f-name">Automation</span><span class="f-desc">Draw volume and pan curves on the waveform. Click to add points. Visual SVG overlay. Per-track, per-parameter.</span></li>
-        <li><span class="f-name">Export</span><span class="f-desc">WAV, MP3, FLAC, OGG, AIFF. Any sample rate, any bit depth, with dithering. Stem export. One click.</span></li>
+        <li><span class="f-name">Piano Roll</span><span class="f-desc">Visual MIDI editor — click a grid to place notes, set octave and resolution, transpose, render through the synth. Draw melodies and chords by hand.</span></li>
+        <li><span class="f-name">Chord Detection</span><span class="f-desc">Analyzes your audio and identifies what chords are playing at each moment. Click any chord to seek to that point. 9 chord types across all 12 keys.</span></li>
+        <li><span class="f-name">Audio to MIDI</span><span class="f-desc">Converts a monophonic recording (vocal, bass, lead) into MIDI notes. Render the detected melody through the synth or transpose it to a new key.</span></li>
+        <li><span class="f-name">Noise Reduction</span><span class="f-desc">Spectral denoising — removes steady-state noise like hiss, room tone, and fan noise. Same principle as iZotope RX. Learns from the quiet parts of your recording.</span></li>
+        <li><span class="f-name">Tuner</span><span class="f-desc">Chromatic tuner with note name, frequency, and cents display. Tune your instrument right inside the DAW. Shows how many cents sharp or flat you are.</span></li>
+        <li><span class="f-name">Metronome</span><span class="f-desc">Click track during playback and recording. Downbeat accent. Tap tempo to set BPM by feel. Count-in bars before recording starts.</span></li>
+        <li><span class="f-name">Sample Browser</span><span class="f-desc">Browse folders on your computer for audio files. See names and sizes. Click to add to a track. Find your sounds without leaving the DAW.</span></li>
+        <li><span class="f-name">27 Guides</span><span class="f-desc">Built-in encyclopedia — music theory, recording techniques, mixing strategies, mastering workflow. From "what is a note" to "LUFS targets for Spotify." Searchable.</span></li>
+        <li><span class="f-name">Music Theory</span><span class="f-desc">20 scales, 18 chord types, circle of fifths, diatonic chord builder, 10 common progressions (pop, blues, jazz, rock). Key compatibility analysis. All accessible via API and the Bandmate.</span></li>
+        <li><span class="f-name">Export</span><span class="f-desc">WAV, MP3, FLAC, OGG, AIFF. Any sample rate, any bit depth, with dithering. Stem export. Project export. One click.</span></li>
     </ul>
 </section>
 
@@ -124,17 +133,21 @@
         <div class="log-line"></div>
         <div class="log-date">April 17, 2026</div>
         <div class="log-ver">The First Light</div>
-        <div class="log-body">Everything at once. The engine, the ears, the hands, and the voice.
+        <div class="log-body">Everything at once. 86 features. 18 effects. Built in one session.
             <ul>
-                <li>16 audio effects — all modeled after real hardware, all GPL-free</li>
-                <li>AI stem separation — vocals, drums, bass, guitar, piano, and more</li>
-                <li>Bleed removal — subtract mic bleed using a clean reference signal</li>
+                <li>18 audio effects — all modeled after real hardware, all GPL-free</li>
+                <li>Subtractive synth + drum machine — every sound from pure math</li>
+                <li>Piano roll — visual MIDI note editor with transpose and render</li>
+                <li>AI stem separation, lyric transcription, chord detection, audio-to-MIDI</li>
                 <li>The Bandmate — AI session collaborator that listens and suggests</li>
-                <li>Lyric transcription with timestamps</li>
-                <li>Full parametric EQ, hardware-depth compressor, Schroeder reverb</li>
-                <li>Multi-channel recording — assign each input to its own track</li>
-                <li>76 tooltips — every control explained, beginner to pro</li>
+                <li>Bleed removal + spectral noise reduction + sidechain compression</li>
+                <li>Multi-channel recording, input monitoring, metronome, tuner</li>
+                <li>Snap-to-grid, named markers, automation curves, sample browser</li>
+                <li>27 knowledge base articles — theory, recording, mixing, mastering</li>
+                <li>20 scales, 18 chords, circle of fifths, 10 progressions</li>
+                <li>76 tooltips — every control explained, hardware equivalents named</li>
                 <li>LUFS metering, key/BPM detection, export to 5 formats</li>
+                <li>101 tests (63 functional + 38 adversarial) — all clean</li>
             </ul>
         </div>
     </div>
