@@ -57,27 +57,33 @@ def validate_key_online(key):
     """Validate a license key against LemonSqueezy API."""
     try:
         import requests
+        cache = _load_cache()
+        body = {"license_key": key}
+        # If we have an instance_id from a previous activation, include it
+        if cache and cache.get("instance_id"):
+            body["instance_id"] = cache["instance_id"]
+
         r = requests.post(
             "https://api.lemonsqueezy.com/v1/licenses/validate",
-            json={"license_key": key, "instance_name": _get_machine_id()},
+            json=body,
+            headers={"Accept": "application/json"},
             timeout=15,
         )
-        if r.status_code == 200:
-            data = r.json()
-            valid = data.get("valid", False)
-            if valid:
-                _save_cache({
-                    "key": key,
-                    "machine_id": _get_machine_id(),
-                    "valid": True,
-                    "meta": data.get("meta", {}),
-                })
-                return True, "License activated!"
-            else:
-                error = data.get("error", "Invalid key")
-                return False, error
+        data = r.json()
+        valid = data.get("valid", False)
+        if valid:
+            status = data.get("license_key", {}).get("status", "active")
+            _save_cache({
+                "key": key,
+                "machine_id": _get_machine_id(),
+                "valid": True,
+                "instance_id": data.get("instance", {}).get("id"),
+                "meta": data.get("meta", {}),
+            })
+            return True, "License valid!"
         else:
-            return False, f"Server error ({r.status_code})"
+            error = data.get("error", "Invalid key")
+            return False, error
     except ImportError:
         return False, "Network library not available"
     except Exception as e:
@@ -94,21 +100,27 @@ def activate_key(key):
                 "license_key": key,
                 "instance_name": _get_machine_id(),
             },
+            headers={"Accept": "application/json"},
             timeout=15,
         )
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("activated") or data.get("valid"):
-                _save_cache({
-                    "key": key,
-                    "machine_id": _get_machine_id(),
-                    "valid": True,
-                    "instance_id": data.get("instance", {}).get("id"),
-                    "meta": data.get("meta", {}),
-                })
-                return True, "License activated on this machine!"
-            return False, data.get("error", "Activation failed")
-        return False, f"Server error ({r.status_code})"
+        data = r.json()
+        valid = data.get("valid", False) or data.get("activated", False)
+
+        if valid:
+            _save_cache({
+                "key": key,
+                "machine_id": _get_machine_id(),
+                "valid": True,
+                "instance_id": data.get("instance", {}).get("id"),
+                "meta": data.get("meta", {}),
+            })
+            return True, "License activated!"
+        else:
+            error = data.get("error", "Activation failed")
+            # Already activated on this machine — try validate instead
+            if "already" in error.lower() or "limit" in error.lower():
+                return validate_key_online(key)
+            return False, error
     except Exception as e:
         return False, str(e)
 
