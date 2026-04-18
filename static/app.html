@@ -1629,6 +1629,31 @@
                 <div id="a2mResults" style="margin-top:12px; font-size:12px; color:var(--text-dim);"></div>
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Best on: isolated vocals, bass lines, lead melodies. Not designed for chords or polyphonic material.</p>`,
 
+            pad: `<h3>Pad ${h('MPC-style pad grid. Each pad plays a note from the current scale. Tap to preview, record a sequence by clicking pads in order, then render to a track.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:8px; letter-spacing:1px;">TAP PADS TO BUILD A PATTERN</div>
+                <div class="field"><label>Scale ${h('Which scale to map the pads to. Major = happy. Minor = sad. Pentatonic = can not play a wrong note.')}</label>
+                    <select id="padScale" onchange="buildPadGrid()">
+                        <option value="major">Major</option>
+                        <option value="minor" selected>Minor</option>
+                        <option value="major_pentatonic">Major Pentatonic</option>
+                        <option value="minor_pentatonic">Minor Pentatonic</option>
+                        <option value="blues">Blues</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="mixolydian">Mixolydian</option>
+                    </select></div>
+                <div class="field"><label>Root ${h('Starting note of the scale. Matches your song key.')}</label>
+                    <select id="padRoot" onchange="buildPadGrid()">
+                        ${['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].map(n => `<option value="${n}">${n}</option>`).join('')}
+                    </select></div>
+                <div id="padGrid" style="margin:12px 0;"></div>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <button class="btn btn-teal" style="flex:1;" onclick="togglePadRecord(this)">Record Sequence</button>
+                    <button class="btn btn-secondary" onclick="clearPadSequence()">Clear</button>
+                    <button class="btn btn-secondary" style="padding:8px 10px;" onclick="popOutPad()" title="Full screen pads">&#8599;</button>
+                </div>
+                <div id="padSequenceDisplay" style="font-size:10px; color:var(--text-muted); min-height:20px; margin-bottom:8px;"></div>
+                <button class="btn btn-primary" style="width:100%;" onclick="renderPadSequence()">Render to Track</button>`,
+
             drums: `<h3>Drum Machine ${h('Every sound synthesized from math — no samples needed. Kick, snare, hi-hat, clap, toms, rim. Click the grid to program a pattern, hit Render to create a track.')}</h3>
                 <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SYNTHESIZED DRUM MACHINE</div>
                 <div id="drumGrid" style="margin-bottom:12px;"></div>
@@ -3423,6 +3448,165 @@
         el.dataset.on = on ? '0' : '1';
         el.style.background = on ? '#0a0a14' : '#9b59b6';
     }
+
+    // ═══ PAD INSTRUMENT ═══
+    const SCALE_INTERVALS = {
+        major: [0,2,4,5,7,9,11], minor: [0,2,3,5,7,8,10],
+        major_pentatonic: [0,2,4,7,9], minor_pentatonic: [0,3,5,7,10],
+        blues: [0,3,5,6,7,10], dorian: [0,2,3,5,7,9,10], mixolydian: [0,2,4,5,7,9,10],
+    };
+    let _padSequence = [];
+    let _padRecording = false;
+    let _padRecordStart = 0;
+
+    function getPadNotes() {
+        const root = NOTE_LABELS.indexOf(document.getElementById('padRoot')?.value || 'C');
+        const scale = SCALE_INTERVALS[document.getElementById('padScale')?.value || 'minor'];
+        const notes = [];
+        // 2 octaves of the scale, starting from octave 3
+        for (let oct = 0; oct < 2; oct++) {
+            for (const interval of scale) {
+                notes.push(48 + root + interval + oct * 12); // octave 3-4
+            }
+        }
+        return notes.slice(0, 16); // max 16 pads
+    }
+
+    function buildPadGrid(containerId) {
+        const container = document.getElementById(containerId || 'padGrid');
+        if (!container) return;
+        const notes = getPadNotes();
+        const cols = 4;
+        const size = containerId === 'padOverlayGrid' ? 80 : 52;
+
+        container.innerHTML = `<div style="display:grid; grid-template-columns:repeat(${cols}, ${size}px); gap:${size > 60 ? 8 : 4}px; justify-content:center;">
+            ${notes.map((note, i) => {
+                const name = NOTE_LABELS[note % 12] + Math.floor(note / 12 - 1);
+                return `<div class="pad-btn" data-note="${note}" data-idx="${i}" onclick="hitPad(${note}, this)"
+                    style="width:${size}px; height:${size}px; background:var(--bg-card); border:2px solid var(--border);
+                    border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+                    cursor:pointer; transition:all 0.1s; user-select:none;"
+                    onmousedown="this.style.background='var(--violet)';this.style.borderColor='var(--violet-glow)';this.style.transform='scale(0.95)'"
+                    onmouseup="setTimeout(()=>{this.style.background='var(--bg-card)';this.style.borderColor='var(--border)';this.style.transform='scale(1)'},150)">
+                    <div style="font-size:${size > 60 ? 16 : 12}px; color:var(--text); font-weight:500;">${name}</div>
+                    <div style="font-size:${size > 60 ? 10 : 8}px; color:var(--text-muted); margin-top:2px;">Pad ${i+1}</div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }
+
+    function hitPad(note, el) {
+        // Preview the note
+        fetch('/api/instrument/synth', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                notes: [{note, start_beat: 0, duration_beats: 0.5, velocity: 100}],
+                bpm: 120,
+                params: {
+                    waveform: document.getElementById('synthWaveform')?.value || 'saw',
+                    cutoff: parseFloat(document.getElementById('synthCutoff')?.value || 4000),
+                    attack: 0.005, release: 0.3,
+                },
+                name: '_preview'
+            })
+        });
+
+        // Record if recording
+        if (_padRecording) {
+            const now = performance.now();
+            const beat = (now - _padRecordStart) / (60000 / (parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120));
+            _padSequence.push({ note, start_beat: Math.round(beat * 4) / 4, duration_beats: 0.25, velocity: 100 });
+            updatePadDisplay();
+        }
+    }
+
+    function togglePadRecord(btn) {
+        _padRecording = !_padRecording;
+        if (_padRecording) {
+            _padRecordStart = performance.now();
+            btn.textContent = 'Stop Recording';
+            btn.style.background = 'var(--red)';
+            document.getElementById('statusText').textContent = 'Tap pads to record...';
+        } else {
+            btn.textContent = 'Record Sequence';
+            btn.style.background = '';
+            document.getElementById('statusText').textContent = `Recorded ${_padSequence.length} notes`;
+        }
+    }
+
+    function clearPadSequence() {
+        _padSequence = [];
+        updatePadDisplay();
+    }
+
+    function updatePadDisplay() {
+        const display = document.getElementById('padSequenceDisplay') || document.getElementById('padOverlaySeq');
+        if (display) {
+            display.textContent = _padSequence.length === 0 ? 'No notes recorded' :
+                _padSequence.map(n => NOTE_LABELS[n.note % 12]).join(' → ') + ` (${_padSequence.length} notes)`;
+        }
+    }
+
+    function renderPadSequence() {
+        if (_padSequence.length === 0) { alert('Record some notes by tapping pads first!'); return; }
+        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120;
+        const params = {
+            waveform: document.getElementById('synthWaveform')?.value || 'saw',
+            cutoff: parseFloat(document.getElementById('synthCutoff')?.value || 4000),
+            attack: parseFloat(document.getElementById('synthAttack')?.value || 0.01),
+            release: parseFloat(document.getElementById('synthRelease')?.value || 0.1),
+        };
+        document.getElementById('statusText').textContent = 'Rendering pad sequence...';
+        fetch('/api/instrument/synth', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ notes: _padSequence, bpm, params, name: 'Pad Sequence' })
+        }).then(r => r.json()).then(d => {
+            if (d.ok) { refreshTracks(); reloadAllWaveforms(); document.getElementById('statusText').textContent = 'Pad sequence rendered!'; }
+            else document.getElementById('statusText').textContent = d.error || 'Failed';
+        });
+    }
+
+    function popOutPad() {
+        let overlay = document.getElementById('padOverlay');
+        if (overlay) { overlay.style.display = 'flex'; buildPadGrid('padOverlayGrid'); return; }
+
+        overlay = document.createElement('div');
+        overlay.id = 'padOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.97);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
+
+        overlay.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:500px;margin-bottom:20px;">
+                <div style="font-size:20px;font-weight:200;letter-spacing:6px;color:var(--violet-glow);">PAD</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <select onchange="document.getElementById('padScale').value=this.value;buildPadGrid('padOverlayGrid')" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                        <option value="minor" selected>Minor</option><option value="major">Major</option>
+                        <option value="minor_pentatonic">Min Pent</option><option value="major_pentatonic">Maj Pent</option>
+                        <option value="blues">Blues</option><option value="dorian">Dorian</option>
+                    </select>
+                    <select onchange="document.getElementById('padRoot').value=this.value;buildPadGrid('padOverlayGrid')" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                        ${NOTE_LABELS.map(n => `<option value="${n}">${n}</option>`).join('')}
+                    </select>
+                    <button onclick="document.getElementById('padOverlay').style.display='none'" style="background:none;border:none;color:#7878a0;font-size:24px;cursor:pointer;">&times;</button>
+                </div>
+            </div>
+            <div id="padOverlayGrid"></div>
+            <div id="padOverlaySeq" style="font-size:12px;color:var(--text-muted);margin-top:16px;min-height:20px;">No notes recorded</div>
+            <div style="display:flex;gap:8px;margin-top:16px;">
+                <button onclick="togglePadRecord(this)" style="padding:10px 24px;background:var(--teal);color:#0a0a14;border:none;border-radius:20px;cursor:pointer;font-size:13px;">Record Sequence</button>
+                <button onclick="renderPadSequence();document.getElementById('padOverlay').style.display='none'" style="padding:10px 24px;background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;">Render</button>
+                <button onclick="clearPadSequence()" style="padding:10px 24px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:20px;cursor:pointer;font-size:13px;">Clear</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        buildPadGrid('padOverlayGrid');
+    }
+
+    // Wire pad grid build on panel open
+    const _origShowPanel3 = showPanel;
+    showPanel = function(name, btn) {
+        _origShowPanel3(name, btn);
+        if (name === 'pad') setTimeout(() => buildPadGrid(), 100);
+    };
 
     // ═══ PIANO ROLL POP-OUT ═══
     function popOutPianoRoll() {
