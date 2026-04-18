@@ -523,15 +523,48 @@
     let _markerIdCounter = 0;
 
     function addMarker(name) {
-        // Get current playhead position
         const playhead = document.getElementById('playhead');
         const pos = parseFloat(playhead?.style.left || 0) / PIXELS_PER_SECOND;
         const seconds = Math.max(0, pos);
         const id = _markerIdCounter++;
-        const markerName = name || prompt('Marker name:', `Marker ${id + 1}`);
-        if (!markerName) return;
 
-        _markers.push({ id, name: markerName, time: seconds });
+        if (name) {
+            _markers.push({ id, name, time: seconds });
+            _markers.sort((a, b) => a.time - b.time);
+            renderMarkers();
+            document.getElementById('statusText').textContent = `Marker "${name}" at ${seconds.toFixed(1)}s`;
+            return;
+        }
+
+        // Show inline dialog instead of browser prompt
+        let dialog = document.getElementById('markerDialog');
+        if (!dialog) {
+            dialog = document.createElement('div');
+            dialog.id = 'markerDialog';
+            dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;z-index:400;box-shadow:0 20px 60px rgba(0,0,0,.6);text-align:center;min-width:280px;';
+            document.body.appendChild(dialog);
+        }
+        dialog.style.display = 'block';
+        dialog.innerHTML = `
+            <div style="font-size:13px;color:var(--text);margin-bottom:12px;">Name this marker</div>
+            <input type="text" id="markerNameInput" value="Marker ${id + 1}"
+                style="width:100%;padding:10px;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:14px;text-align:center;"
+                onkeydown="if(event.key==='Enter')confirmMarker(${id},${seconds})">
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button onclick="confirmMarker(${id},${seconds})" style="flex:1;padding:10px;background:linear-gradient(135deg,var(--violet),var(--teal));color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:12px;">Add</button>
+                <button onclick="document.getElementById('markerDialog').style.display='none'" style="flex:1;padding:10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer;font-size:12px;">Cancel</button>
+            </div>
+        `;
+        setTimeout(() => { document.getElementById('markerNameInput')?.select(); }, 50);
+        return;
+    }
+
+    function confirmMarker(id, seconds) {
+        const input = document.getElementById('markerNameInput');
+        const name = input?.value?.trim() || `Marker ${id + 1}`;
+        document.getElementById('markerDialog').style.display = 'none';
+
+        _markers.push({ id, name, time: seconds });
         _markers.sort((a, b) => a.time - b.time);
         renderMarkers();
         document.getElementById('statusText').textContent = `Marker "${markerName}" at ${seconds.toFixed(1)}s`;
