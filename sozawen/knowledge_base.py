@@ -845,6 +845,100 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
 
 **Buy first:** SM57 ($99) → large-diaphragm condenser ($99-269) → matched pencil pair ($200-400). Everything after is luxury."""
     },
+    # ═══════════════════════════════════════════════════════════════
+    # HARDWARE & STUDIO
+    # ═══════════════════════════════════════════════════════════════
+
+    "audio_interfaces": {
+        "title": "Audio Interfaces — Choosing & Using",
+        "category": "Hardware",
+        "content": """The interface converts analog to digital and back. The most important piece of gear you'll buy.
+
+**By budget:** Under $100: Focusrite Scarlett Solo, M-Audio Solo (1 input). $100-200: Scarlett 2i2, M-Track Duo (2 inputs — guitar + vocals). $200-500: UA Volt, Audient iD14, SSL 2+ (better preamps). $500+: Apollo, RME Babyface (professional converters, DSP).
+
+**Inputs:** 1-2 for solo. 4 for a band. 8+ for drums. Sozawen maps each input to its own track.
+
+**Sample rate:** 44.1kHz is fine. 48kHz for video. Higher = bigger files, marginal audible difference. **Latency:** Buffer 128 = ~3ms (monitoring). 256 = ~6ms (safe). 512+ = mixing only."""
+    },
+
+    "monitors_headphones": {
+        "title": "Studio Monitors & Headphones",
+        "category": "Hardware",
+        "content": """Studio monitors are flat — they show what your mix actually sounds like, not what sounds fun.
+
+**Monitors:** Yamaha HS5 ($350/pair, industry standard flat), JBL 305P ($300, wider sweet spot), KRK Rokit 5 ($300, slight bass hype). Place in equilateral triangle with your head, tweeters at ear height, 6+ inches from walls.
+
+**Headphones — Open-back (mixing):** AKG K240 ($70), Sennheiser HD 600 ($400). Natural imaging, sound leaks. **Closed-back (tracking):** ATH-M50x ($150), DT 770 ($160). No bleed into mic.
+
+**The truth is between both.** Mix on monitors, check on headphones, check on earbuds, check in the car. Never mix on headphones alone — they exaggerate stereo width and bass detail."""
+    },
+
+    "cables_connections": {
+        "title": "Cables & Connections",
+        "category": "Hardware",
+        "content": """**XLR:** 3-pin balanced. Mics, monitors. Noise rejection over long runs — always use for mics. **TRS:** 1/4 inch balanced (two rings). Monitor connections, balanced lines. **TS:** 1/4 inch unbalanced (one ring). Guitar cables. Keep under 20 feet.
+
+**Balanced vs Unbalanced:** Balanced carries the signal twice (normal + inverted). Noise picked up cancels out at the receiving end. XLR can run 100+ feet clean. TS picks up hum after 15-20 feet.
+
+**USB:** Interface to computer. USB-C current. Thunderbolt for lowest latency. **MIDI:** Note data, no audio. 5-pin DIN (classic) or USB (modern).
+
+**The rule:** Shortest cable that reaches. Don't run audio parallel to power cables. Coil in figure-8, not circles."""
+    },
+
+    "acoustic_treatment": {
+        "title": "Room Treatment & Acoustics",
+        "category": "Hardware",
+        "content": """The room is the most important gear. A $3,000 mic in an untreated room sounds worse than a $100 mic in a treated one.
+
+**Priority order:** 1. Bass traps in corners (4+ inch rigid fiberglass). Single biggest improvement. 2. First reflection panels (side walls, ceiling — use mirror trick to find the spots). 3. Rear wall diffusion or absorption.
+
+**Budget treatment:** Moving blankets behind the vocalist. Bookshelves as diffusers. Couch and carpet for absorption. Closet full of clothes = natural vocal booth.
+
+**Don't:** Cover everything in foam (only absorbs highs, makes room boomy). Make the room completely dead (unnatural, fatiguing). **Do:** Treat about 30% of wall area. Balance absorption and diffusion."""
+    },
+
+    "studio_budget_guide": {
+        "title": "Building a Studio on Any Budget",
+        "category": "Hardware",
+        "content": """Everything here works with Sozawen. Build what you can afford — upgrade when you outgrow it.
+
+**$200 — The Essentials:**
+- Audio interface: Focusrite Scarlett Solo ($110)
+- Microphone: Audio-Technica AT2020 ($99) or SM57 ($99)
+- Headphones: use what you have, upgrade later
+- Software: Sozawen ($79)
+- Total: ~$290. You can record, edit, mix, master, and export a finished song.
+
+**$500 — The Bedroom Studio:**
+- Interface: Focusrite Scarlett 2i2 ($170) — 2 inputs
+- Mic: Rode NT1 ($269)
+- Headphones: ATH-M50x ($150)
+- Pop filter + mic stand + XLR cable ($40)
+- Sozawen ($79)
+- Total: ~$710. Record vocals and guitar simultaneously. Monitor properly.
+
+**$1,000 — The Serious Setup:**
+- Interface: Audient iD14 ($300)
+- Mic: Rode NT1 ($269)
+- Monitors: Yamaha HS5 pair ($350)
+- Headphones: DT 770 ($160)
+- Cables + stands + pop filter ($60)
+- Basic acoustic treatment ($100 DIY)
+- Sozawen ($79)
+- Total: ~$1,320. Professional monitoring. Treated room. Multiple input options.
+
+**$2,000+ — The Home Studio:**
+- Interface: Universal Audio Volt 276 ($400)
+- Mics: Rode NT1 + SM57 ($370)
+- Monitors: Adam Audio T7V pair ($500)
+- Headphones: Sennheiser HD 600 ($400)
+- Full acoustic treatment ($300 DIY)
+- MIDI controller ($100-200)
+- Sozawen ($79)
+- Everything you need to make records that compete with professional studios.
+
+**The truth:** The gear ceiling stopped mattering years ago. A $300 interface and a $100 mic with Sozawen can make a record that sounds as good as what came out of Abbey Road in the 1960s. The difference is the performance, the songs, and the time you put in. Not the price tag."""
+    },
 }
 
 
