@@ -27,7 +27,7 @@ a = Analysis(
         'uvicorn.lifespan', 'uvicorn.lifespan.on',
         'fastapi', 'starlette', 'anyio', 'anyio._backends', 'anyio._backends._asyncio',
         'sounddevice', 'soundfile',
-        'pedalboard',
+        # pedalboard REMOVED — GPL-3.0, replaced with pure scipy/numpy DSP
         'numpy', 'scipy', 'scipy.signal',
         'librosa', 'librosa.core', 'librosa.feature', 'librosa.beat',
         'librosa.effects', 'librosa.onset',
@@ -70,7 +70,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='static/logo.png',
+    icon='static/sozawen.ico',
 )
 
 coll = COLLECT(
