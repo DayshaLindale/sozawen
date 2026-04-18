@@ -221,6 +221,7 @@ class AudioEngine:
         self._record_buffers = {}  # track_id -> list of numpy arrays
         self.input_monitoring = False
         self._monitor_buffer = None  # latest input audio for monitoring
+        self._input_levels = {}     # per-channel peak levels for live metering
 
         # Metronome click during playback
         self._metronome_click = None
@@ -438,6 +439,13 @@ class AudioEngine:
         # Store for input monitoring (even when not recording)
         if self.input_monitoring:
             self._monitor_buffer = audio
+
+        # Compute per-channel peak levels for live metering
+        n_ch = audio.shape[1] if audio.ndim > 1 else 1
+        for ch in range(n_ch):
+            ch_data = audio[:, ch] if audio.ndim > 1 else audio
+            peak = float(np.max(np.abs(ch_data)))
+            self._input_levels[ch] = peak
 
         if not self.recording:
             return

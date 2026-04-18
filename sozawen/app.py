@@ -913,6 +913,11 @@ async def get_tuner_data(request: Request):
         "in_tune": abs(cents) < 5,
     })
 
+@api.get("/api/input-levels")
+async def get_input_levels():
+    """Get current peak levels for each input channel — for live metering."""
+    return JSONResponse({"levels": {str(k): round(v, 4) for k, v in _engine._input_levels.items()}})
+
 @api.post("/api/monitor/toggle")
 async def toggle_monitoring():
     """Toggle input monitoring — hear yourself through the speakers."""
