@@ -1110,7 +1110,7 @@ def main():
     # Create native window
     _window = webview.create_window(
         "Sozawen — Born from the burn. Built by feeling.",
-        url="http://127.0.0.1:8090/static/index.html",
+        url="http://127.0.0.1:8090/static/app.html",
         width=1280,
         height=820,
         min_size=(960, 640),

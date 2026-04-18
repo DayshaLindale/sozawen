@@ -3,2582 +3,499 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sozawen</title>
+    <title>Sozawen — Born from the burn. Built by feeling.</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Crimson+Pro:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         :root {
-            --bg-deep: #0a0a14;
-            --bg-surface: #12121f;
-            --bg-card: #181828;
-            --bg-hover: #1e1e32;
-            --bg-track: #141422;
-            --border: #2a2a44;
-            --border-light: #353555;
-            --text: #e4e4f0;
-            --text-dim: #8080a8;
-            --text-muted: #5a5a80;
+            --bg: #08080f;
+            --text: #d8d8e8;
+            --text-dim: #7878a0;
+            --text-muted: #4a4a70;
             --violet: #9b59b6;
-            --violet-glow: #b76fcc;
-            --violet-soft: rgba(155, 89, 182, 0.15);
+            --violet-glow: #c084e0;
             --teal: #2dd4a8;
-            --teal-glow: #40e8bc;
-            --teal-soft: rgba(45, 212, 168, 0.12);
-            --green: #2dd4a8;
-            --red: #e05a6f;
-            --amber: #d4a84d;
-            --waveform: #6a5acd;
-            --waveform-fill: rgba(106, 90, 205, 0.3);
-            --radius: 6px;
+            --teal-dim: rgba(45, 212, 168, 0.5);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            font-weight: 300;
         }
 
-        body { font-family: 'Inter', sans-serif; background: var(--bg-deep); color: var(--text); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        /* ── ambient light ── */
+        @keyframes breathe { 0%,100%{opacity:.25} 50%{opacity:.5} }
+        @keyframes drift { 0%{transform:translate(0,0)} 33%{transform:translate(40px,-30px)} 66%{transform:translate(-30px,20px)} 100%{transform:translate(0,0)} }
+        @keyframes glow-pulse { 0%,100%{text-shadow:0 0 30px rgba(155,89,182,.2)} 50%{text-shadow:0 0 60px rgba(155,89,182,.4), 0 0 120px rgba(45,212,168,.15)} }
+        @keyframes wave-crawl { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
 
-        /* ═══ HEADER ═══ */
-        .header { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .header .brand { display: flex; align-items: center; gap: 10px; }
-        .header h1 { font-size: 13px; font-weight: 300; letter-spacing: 6px; background: linear-gradient(135deg, var(--violet) 30%, var(--teal) 70%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .header .tagline { display: none; }
-        .header .status { font-size: 10px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
-        .gpu-badge { padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 600; }
-        .gpu-badge.on { background: var(--teal); color: #0a0a14; }
-        .gpu-badge.off { background: var(--border); color: var(--text-dim); }
-
-        /* ═══ TRANSPORT BAR ═══ */
-        .transport { display: flex; align-items: center; gap: 8px; padding: 6px 20px; background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-card) 100%); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .transport-group { display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--bg-deep); border-radius: 20px; border: 1px solid var(--border); }
-        .transport-btn { width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: var(--text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: all 0.15s; }
-        .transport-btn:hover { color: var(--text); background: var(--bg-hover); }
-        .transport-btn.record { color: var(--red); }
-        .transport-btn.record:hover { background: rgba(224, 90, 111, 0.15); }
-        .transport-btn.record.active { background: var(--red); color: #fff; animation: pulse-rec 1.5s infinite; }
-        @keyframes pulse-rec { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
-        .transport-btn.play.active { background: var(--teal); color: #0a0a14; }
-        .transport-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
-        .time-display { font-family: 'Courier New', monospace; font-size: 20px; color: var(--teal); letter-spacing: 3px; min-width: 110px; padding: 4px 12px; background: var(--bg-deep); border-radius: var(--radius); border: 1px solid var(--border); text-align: center; }
-        .info-pill { font-size: 11px; color: var(--text-dim); padding: 4px 12px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 20px; letter-spacing: 0.5px; }
-        .info-pill .value { color: var(--violet-glow); font-weight: 500; }
-        .info-pill.key .value { color: var(--teal); }
-
-        /* ═══ MAIN LAYOUT ═══ */
-        .main { display: flex; flex: 1; overflow: hidden; }
-
-        /* ═══ RESIZE HANDLES ═══ */
-        .resize-handle {
-            width: 4px; cursor: col-resize; background: transparent;
-            flex-shrink: 0; position: relative; z-index: 5;
-            transition: background 0.2s;
+        .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(100px); z-index: 0; }
+        .orb-violet {
+            width: 600px; height: 600px; top: -10%; left: -5%;
+            background: radial-gradient(circle, rgba(155,89,182,.12) 0%, transparent 70%);
+            animation: breathe 10s ease-in-out infinite, drift 30s ease-in-out infinite;
         }
-        .resize-handle:hover, .resize-handle.dragging {
-            background: var(--violet);
+        .orb-teal {
+            width: 500px; height: 500px; bottom: -10%; right: -5%;
+            background: radial-gradient(circle, rgba(45,212,168,.1) 0%, transparent 70%);
+            animation: breathe 10s ease-in-out infinite 5s, drift 25s ease-in-out infinite reverse;
         }
-        .resize-handle::after {
-            content: ''; position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 2px; height: 24px; border-radius: 1px;
-            background: var(--border); transition: background 0.2s;
+        .orb-center {
+            width: 800px; height: 800px; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            background: radial-gradient(circle, rgba(155,89,182,.04) 0%, transparent 60%);
+            animation: breathe 15s ease-in-out infinite 2s;
         }
-        .resize-handle:hover::after { background: var(--violet-glow); }
 
-        /* ═══ SIDEBAR ═══ */
-        .sidebar { width: 180px; background: var(--bg-surface); border-right: 1px solid var(--border); padding: 10px; overflow-y: auto; flex-shrink: 0; }
-        .sidebar h3 { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); margin: 16px 0 8px; }
-        .sidebar h3:first-child { margin-top: 4px; }
-        .tool-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; background: transparent; border: 1px solid transparent; border-radius: var(--radius); color: var(--text-dim); font-size: 11px; cursor: pointer; transition: all 0.12s; text-align: left; font-family: inherit; }
-        .tool-btn:hover { background: var(--bg-hover); color: var(--text); }
-        .tool-btn.active { background: var(--violet-soft); border-color: var(--violet); color: var(--violet-glow); }
-        .tool-btn .icon { font-size: 14px; width: 20px; text-align: center; }
-
-        /* ═══ WORKSPACE ═══ */
-        .workspace { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-
-        /* ═══ TIMELINE — split into track panel + waveform area ═══ */
-        .timeline { flex: 1; display: flex; overflow: hidden; }
-        .timeline-ruler { height: 24px; background: var(--bg-card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; display: flex; align-items: flex-end; padding: 0 200px 0 0; }
-        #playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--teal); z-index: 10; left: 0px; box-shadow: 0 0 6px var(--teal); cursor: col-resize; }
-        #playhead::after { content: ''; position: absolute; top: 0; left: -6px; width: 14px; height: 14px; background: var(--teal); clip-path: polygon(50% 100%, 0 0, 100% 0); cursor: pointer; }
-        .ruler-marks { display: flex; gap: 0; flex: 1; padding-left: 4px; }
-        .ruler-mark { font-size: 9px; color: var(--text-muted); min-width: 80px; border-left: 1px solid var(--border); padding-left: 4px; }
-
-        /* Track */
-        .track { display: flex; border-bottom: 1px solid var(--border); min-height: 80px; }
-        .track-panel { width: 200px; flex-shrink: 0; background: var(--bg-surface); border-right: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; }
-        .track-panel::-webkit-scrollbar { display: none; }
-        .wave-panel { flex: 1; overflow: auto; position: relative; }
-        .track-panel-header { height: 24px; background: var(--bg-card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; font-size: 9px; color: var(--text-muted); letter-spacing: 1px; }
-        .track-header { width: 100%; background: var(--bg-surface); border-bottom: 1px solid var(--border); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; min-height: 80px; }
-        .track-name { font-size: 12px; font-weight: 500; color: var(--text); outline: none; border: none; background: transparent; width: 100%; }
-        .track-controls { display: flex; gap: 4px; align-items: center; }
-        .track-ctrl { width: 22px; height: 22px; border-radius: 3px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); font-size: 9px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; }
-        .track-ctrl:hover { border-color: var(--violet); }
-        .track-ctrl.active-s { background: var(--teal); color: #0a0a14; border-color: var(--teal); }
-        .track-ctrl.active-m { background: var(--red); color: #fff; border-color: var(--red); }
-        .track-ctrl.active-r { background: var(--red); color: #fff; border-color: var(--red); animation: pulse-rec 1.5s infinite; }
-        .track-volume {
-            width: 55px; height: 5px; -webkit-appearance: none; outline: none; cursor: pointer;
-            background: var(--bg-deep); border: 1px solid var(--border); border-radius: 2px;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+        /* ── floating nav ── */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+            background: rgba(8,8,15,.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,.03);
+            transform: translateY(-100%); transition: transform .4s ease;
         }
-        .track-volume::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 5px; height: 14px;
-            background: linear-gradient(180deg, #c8c0d8 0%, #9b59b6 40%, #7b3fa0 100%);
-            border: 1px solid rgba(255,255,255,0.15); border-radius: 1px; cursor: grab;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        .nav.visible { transform: translateY(0); }
+        .nav-logo {
+            font-size: 14px; font-weight: 400; letter-spacing: 6px; color: var(--text-dim);
+            text-decoration: none; transition: color .3s;
         }
-        .track-pan {
-            width: 40px; height: 5px; -webkit-appearance: none; outline: none; cursor: pointer;
-            background: var(--bg-deep); border: 1px solid var(--border); border-radius: 2px;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+        .nav-logo:hover { color: var(--teal); }
+        .nav-logo img { height: 22px; vertical-align: middle; margin-right: 10px; }
+        .nav-links { display: flex; gap: 28px; }
+        .nav-links a {
+            font-size: 12px; color: var(--text-muted); text-decoration: none;
+            letter-spacing: 2px; text-transform: uppercase; transition: color .3s;
         }
-        .track-pan::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 5px; height: 14px;
-            background: linear-gradient(180deg, #a0e8d8 0%, #2dd4a8 40%, #1a9a78 100%);
-            border: 1px solid rgba(255,255,255,0.15); border-radius: 1px; cursor: grab;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-        }
-        .track-body { flex: 1; background: var(--bg-track); position: relative; overflow-x: auto; overflow-y: hidden; cursor: crosshair; }
-        .track-waveform { position: absolute; top: 0; left: 0; height: 100%; min-width: 100%; }
-        .track-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 11px; }
+        .nav-links a:hover { color: var(--teal); }
 
-        /* ═══ DROP OVERLAY ═══ */
-        .drop-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,10,20,0.85); z-index: 100; align-items: center; justify-content: center; flex-direction: column; }
-        .drop-overlay.visible { display: flex; }
-        .drop-overlay h2 { font-size: 24px; font-weight: 300; color: var(--violet-glow); margin-bottom: 8px; }
-        .drop-overlay p { font-size: 13px; color: var(--text-dim); }
-
-        /* ═══ BOTTOM BAR ═══ */
-        .bottom-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; background: var(--bg-card); border-top: 1px solid var(--border); flex-shrink: 0; font-size: 10px; color: var(--text-muted); gap: 16px; }
-
-        /* ═══ TOOL PANEL (right side) ═══ */
-        .tool-panel { position: fixed; right: 0; top: 36px; bottom: 28px; width: 320px; background: var(--bg-surface); border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; z-index: 50; transform: translateX(100%); transition: transform 0.2s ease; box-shadow: -4px 0 20px rgba(0,0,0,0.3); }
-        .tool-panel.visible { transform: translateX(0); }
-        .tool-panel h3 { font-size: 13px; color: var(--violet-glow); margin-bottom: 12px; }
-        .tool-panel .field { margin-bottom: 12px; }
-        .tool-panel label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
-        .tool-panel select, .tool-panel input[type="text"] { width: 100%; padding: 6px 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: inherit; font-size: 12px; }
-        .btn { padding: 8px 16px; border: none; border-radius: var(--radius); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
-        .btn-primary { background: linear-gradient(135deg, var(--violet), var(--violet-glow)); color: #fff; }
-        .btn-primary:hover { filter: brightness(1.1); }
-        .btn-secondary { background: var(--bg-hover); color: var(--text); border: 1px solid var(--border); }
-        .btn-teal { background: linear-gradient(135deg, var(--teal), var(--teal-glow)); color: #0a0a14; }
-
-        /* File menu */
-        .menu-bar { display: flex; gap: 0; padding: 0 12px; background: var(--bg-surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .menu-item { position: relative; padding: 6px 12px; font-size: 12px; color: var(--text-dim); cursor: pointer; border: none; background: none; font-family: inherit; }
-        .menu-item:hover { color: var(--text); background: var(--bg-hover); }
-        .menu-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 200px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 50; }
-        .menu-item:hover .menu-dropdown, .menu-item.open .menu-dropdown { display: block; }
-        .menu-option { display: flex; justify-content: space-between; padding: 8px 16px; font-size: 12px; color: var(--text); cursor: pointer; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
-        .menu-option:hover { background: var(--violet-soft); color: var(--violet-glow); }
-        .menu-option .shortcut { color: var(--text-muted); font-size: 11px; }
-        .menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
-
-        /* ═══ EQ-STYLE FADER SLIDERS ═══ */
-        input[type="range"] {
-            -webkit-appearance: none; width: 100%; height: 6px; outline: none; cursor: pointer;
-            background: linear-gradient(to right, var(--bg-deep) 0%, var(--bg-deep) 100%);
-            border: 1px solid var(--border); border-radius: 3px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+        /* ── wave divider ── */
+        .wave {
+            height: 1px; margin: 0 auto; max-width: 600px;
+            background: linear-gradient(90deg, transparent, var(--violet), var(--teal), transparent);
+            background-size: 200% 100%;
+            animation: wave-crawl 8s linear infinite;
+            opacity: .5;
         }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 6px; height: 18px;
-            background: linear-gradient(180deg, #c8c0d8 0%, #9b59b6 40%, #7b3fa0 100%);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 2px;
-            cursor: grab;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
-        }
-        input[type="range"]::-webkit-slider-thumb:hover {
-            background: linear-gradient(180deg, #e0d8f0 0%, #b76fcc 40%, #9b59b6 100%);
-            box-shadow: 0 1px 6px rgba(155,89,182,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
-        }
-        input[type="range"]::-webkit-slider-thumb:active {
-            cursor: grabbing;
-            background: linear-gradient(180deg, #f0e8ff 0%, #c084e0 40%, #b76fcc 100%);
-        }
-        /* Center notch line for sliders that have a center (gain, pan) */
-        input[type="range"]:focus { border-color: var(--violet); }
 
-        /* Help tooltip */
-        .help-tip { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--border); color: var(--text-muted); font-size: 9px; text-align: center; line-height: 14px; cursor: help; margin-left: 4px; vertical-align: middle; }
-        #tooltip { position: fixed; background: var(--bg-deep); color: var(--text); border: 1px solid var(--violet); border-radius: 6px; padding: 10px 14px; font-size: 11px; max-width: 280px; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,0.5); line-height: 1.5; pointer-events: none; display: none; }
+        /* ── scroll reveal ── */
+        .reveal {
+            opacity: 0; transform: translateY(40px);
+            transition: opacity .8s ease, transform .8s ease;
+        }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+
+        /* ── layout ── */
+        .page { position: relative; z-index: 1; }
+        .section { max-width: 680px; margin: 0 auto; padding: 120px 32px; }
+        .section-wide { max-width: 900px; margin: 0 auto; padding: 100px 32px; }
+
+        /* ── hero ── */
+        .hero {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; padding: 80px 32px;
+        }
+        .hero-inner { max-width: 640px; }
+        .logo {
+            font-size: 64px; font-weight: 200; letter-spacing: 16px;
+            background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: glow-pulse 6s ease-in-out infinite;
+            margin-bottom: 16px;
+        }
+        .tagline {
+            font-family: 'Crimson Pro', serif; font-style: italic; font-weight: 200;
+            font-size: 24px; color: var(--teal); letter-spacing: 4px; margin-bottom: 64px; opacity: .8;
+        }
+        .hero-poem {
+            font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2.2;
+            color: var(--text-dim); font-weight: 300; margin-bottom: 64px;
+        }
+        .hero-poem em { color: var(--text); font-style: normal; }
+        .price { font-size: 48px; font-weight: 600; color: var(--text); letter-spacing: 2px; }
+        .price-sub { font-size: 13px; color: var(--text-muted); margin-top: 6px; letter-spacing: 1.5px; font-weight: 400; }
+        .btn-glow {
+            display: inline-block; margin-top: 48px; padding: 20px 64px;
+            background: linear-gradient(135deg, var(--violet), var(--teal));
+            color: #fff; text-decoration: none; border-radius: 50px; font-weight: 500;
+            font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
+            transition: all .4s; border: none; position: relative;
+        }
+        .btn-glow::after {
+            content: ''; position: absolute; inset: -2px; border-radius: 52px;
+            background: linear-gradient(135deg, var(--violet), var(--teal));
+            z-index: -1; filter: blur(20px); opacity: .4; transition: opacity .4s;
+        }
+        .btn-glow:hover { transform: translateY(-3px); }
+        .btn-glow:hover::after { opacity: .7; }
+
+        /* ── story ── */
+        .story {
+            font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2.4;
+            color: var(--text-dim); font-weight: 300;
+        }
+        .story p { margin-bottom: 32px; }
+        .story .burn { color: var(--violet-glow); }
+        .story .flow { color: var(--teal); }
+
+        /* ── features — flowing list ── */
+        .feature-flow { list-style: none; }
+        .feature-flow li {
+            padding: 28px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+            display: flex; gap: 24px; align-items: baseline;
+        }
+        .feature-flow li:last-child { border-bottom: none; }
+        .feature-flow .f-name {
+            font-size: 13px; font-weight: 500; color: var(--violet-glow);
+            letter-spacing: 2px; text-transform: uppercase; min-width: 160px; flex-shrink: 0;
+        }
+        .feature-flow .f-desc { font-size: 15px; color: var(--text-dim); line-height: 1.8; }
+
+        /* ── values ── */
+        .values { text-align: center; }
+        .value-item { margin-bottom: 64px; }
+        .value-item:last-child { margin-bottom: 0; }
+        .value-item h3 { font-size: 18px; font-weight: 400; color: var(--teal); margin-bottom: 12px; letter-spacing: 1px; }
+        .value-item p { font-size: 15px; color: var(--text-dim); line-height: 1.9; max-width: 500px; margin: 0 auto; }
+
+        /* ── voices ── */
+        .voices { text-align: center; }
+        .voice { margin-bottom: 72px; }
+        .voice:last-child { margin-bottom: 0; }
+        .voice .quote {
+            font-family: 'Crimson Pro', serif; font-style: italic; font-size: 22px;
+            color: var(--teal); margin-bottom: 12px; line-height: 1.6;
+        }
+        .voice .who-is { font-size: 12px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+
+        /* ── name etymology ── */
+        .etymology { text-align: center; }
+        .etym-pair { display: flex; justify-content: center; align-items: center; gap: 40px; margin-bottom: 32px; flex-wrap: wrap; }
+        .etym-word { text-align: center; }
+        .etym-word .word { font-size: 36px; font-weight: 200; letter-spacing: 6px; }
+        .etym-word .lang { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 14px; color: var(--text-dim); margin-top: 8px; }
+        .etym-word:first-child .word { color: var(--violet); }
+        .etym-word:last-child .word { color: var(--teal); }
+        .etym-plus { font-size: 20px; color: var(--text-muted); }
+        .etym-meaning { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 20px; color: var(--text-dim); line-height: 1.8; }
+
+        /* ── what's new — living changelog ── */
+        .changelog { max-width: 680px; margin: 0 auto; padding: 100px 32px; }
+        .changelog-title {
+            font-size: 14px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 48px; text-align: center;
+        }
+        .log-entry { margin-bottom: 48px; position: relative; padding-left: 24px; }
+        .log-entry::before {
+            content: ''; position: absolute; left: 0; top: 8px;
+            width: 6px; height: 6px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--violet), var(--teal));
+        }
+        .log-entry .log-date {
+            font-size: 11px; color: var(--text-muted); letter-spacing: 2px;
+            text-transform: uppercase; margin-bottom: 6px;
+        }
+        .log-entry .log-ver {
+            font-size: 15px; color: var(--teal); font-weight: 400; margin-bottom: 8px;
+        }
+        .log-entry .log-body {
+            font-size: 14px; color: var(--text-dim); line-height: 1.8;
+        }
+        .log-entry .log-body ul { padding-left: 16px; margin-top: 6px; }
+        .log-entry .log-body li { margin-bottom: 4px; }
+        .log-line {
+            width: 1px; background: rgba(255,255,255,.06); position: absolute;
+            left: 2px; top: 20px; bottom: -32px;
+        }
+        .log-entry:last-child .log-line { display: none; }
+
+        /* ── final CTA ── */
+        .final { text-align: center; padding: 140px 32px; position: relative; }
+        .final h2 {
+            font-family: 'Crimson Pro', serif; font-weight: 200; font-style: italic;
+            font-size: 36px; color: var(--text); margin-bottom: 12px; line-height: 1.4;
+        }
+        .final .sub { font-size: 16px; color: var(--text-dim); margin-bottom: 48px; }
+        .final .specs { font-size: 11px; color: var(--text-muted); margin-top: 24px; letter-spacing: 1px; }
+
+        /* ── footer ── */
+        .footer {
+            text-align: center; padding: 48px 32px; font-size: 12px; color: var(--text-muted);
+            border-top: 1px solid rgba(255,255,255,.04);
+        }
+        .footer .bandmate {
+            font-family: 'Crimson Pro', serif; font-style: italic;
+            color: var(--teal); font-size: 15px; margin-top: 12px; opacity: .7;
+        }
+
+        /* ── mobile ── */
+        @media (max-width: 768px) {
+            .logo { font-size: 36px; letter-spacing: 8px; }
+            .tagline { font-size: 17px; letter-spacing: 2px; }
+            .hero { min-height: auto; padding: 100px 24px 80px; }
+            .section, .section-wide, .changelog { padding: 80px 24px; }
+            .feature-flow li { flex-direction: column; gap: 6px; }
+            .feature-flow .f-name { min-width: unset; }
+            .etym-pair { flex-direction: column; gap: 16px; }
+            .etym-plus { margin: 0; }
+            .final h2 { font-size: 26px; }
+            .story { font-size: 18px; }
+            .nav-links { gap: 16px; }
+            .nav-links a { font-size: 11px; letter-spacing: 1px; }
+        }
     </style>
 </head>
 <body>
-    <!-- MENU BAR -->
-    <div class="menu-bar">
-        <div class="menu-item" tabindex="0">
-            File
-            <div class="menu-dropdown">
-                <button class="menu-option" onclick="newProject()">New Project <span class="shortcut">Ctrl+N</span></button>
-                <button class="menu-option" onclick="openFile()">Open Audio... <span class="shortcut">Ctrl+O</span></button>
-                <button class="menu-option" onclick="openProject()">Open Project... <span class="shortcut">Ctrl+Shift+O</span></button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="saveProject()">Save Project <span class="shortcut">Ctrl+S</span></button>
-                <button class="menu-option" onclick="saveProjectAs()">Save As... <span class="shortcut">Ctrl+Shift+S</span></button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="showPanel('export')">Export Mix... <span class="shortcut">Ctrl+E</span></button>
-                <button class="menu-option" onclick="exportStems()">Export Stems...</button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="showSettings()">Preferences... <span class="shortcut">Ctrl+,</span></button>
+
+<!-- ambient light -->
+<div class="orb orb-violet"></div>
+<div class="orb orb-teal"></div>
+<div class="orb orb-center"></div>
+
+<!-- floating nav — appears on scroll -->
+<nav class="nav" id="nav">
+    <a href="#top" class="nav-logo">
+        <img src="/static/favicon.svg" alt="">SOZAWEN
+    </a>
+    <div class="nav-links">
+        <a href="#story">Story</a>
+        <a href="#features">Features</a>
+        <a href="#values">Values</a>
+        <a href="#name">The Name</a>
+        <a href="#new">What's New</a>
+        <a href="#download">Download</a>
+    </div>
+</nav>
+
+<div class="page">
+
+<!-- ── hero ── -->
+<section class="hero" id="top">
+    <div class="hero-inner">
+        <div class="logo">SOZAWEN</div>
+        <div class="tagline">Born from the burn. Built by feeling.</div>
+        <p class="hero-poem">
+            You know the song before you know the chords.<br>
+            You hear the mix before you touch a fader.<br>
+            You don't need a manual. You need a <em>bandmate</em>.
+        </p>
+        <div class="price">$79</div>
+        <div class="price-sub">Once. Forever. No subscription. No cloud. No account.</div>
+        <a href="https://sozawen.lemonsqueezy.com/checkout/buy/e16a7e23-f6b3-411d-8f8b-92892735f262" class="btn-glow">Download for Windows</a>
+    </div>
+</section>
+
+<div class="wave"></div>
+
+<!-- ── story ── -->
+<section class="section reveal" id="story">
+    <div class="story">
+        <p>This started at <span class="burn">3 AM</span> with a voice memo and six tabs open trying to figure out which free plugin wouldn't crash this time.</p>
+        <p>I couldn't afford Pro Tools. Couldn't afford Logic. Couldn't afford the five subscriptions it takes to do what every musician does — <span class="flow">hear something in your head and try to get it out</span>.</p>
+        <p>So I built the thing I needed. A program that <span class="burn">feels</span> like making music feels. Not clinical. Not complicated. Not designed by people who've never stayed up all night chasing a melody that won't let you sleep.</p>
+        <p>It watches what you're doing and shows you the right tools. It separates stems with AI. It writes your lyrics down while you sing. It does everything the expensive programs do, and some things they can't.</p>
+        <p>And it costs less than two months of Pro Tools. <span class="flow">Once</span>.</p>
+    </div>
+</section>
+
+<div class="wave"></div>
+
+<!-- ── features ── -->
+<section class="section-wide reveal" id="features">
+    <ul class="feature-flow">
+        <li>
+            <span class="f-name">Record</span>
+            <span class="f-desc">Multi-track recording with click track, count-in, and input monitoring. Low-latency ASIO. Plug in and play.</span>
+        </li>
+        <li>
+            <span class="f-name">AI Stem Split</span>
+            <span class="f-desc">Drop any song. Get back vocals, drums, bass, guitar, piano, and more — each on its own track. Learn from the greats by hearing what they did.</span>
+        </li>
+        <li>
+            <span class="f-name">Lyrics</span>
+            <span class="f-desc">Hit transcribe and it writes the words as the song plays. Timestamps and all. Export as LRC, SRT, or plain text.</span>
+        </li>
+        <li>
+            <span class="f-name">Mix & Master</span>
+            <span class="f-desc">EQ, compression, reverb, delay, limiting. LUFS metering for streaming platforms. A/B against reference tracks.</span>
+        </li>
+        <li>
+            <span class="f-name">Edit by Feel</span>
+            <span class="f-desc">Split, trim, stretch, pitch shift, crossfade. Every tool has plain-English tooltips. Hover anything to learn what it does.</span>
+        </li>
+        <li>
+            <span class="f-name">Adaptive UI</span>
+            <span class="f-desc">The program reads the room. Recording? Recording tools. Mixing? EQ and compressor come forward. No modes. No hunting. It just knows.</span>
+        </li>
+        <li>
+            <span class="f-name">Key & BPM</span>
+            <span class="f-desc">Load a track and instantly know the key, tempo, loudness, and duration. Match tempos between tracks. Build from what's already there.</span>
+        </li>
+        <li>
+            <span class="f-name">Export</span>
+            <span class="f-desc">WAV, MP3, FLAC, OGG, AIFF. Any sample rate, any bit depth, with dithering. Stem export. One click.</span>
+        </li>
+    </ul>
+</section>
+
+<div class="wave"></div>
+
+<!-- ── values ── -->
+<section class="section reveal" id="values">
+    <div class="values">
+        <div class="value-item">
+            <h3>$79. Once. Forever.</h3>
+            <p>No subscription. No credits. No annual renewal. Less than two months of the other guys — and yours doesn't expire. Every update included. Musicians shouldn't have monthly anxiety about their tools.</p>
+        </div>
+        <div class="value-item">
+            <h3>Your machine. Your music.</h3>
+            <p>Everything runs locally. Your audio never touches a server. No upload, no cloud processing, no fine print. Nobody hears it until you're ready.</p>
+        </div>
+        <div class="value-item">
+            <h3>Built by a musician.</h3>
+            <p>Not by a corporation. By someone who writes songs in the dark and couldn't afford the tools to finish them. Every feature exists because a musician stayed up too late and needed it.</p>
+        </div>
+    </div>
+</section>
+
+<div class="wave"></div>
+
+<!-- ── voices ── -->
+<section class="section reveal">
+    <div class="voices">
+        <div class="voice">
+            <div class="quote">"I just want to get the song out of my head."</div>
+            <div class="who-is">Singer-Songwriters</div>
+        </div>
+        <div class="voice">
+            <div class="quote">"I don't have a studio. I have a laptop and headphones."</div>
+            <div class="who-is">Bedroom Producers</div>
+        </div>
+        <div class="voice">
+            <div class="quote">"I'm not signed. That doesn't mean I'm not serious."</div>
+            <div class="who-is">Independent Artists</div>
+        </div>
+    </div>
+</section>
+
+<div class="wave"></div>
+
+<!-- ── the name ── -->
+<section class="section reveal" id="name">
+    <div class="etymology">
+        <div class="etym-pair">
+            <div class="etym-word">
+                <div class="word">SOZ</div>
+                <div class="lang">Persian / the ache in music that scorches as it heals</div>
+            </div>
+            <span class="etym-plus">+</span>
+            <div class="etym-word">
+                <div class="word">AWEN</div>
+                <div class="lang">Proto-Celtic / flowing spirit, divine inspiration</div>
             </div>
         </div>
-        <div class="menu-item" tabindex="0">
-            Edit
-            <div class="menu-dropdown">
-                <button class="menu-option" onclick="undo()">Undo <span class="shortcut">Ctrl+Z</span></button>
-                <button class="menu-option" onclick="redo()">Redo <span class="shortcut">Ctrl+Shift+Z</span></button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="cutSelection()">Cut <span class="shortcut">Ctrl+X</span></button>
-                <button class="menu-option" onclick="copySelection()">Copy <span class="shortcut">Ctrl+C</span></button>
-                <button class="menu-option" onclick="pasteSelection()">Paste <span class="shortcut">Ctrl+V</span></button>
-                <button class="menu-option" onclick="deleteSelection()">Delete <span class="shortcut">Del</span></button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="selectAll()">Select All <span class="shortcut">Ctrl+A</span></button>
-                <button class="menu-option" onclick="splitAtPlayhead()">Split at Playhead <span class="shortcut">S</span></button>
-            </div>
-        </div>
-        <div class="menu-item" tabindex="0">
-            Track
-            <div class="menu-dropdown">
-                <button class="menu-option" onclick="addTrack()">Add Audio Track <span class="shortcut">Ctrl+T</span></button>
-                <button class="menu-option" onclick="addBusTrack()">Add Bus Track</button>
-                <button class="menu-option" onclick="duplicateTrack()">Duplicate Track <span class="shortcut">Ctrl+D</span></button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="removeSelectedTrack()">Remove Track <span class="shortcut">Ctrl+Del</span></button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="freezeTrack()">Freeze Track</button>
-                <button class="menu-option" onclick="unfreezeTrack()">Unfreeze Track</button>
-            </div>
-        </div>
-        <div class="menu-item" tabindex="0">
-            View
-            <div class="menu-dropdown">
-                <button class="menu-option" onclick="zoomIn()">Zoom In <span class="shortcut">Ctrl++</span></button>
-                <button class="menu-option" onclick="zoomOut()">Zoom Out <span class="shortcut">Ctrl+-</span></button>
-                <button class="menu-option" onclick="zoomToFit()">Zoom to Fit <span class="shortcut">Ctrl+0</span></button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="toggleSpectrogram()">Spectrogram View</button>
-                <button class="menu-option" onclick="toggleMixer()">Mixer Panel</button>
-            </div>
-        </div>
-        <div class="menu-item" tabindex="0">
-            Help
-            <div class="menu-dropdown">
-                <button class="menu-option" onclick="showPanel('help')">Getting Started</button>
-                <button class="menu-option" onclick="toggleHelpMode()">What Does This Do? Mode</button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="showPanel('glossary')">Glossary</button>
-                <button class="menu-option" onclick="showPanel('shortcuts')">Keyboard Shortcuts</button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="showPanel('community')">Community & Feedback</button>
-                <button class="menu-option" onclick="window.open('https://discord.gg/WhzuhTeVsU','_blank')">Join Discord</button>
-                <div class="menu-sep"></div>
-                <button class="menu-option" onclick="showAbout()">About Sozawen</button>
-            </div>
+        <p class="etym-meaning">The burn and the flow.<br>That's what making music feels like.</p>
+    </div>
+</section>
+
+<div class="wave"></div>
+
+<!-- ── what's new — living changelog ── -->
+<section class="changelog reveal" id="new">
+    <div class="changelog-title">What's New</div>
+
+    <div class="log-entry">
+        <div class="log-line"></div>
+        <div class="log-date">April 17, 2026</div>
+        <div class="log-ver">The First Light</div>
+        <div class="log-body">
+            The engine is alive. Multi-track playback, real-time mixing, transport controls, waveform rendering.
+            <ul>
+                <li>AI stem separation — vocals, drums, bass, guitar, piano, and more</li>
+                <li>Lyric transcription with timestamps</li>
+                <li>Key and BPM detection in the transport bar</li>
+                <li>Full effects chain — EQ, compressor, reverb, delay, limiter, de-esser, hum removal</li>
+                <li>Adaptive context engine — tools surface based on what you're doing</li>
+                <li>Session save, auto-save, and crash recovery</li>
+                <li>Export to WAV, MP3, FLAC, OGG, AIFF</li>
+            </ul>
         </div>
     </div>
 
-    <!-- HEADER -->
-    <div class="header">
-        <div class="brand">
-            <a href="/static/site.html" target="_blank" style="text-decoration:none; display:flex; align-items:center; gap:8px;">
-                <img src="/static/favicon.svg" style="height:18px; width:18px;" alt="">
-                <h1>SOZAWEN</h1>
-            </a>
-            <span class="tagline">BORN FROM THE BURN. BUILT BY FEELING.</span>
-        </div>
-        <div class="status">
-            <span id="statusText">Starting...</span>
-            <span class="gpu-badge off" id="gpuBadge">CPU</span>
+    <div class="log-entry">
+        <div class="log-line"></div>
+        <div class="log-date">Coming Next</div>
+        <div class="log-ver">The Bandmate</div>
+        <div class="log-body">
+            AI session collaborator. Suggest chord progressions, arrangement ideas, and production techniques — a bandmate who listens to what you're building and responds in kind.
         </div>
     </div>
 
-    <!-- TRANSPORT -->
-    <div class="transport">
-        <!-- Transport controls — grouped like a hardware unit -->
-        <div class="transport-group">
-            <button class="transport-btn" onclick="rewind()" title="Return to start">&#9664;&#9664;</button>
-            <button class="transport-btn record" id="btnRecord" onclick="toggleRecord()" title="Record">&#9679;</button>
-            <button class="transport-btn play" id="btnPlay" onclick="togglePlay()" title="Play / Pause">&#9654;</button>
-            <button class="transport-btn" onclick="stopAll()" title="Stop">&#9632;</button>
-        </div>
+</section>
 
-        <!-- Time display — the clock -->
-        <div class="time-display" id="timeDisplay">00:00.00</div>
+<div class="wave"></div>
 
-        <div style="flex:1;"></div>
+<!-- ── final CTA ── -->
+<section class="final" id="download">
+    <h2>You already know what it should sound like.</h2>
+    <p class="sub">Sozawen helps you get it out.</p>
+    <a href="#" class="btn-glow">Download for Windows</a>
+    <p class="specs">Windows 10/11 &middot; ~500MB &middot; No admin required &middot; No account &middot; No internet needed after download</p>
+</section>
 
-        <!-- Session info — key and tempo -->
-        <div class="info-pill key"><span class="value" id="keyDisplay">—</span></div>
-        <div class="info-pill"><span class="value" id="bpmDisplay">—</span> BPM</div>
-
-        <div class="transport-divider"></div>
-
-        <!-- Actions -->
-        <button class="btn btn-secondary" onclick="openFile()" style="font-size:10px; padding:5px 12px; border-radius:20px;">Open</button>
-        <button class="btn btn-secondary" onclick="addTrack()" style="font-size:10px; padding:5px 12px; border-radius:20px;">+ Track</button>
+<footer class="footer">
+    Sozawen &copy; 2026 Daysha Lindale
+    <div style="margin-top:8px;">
+        <a href="/static/terms.html" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Terms</a>
+        <a href="/static/privacy.html" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Privacy</a>
+        <a href="/static/eula.html" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">EULA</a>
     </div>
+    <div class="bandmate">A bandmate who listens.</div>
+</footer>
 
-    <!-- MAIN -->
-    <div class="main">
-        <!-- SIDEBAR -->
-        <div class="sidebar">
-            <!-- Context message — what the program sees -->
-            <div id="contextMessage" style="font-size:11px; color:var(--teal); padding:8px 4px 12px; line-height:1.5; min-height:40px; border-bottom:1px solid var(--border); margin-bottom:8px;">
-                Drop a song or hit Record to start.
-            </div>
+</div><!-- .page -->
 
-            <!-- Prominent tools — dynamically rendered by context -->
-            <div id="prominentTools"></div>
+<script>
+// ── floating nav: show after scrolling past hero ──
+const nav = document.getElementById('nav');
+const hero = document.querySelector('.hero');
+let navVisible = false;
 
-            <!-- Drawer toggle for all tools -->
-            <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:8px;">
-                <button class="tool-btn" onclick="toggleDrawer()" style="color:var(--text-muted); font-size:11px;" id="drawerToggle">
-                    <span class="icon">▸</span> All tools
-                </button>
-                <div id="allToolsDrawer" style="display:none; padding-top:4px;">
-                    <div id="drawerTools"></div>
-                </div>
-            </div>
+function checkNav() {
+    const past = window.scrollY > hero.offsetHeight * 0.6;
+    if (past && !navVisible) { nav.classList.add('visible'); navVisible = true; }
+    else if (!past && navVisible) { nav.classList.remove('visible'); navVisible = false; }
+}
 
-            <div style="margin-top:auto; padding-top:20px; text-align:center;">
-                <div style="font-size:9px; color:var(--text-muted); letter-spacing:1px;">v0.1.0</div>
-            </div>
-        </div>
-
-        <!-- Resize handle: sidebar ↔ workspace -->
-        <div class="resize-handle" id="sidebarResize"></div>
-
-        <!-- TIMELINE — split: track panel (fixed) + wave panel (scrollable) -->
-        <div class="workspace">
-            <div class="timeline" id="timeline">
-                <!-- LEFT: Track headers (fixed, no horizontal scroll) -->
-                <div class="track-panel" id="trackPanel">
-                    <div class="track-panel-header">TRACKS</div>
-                    <div id="trackHeaders"></div>
-                </div>
-
-                <!-- Resize handle: track panel ↔ wave panel -->
-                <div class="resize-handle" id="trackResize"></div>
-
-                <!-- RIGHT: Waveforms + ruler + playhead (scrollable) -->
-                <div class="wave-panel" id="wavePanel">
-                    <!-- Playhead -->
-                    <div id="playhead"></div>
-
-                    <!-- Ruler -->
-                    <div class="timeline-ruler" onclick="seekToClick(event)">
-                        <div class="ruler-marks" id="rulerMarks"></div>
-                    </div>
-
-                    <!-- Waveform rows -->
-                    <div id="trackList"></div>
-                </div>
-            </div>
-
-            <!-- Empty state (overlays when no tracks) -->
-            <div id="emptyState" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-muted); pointer-events:none;">
-                <div style="font-size:40px; margin-bottom:12px; opacity:0.3;">&#9834;</div>
-                    <div style="font-size:14px; margin-bottom:4px;">Drop audio here or click Open File</div>
-                    <div style="font-size:11px;">Hit Record to start capturing</div>
-                </div>
-            </div>
-        </div>
-
-    <!-- TOOL PANEL (slides in from right) -->
-    <div class="tool-panel" id="toolPanel">
-        <button onclick="closePanel()" style="position:absolute; top:8px; right:10px; background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; padding:4px 8px; line-height:1;">&times;</button>
-        <div id="panelContent"></div>
-    </div>
-    </div>
-
-    <!-- BOTTOM BAR -->
-    <div class="bottom-bar">
-        <span id="bottomLeft">No project</span>
-        <span id="bottomRight">44100 Hz · 24 bit · Stereo</span>
-    </div>
-
-    <!-- DROP OVERLAY -->
-    <div class="drop-overlay" id="dropOverlay">
-        <h2>Drop audio to add a track</h2>
-        <p>WAV, MP3, FLAC, OGG, AIFF, M4A</p>
-    </div>
-
-    <!-- LICENSE MODAL -->
-    <div id="licenseModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(8,8,15,0.95); z-index:200; display:none; align-items:center; justify-content:center;">
-        <div style="max-width:400px; padding:40px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; text-align:center;">
-            <div style="font-size:28px; font-weight:200; letter-spacing:8px; background:linear-gradient(135deg,var(--violet),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px;">SOZAWEN</div>
-            <div style="font-family:'Crimson Pro',serif; font-style:italic; font-size:14px; color:var(--teal); margin-bottom:32px;">Born from the burn. Built by feeling.</div>
-            <div style="font-size:13px; color:var(--text-dim); margin-bottom:20px;">Enter your license key to activate.</div>
-            <input type="text" id="licenseKeyInput" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" style="width:100%; padding:12px; background:var(--bg-surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:monospace; font-size:14px; text-align:center; letter-spacing:1px; margin-bottom:12px;">
-            <div id="licenseMessage" style="font-size:12px; color:var(--text-muted); margin-bottom:16px; min-height:18px;"></div>
-            <button onclick="activateLicense()" style="width:100%; padding:14px; background:linear-gradient(135deg,var(--violet),var(--teal)); color:#fff; border:none; border-radius:50px; font-size:14px; font-weight:500; letter-spacing:2px; cursor:pointer; text-transform:uppercase;">Activate</button>
-            <div style="margin-top:16px;">
-                <a href="https://sozawen.lemonsqueezy.com/checkout/buy/e16a7e23-f6b3-411d-8f8b-92892735f262" target="_blank" style="font-size:11px; color:var(--violet-glow); text-decoration:none;">Don't have a key? Purchase here</a>
-            </div>
-        </div>
-    </div>
-
-    <script>
-    // ═══ LICENSE CHECK ON STARTUP ═══
-    function checkLicense() {
-        fetch('/api/license/status').then(r=>r.json()).then(d => {
-            if (!d.valid) {
-                document.getElementById('licenseModal').style.display = 'flex';
-            }
-        }).catch(() => {
-            // If server can't check, allow use (offline mode)
-        });
-    }
-    function activateLicense() {
-        const key = document.getElementById('licenseKeyInput').value.trim();
-        const msg = document.getElementById('licenseMessage');
-        if (!key) { msg.textContent = 'Enter a license key'; msg.style.color = 'var(--red)'; return; }
-        msg.textContent = 'Activating...'; msg.style.color = 'var(--teal)';
-        fetch('/api/license/activate', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ key })
-        }).then(r=>r.json()).then(d => {
-            if (d.valid) {
-                msg.textContent = d.message; msg.style.color = 'var(--teal)';
-                setTimeout(() => { document.getElementById('licenseModal').style.display = 'none'; }, 1000);
-            } else {
-                msg.textContent = d.message || 'Invalid key'; msg.style.color = 'var(--red)';
-            }
-        }).catch(() => { msg.textContent = 'Could not connect to license server'; msg.style.color = 'var(--red)'; });
-    }
-    // Check license after a short delay (let the UI load first)
-    setTimeout(checkLicense, 2000);
-
-    let tracks = [];
-    let trackIdCounter = 0;
-    let isPlaying = false;
-    let isRecording = false;
-    let _autoScroll = true;
-    let _undoStack = [];
-    let _redoStack = [];
-    let _clipboard = null;
-    let _loopStart = 0;
-    let _loopEnd = 0;
-    let _loopEnabled = false;
-    const PIXELS_PER_SECOND_BASE = 10;
-    let _zoomLevel = 1.0;
-
-    // Manual scroll disables auto-scroll temporarily
-    document.getElementById('wavePanel')?.addEventListener('scroll', () => {
-        _autoScroll = false;
-        clearTimeout(window._scrollTimer);
-        window._scrollTimer = setTimeout(() => { _autoScroll = true; }, 3000);
+// ── scroll reveal ──
+const reveals = document.querySelectorAll('.reveal');
+function checkReveal() {
+    const trigger = window.innerHeight * 0.85;
+    reveals.forEach(el => {
+        const top = el.getBoundingClientRect().top;
+        if (top < trigger) el.classList.add('visible');
     });
+}
 
-    // ═══ STATUS ═══
-    fetch('/api/status').then(r=>r.json()).then(d=>{
-        document.getElementById('statusText').textContent = 'Ready';
-        const b = document.getElementById('gpuBadge');
-        if(d.gpu){ b.textContent=d.gpu_name.replace('NVIDIA GeForce ',''); b.className='gpu-badge on'; }
-    }).catch(()=>{});
-
-    // ═══ RULER ═══
-    function buildRuler(seconds) {
-        const marks = document.getElementById('rulerMarks');
-        marks.innerHTML = '';
-        for(let i=0; i<=seconds; i+=5) {
-            const m = document.createElement('div');
-            m.className = 'ruler-mark';
-            const min = Math.floor(i/60);
-            const sec = i%60;
-            m.textContent = `${min}:${String(sec).padStart(2,'0')}`;
-            marks.appendChild(m);
-        }
-    }
-    buildRuler(180); // default 3 minutes
-
-    // ═══ TRACKS ═══
-    function addTrack(name, filePath) {
-        const id = trackIdCounter++;
-        const track = { id, name: name || `Track ${id+1}`, file: filePath || null, muted: false, solo: false, volume: 80, pan: 0, engineId: null, effects: [] };
-        tracks.push(track);
-        document.getElementById('emptyState').style.display = 'none';
-
-        // Create track in audio engine
-        fetch('/api/track/add', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({name: track.name, file_path: filePath || ''})
-        }).then(r=>r.json()).then(d => {
-            track.engineId = d.track_id;
-            renderTracks();
-
-            // Load waveform — wait for analysis to get duration first
-            if (filePath) {
-                // Small delay to let analysis populate duration
-                setTimeout(() => loadAndDrawWaveform(track.id, d.track_id), 1500);
-            }
-        });
-
-        renderTracks();
-
-        if(filePath) {
-            document.getElementById('statusText').textContent = 'Analyzing...';
-            fetch('/api/analyze', {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({file_path: filePath})
-            }).then(r=>r.json()).then(d=>{
-                document.getElementById('statusText').textContent = 'Ready';
-                if(d.key) document.getElementById('keyDisplay').textContent = d.key;
-                if(d.bpm) document.getElementById('bpmDisplay').textContent = d.bpm + ' BPM';
-                document.getElementById('bottomLeft').textContent = filePath.split(/[/\\]/).pop();
-                if(d.sample_rate) document.getElementById('bottomRight').textContent = `${d.sample_rate} Hz · ${d.duration ? Math.floor(d.duration/60)+':'+String(Math.floor(d.duration%60)).padStart(2,'0') : '--'}`;
-            });
-        }
-        return id;
-    }
-
-    // ═══ WAVEFORM DRAWING ═══
-    function loadAndDrawWaveform(trackUiId, engineId) {
-        // Calculate target width first, then request exactly that many peaks
-        const track = tracks.find(t => t.id === trackUiId);
-        const dur = track?.duration || 180;
-        const targetWidth = Math.max(800, Math.round(dur * PIXELS_PER_SECOND));
-
-        fetch(`/api/waveform/${engineId}?width=${targetWidth}`).then(r=>r.json()).then(w => {
-            if (w.peaks && w.peaks.length > 0) {
-                drawWaveform(trackUiId, w.peaks, w.source_type || 'imported', w.duration);
-            }
-        });
-    }
-
-    function drawWaveform(trackUiId, peaks, sourceType, duration) {
-        const trackEl = document.getElementById(`waveform-${trackUiId}`);
-        if (!trackEl) {
-            setTimeout(() => drawWaveform(trackUiId, peaks, sourceType, duration), 200);
-            return;
-        }
-
-        const actualDuration = duration || (peaks.length * 0.1);
-        const targetWidth = Math.max(800, Math.round(actualDuration * PIXELS_PER_SECOND));
-        trackEl.width = targetWidth;
-        trackEl.style.width = targetWidth + 'px';
-
-        // Store duration on the track for future reference
-        const track = tracks.find(t => t.id === trackUiId);
-        if (track) track.duration = actualDuration;
-
-        const ctx = trackEl.getContext('2d');
-        const w = trackEl.width;
-        const h = trackEl.height;
-        ctx.clearRect(0, 0, w, h);
-
-        // Color by source type
-        const colors = { recorded: '#2dd4a8', imported: '#9b59b6', generated: '#d4a84d' };
-        const color = colors[sourceType] || '#9b59b6';
-
-        const mid = h / 2;
-        const step = w / peaks.length;
-
-        // Fill
-        ctx.fillStyle = color + '30'; // transparent fill
-        ctx.beginPath();
-        ctx.moveTo(0, mid);
-        for (let i = 0; i < peaks.length; i++) {
-            ctx.lineTo(i * step, mid - peaks[i].max * mid * 0.9);
-        }
-        for (let i = peaks.length - 1; i >= 0; i--) {
-            ctx.lineTo(i * step, mid - peaks[i].min * mid * 0.9);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        // Outline
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        for (let i = 0; i < peaks.length; i++) {
-            ctx.moveTo(i * step, mid - peaks[i].max * mid * 0.9);
-            ctx.lineTo(i * step, mid - peaks[i].min * mid * 0.9);
-        }
-        ctx.stroke();
-
-        // Center line
-        ctx.strokeStyle = color + '40';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, mid);
-        ctx.lineTo(w, mid);
-        ctx.stroke();
-    }
-
-    function renderTracks() {
-        // Track headers (left panel — fixed)
-        const headers = document.getElementById('trackHeaders');
-        headers.innerHTML = tracks.map(t => `
-            <div class="track-header" data-id="${t.id}" style="border-left: 3px solid ${t.color || 'var(--violet)'};">
-                <input class="track-name" value="${t.name}" onchange="renameTrack(${t.id}, this.value)">
-                <div class="track-controls">
-                    <button class="track-ctrl ${t.muted?'active-m':''}" onclick="toggleMute(${t.id})" title="Mute">M</button>
-                    <button class="track-ctrl ${t.solo?'active-s':''}" onclick="toggleSolo(${t.id})" title="Solo">S</button>
-                    <button class="track-ctrl" onclick="armRecord(${t.id})" title="Record arm">R</button>
-                    <input type="range" class="track-volume" min="0" max="100" value="${t.volume}" oninput="setVolume(${t.id}, this.value)" title="Volume">
-                    <span style="font-size:8px;color:var(--text-muted);">L</span>
-                    <input type="range" class="track-pan" min="-100" max="100" value="${t.pan || 0}" oninput="setPan(${t.id}, this.value)" title="Pan">
-                    <span style="font-size:8px;color:var(--text-muted);">R</span>
-                </div>
-                <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">
-                    ${t.file ? t.file.split(/[/\\]/).pop() : t.hasAudio ? 'Audio loaded' : 'Empty'}
-                </div>
-                ${t.effects && t.effects.length ? `<div style="display:flex; flex-wrap:wrap; gap:2px; margin-top:2px;">${t.effects.map(fx => `<span style="font-size:8px; padding:1px 4px; background:var(--violet-soft); border:1px solid var(--violet); border-radius:3px; color:var(--violet-glow);">${fx}</span>`).join('')}</div>` : ''}
-            </div>
-        `).join('');
-
-        // Waveform bodies (right panel — scrollable)
-        const list = document.getElementById('trackList');
-        list.innerHTML = tracks.map(t => `
-            <div class="track-row" data-id="${t.id}" style="min-height:80px; border-bottom:1px solid var(--border); position:relative;">
-                ${(t.file || t.hasAudio) ? `<canvas class="track-waveform" id="waveform-${t.id}" height="80" style="display:block;"></canvas>` : '<div class="track-empty" style="height:80px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:11px;">Drop audio here</div>'}
-            </div>
-        `).join('');
-
-        // Sync vertical scroll between panels
-        const trackPanel = document.getElementById('trackPanel');
-        const wavePanel = document.getElementById('wavePanel');
-        wavePanel.onscroll = () => { trackPanel.scrollTop = wavePanel.scrollTop; };
-    }
-
-    function renameTrack(id, name) { const t = tracks.find(t=>t.id===id); if(t) t.name = name; }
-    function toggleMute(id) {
-        const t = tracks.find(t=>t.id===id);
-        if(t) {
-            t.muted=!t.muted;
-            if(t.engineId !== null) fetch(`/api/track/${t.engineId}/mute`, {method:'POST'});
-            renderTracks();
-            reloadAllWaveforms();
-        }
-    }
-    function toggleSolo(id) {
-        const t = tracks.find(t=>t.id===id);
-        if(t) {
-            t.solo=!t.solo;
-            if(t.engineId !== null) fetch(`/api/track/${t.engineId}/solo`, {method:'POST'});
-            renderTracks();
-            reloadAllWaveforms();
-        }
-    }
-
-    function reloadAllWaveforms() {
-        tracks.forEach(t => {
-            if ((t.file || t.hasAudio) && t.engineId !== null) {
-                setTimeout(() => loadAndDrawWaveform(t.id, t.engineId), 50);
-            }
-        });
-    }
-    function setVolume(id, v) {
-        const t = tracks.find(t=>t.id===id);
-        if(t) { t.volume = v; if(t.engineId !== null) fetch(`/api/track/${t.engineId}/volume`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({volume: v/100})}); }
-    }
-    function setPan(id, v) {
-        const t = tracks.find(t=>t.id===id);
-        if(t) { t.pan = parseInt(v); if(t.engineId !== null) fetch(`/api/track/${t.engineId}/pan`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pan: v/100})}); }
-    }
-    function armRecord(id) {
-        const t = tracks.find(t => t.id === id);
-        if (t) {
-            t.recordArmed = !t.recordArmed;
-            renderTracks();
-            if (t.recordArmed) {
-                showPanel('input_select');
-                document.getElementById('statusText').textContent = t.name + ' armed for recording';
-            }
-        }
-    }
-
-    // ═══ TRANSPORT — wired to audio engine ═══
-    function togglePlay() {
-        if (isPlaying) {
-            fetch('/api/transport/pause', {method:'POST'});
-            isPlaying = false;
-        } else {
-            fetch('/api/transport/play', {method:'POST'});
-            isPlaying = true;
-        }
-        document.getElementById('btnPlay').classList.toggle('active', isPlaying);
-        document.getElementById('statusText').textContent = isPlaying ? 'Playing' : 'Ready';
-    }
-    function toggleRecord() {
-        isRecording = !isRecording;
-        document.getElementById('btnRecord').classList.toggle('active', isRecording);
-        document.getElementById('statusText').textContent = isRecording ? 'Recording...' : 'Ready';
-        if(isRecording && tracks.length === 0) addTrack('Recording 1');
-    }
-    function stopAll() {
-        fetch('/api/transport/stop', {method:'POST'});
-        isPlaying = false; isRecording = false;
-        document.getElementById('btnPlay').classList.remove('active');
-        document.getElementById('btnRecord').classList.remove('active');
-        document.getElementById('statusText').textContent = 'Ready';
-        document.getElementById('timeDisplay').textContent = '00:00.00';
-    }
-    function rewind() {
-        fetch('/api/transport/seek', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({seconds:0})});
-        document.getElementById('timeDisplay').textContent = '00:00.00';
-    }
-
-    // ═══ STATE POLLING — meters, playhead, time display ═══
-    let PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
-    setInterval(() => {
-        if (!isPlaying) return;
-        fetch('/api/transport/state').then(r=>r.json()).then(d => {
-            const s = d.position_seconds || 0;
-            const m = Math.floor(s/60);
-            const sec = (s%60).toFixed(2);
-            document.getElementById('timeDisplay').textContent = `${String(m).padStart(2,'0')}:${sec.padStart(5,'0')}`;
-
-            // Move playhead (inside wavePanel, no header offset needed)
-            const playhead = document.getElementById('playhead');
-            const playheadX = s * PIXELS_PER_SECOND;
-            playhead.style.left = playheadX + 'px';
-
-            // Auto-scroll only if user hasn't manually scrolled away
-            if (_autoScroll) {
-                const wp = document.getElementById('wavePanel');
-                if (playheadX > wp.scrollLeft + wp.clientWidth - 100 ||
-                    playheadX < wp.scrollLeft + 50) {
-                    wp.scrollLeft = playheadX - 200;
-                }
-            }
-        }).catch(()=>{});
-    }, 100);
-
-    // Click on ruler to seek
-    function seekToPosition(seconds) {
-        seconds = Math.max(0, seconds);
-        fetch('/api/transport/seek', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({seconds})
-        });
-        document.getElementById('playhead').style.left = (seconds * PIXELS_PER_SECOND) + 'px';
-        const m = Math.floor(seconds/60);
-        const sec = (seconds%60).toFixed(2);
-        document.getElementById('timeDisplay').textContent = `${String(m).padStart(2,'0')}:${sec.padStart(5,'0')}`;
-    }
-
-    function seekToClick(event) {
-        const wp = document.getElementById('wavePanel');
-        const scrollLeft = wp.scrollLeft;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const x = event.clientX - rect.left + scrollLeft;
-        seekToPosition(x / PIXELS_PER_SECOND);
-    }
-
-    // ═══ WAVEFORM SELECTION — click to seek, drag to select range ═══
-    let _selecting = false;
-    let _selStart = 0;
-    let _selEnd = 0;
-    let _selTrackId = null;
-
-    function getSecondsFromEvent(e, row) {
-        const wp = document.getElementById('wavePanel');
-        const rect = row.getBoundingClientRect();
-        return (e.clientX - rect.left + wp.scrollLeft) / PIXELS_PER_SECOND;
-    }
-
-    document.getElementById('trackList').addEventListener('mousedown', function(e) {
-        const row = e.target.closest('.track-row');
-        if (!row) return;
-        _selecting = true;
-        _selStart = getSecondsFromEvent(e, row);
-        _selEnd = _selStart;
-        _selTrackId = parseInt(row.dataset.id);
-        clearSelection();
-        e.preventDefault();
+// ── active nav link ──
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a');
+function checkActive() {
+    let current = '';
+    sections.forEach(s => {
+        if (window.scrollY >= s.offsetTop - 200) current = s.id;
     });
-
-    document.addEventListener('mousemove', function(e) {
-        if (!_selecting) return;
-        const row = document.querySelector(`.track-row[data-id="${_selTrackId}"]`);
-        if (!row) return;
-        _selEnd = getSecondsFromEvent(e, row);
-        drawSelection();
+    navLinks.forEach(a => {
+        a.style.color = a.getAttribute('href') === '#' + current ? 'var(--teal)' : '';
     });
+}
 
-    document.addEventListener('mouseup', function(e) {
-        if (!_selecting) return;
-        _selecting = false;
-        const range = Math.abs(_selEnd - _selStart);
-        if (range < 0.05) {
-            // Click — seek to position
-            clearSelection();
-            seekToPosition(Math.max(0, _selStart));
-        } else {
-            // Drag — keep selection
-            if (_selEnd < _selStart) { const tmp = _selStart; _selStart = _selEnd; _selEnd = tmp; }
-            document.getElementById('statusText').textContent =
-                `Selected: ${_selStart.toFixed(2)}s — ${_selEnd.toFixed(2)}s (${(_selEnd-_selStart).toFixed(2)}s)`;
-        }
-    });
+window.addEventListener('scroll', () => { checkNav(); checkReveal(); checkActive(); }, { passive: true });
+checkReveal();
+</script>
 
-    function drawSelection() {
-        clearSelection();
-        const start = Math.min(_selStart, _selEnd);
-        const end = Math.max(_selStart, _selEnd);
-        const row = document.querySelector(`.track-row[data-id="${_selTrackId}"]`);
-        if (!row || end - start < 0.01) return;
-        const sel = document.createElement('div');
-        sel.className = 'wave-selection';
-        sel.style.cssText = `position:absolute; top:0; bottom:0; left:${start*PIXELS_PER_SECOND}px; width:${(end-start)*PIXELS_PER_SECOND}px; background:rgba(155,89,182,0.2); border-left:1px solid var(--violet); border-right:1px solid var(--violet); pointer-events:none; z-index:5;`;
-        row.appendChild(sel);
-    }
-
-    function clearSelection() {
-        document.querySelectorAll('.wave-selection').forEach(el => el.remove());
-    }
-
-    function getSelection() {
-        if (_selEnd > _selStart && _selEnd - _selStart > 0.01) {
-            return { start: _selStart, end: _selEnd, trackId: _selTrackId };
-        }
-        return null;
-    }
-
-    // Drag the playhead
-    let _draggingPlayhead = false;
-    document.getElementById('playhead').addEventListener('mousedown', (e) => {
-        _draggingPlayhead = true;
-        _autoScroll = false;
-        e.preventDefault();
-    });
-    document.addEventListener('mousemove', (e) => {
-        if (!_draggingPlayhead) return;
-        const wp = document.getElementById('wavePanel');
-        const rect = wp.getBoundingClientRect();
-        const x = e.clientX - rect.left + wp.scrollLeft;
-        seekToPosition(Math.max(0, x / PIXELS_PER_SECOND));
-    });
-    document.addEventListener('mouseup', () => {
-        if (_draggingPlayhead) {
-            _draggingPlayhead = false;
-            setTimeout(() => { _autoScroll = true; }, 1000);
-        }
-    });
-
-    // ═══ FILE OPEN ═══
-    function openFile() {
-        document.getElementById('statusText').textContent = 'Choose a file...';
-        fetch('/api/pick-file').then(r => r.json()).then(d => {
-            document.getElementById('statusText').textContent = 'Ready';
-            if (d.path) {
-                const name = d.path.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
-                addTrack(name, d.path);
-            }
-        }).catch(() => {
-            // Fallback if pywebview file dialog isn't available
-            document.getElementById('statusText').textContent = 'Ready';
-            const path = prompt('Paste file path:');
-            if (path) addTrack(path.split(/[/\\]/).pop().replace(/\.[^.]+$/, ''), path.replace(/"/g, ''));
-        });
-    }
-
-    function dropOnTrack(event, trackId) {
-        event.preventDefault();
-        const files = event.dataTransfer.files;
-        if (files && files.length > 0) {
-            const file = files[0];
-            const path = file.path || file.name;
-            if (path && (path.includes('/') || path.includes('\\'))) {
-                // Load onto this specific track
-                const track = tracks.find(t => t.id === trackId);
-                if (track) {
-                    track.file = path;
-                    track.name = path.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
-                    renderTracks();
-                }
-                return;
-            }
-        }
-    }
-
-    // ═══ TOOL PANEL ═══
-    function closePanel() {
-        document.getElementById('toolPanel').classList.remove('visible');
-        document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
-    }
-    function showPanel(name, btn) {
-        document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
-        if(btn) btn.classList.add('active');
-        const panel = document.getElementById('toolPanel');
-        const content = document.getElementById('panelContent');
-
-        const h = (text) => `<span class="help-tip" data-tip="${text}">?</span>`;
-
-        const panels = {
-            open_file: 'OPEN_FILE',  // special: triggers file picker instead of panel
-            input_select: `<h3>Input Device ${h('Choose which microphone or audio interface to record from.')}</h3>
-                <div class="field"><label>Input Device ${h('Your audio interface or microphone. If you have multiple, select which one to record from.')}</label>
-                    <select id="inputDeviceSelect" onchange="onDeviceChange()"><option>Loading...</option></select></div>
-                <div class="field"><label>Input Channel ${h('If your interface has multiple inputs (e.g. guitar on 1, vocals on 2), choose which channel this track records from.')}</label>
-                    <select id="inputChannelSelect">
-                        <option value="0">Channel 1 (Left / Mono)</option>
-                        <option value="1">Channel 2 (Right)</option>
-                    </select></div>
-                <div class="field"><label>Input Level ${h('Shows the current input level from your selected device. Green = good. Red = too hot, turn down the gain on your interface.')}</label>
-                    <div style="height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
-                        <div id="inputMeter" style="height:100%; width:0%; background:var(--teal); transition:width 0.1s;"></div>
-                    </div></div>
-                <button class="btn btn-teal" style="width:100%" onclick="armRecording()">Arm for Recording</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:6px;" onclick="toggleMonitoring(this)">Input Monitor: Off</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your mic or interface and input channel, then hit Record. Each track can record from a different channel — guitar on 1, vocals on 2.</p>`,
-
-            stem_split: `<h3>Separate ${h('Splits your audio into individual parts. The program detects what approach works best and handles the details.')}</h3>
-                <div id="channelInfo" style="font-size:11px; color:var(--teal); padding:6px 0 4px; margin-bottom:4px;">Analyzing your audio...</div>
-                <div id="splitOptions"></div>
-                <div class="field"><label>Quality ${h('High is more accurate but slower. Fast gives a quick preview you can refine later.')}</label>
-                    <select id="sepQuality"><option value="high">High — best results</option><option value="fast">Fast — quick preview</option></select></div>
-                <button class="btn btn-primary" style="width:100%" onclick="runSmartSplit()">Separate</button>
-                <div id="splitProgress" style="display:none; margin-top:8px;">
-                    <div style="height:4px; background:var(--border); border-radius:2px; overflow:hidden;">
-                        <div id="splitProgressBar" style="height:100%; background:var(--teal); width:0%; transition:width 0.3s;"></div>
-                    </div>
-                    <div id="splitProgressText" style="font-size:10px; color:var(--text-dim); margin-top:4px;">Starting...</div>
-                </div>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Each part becomes its own track that you can mix, edit, and export independently.</p>`,
-
-            lyrics: `<h3>Lyric Transcription ${h('Listens to the vocals and writes out the words with timestamps. Works best on isolated vocal tracks — try Stem Split first.')}</h3>
-                <div class="field"><label>Language ${h('The language of the vocals. Auto-detect works for most cases. Selecting the specific language improves accuracy.')}</label>
-                    <select><option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="ja">Japanese</option><option value="ko">Korean</option><option value="auto">Auto-detect</option></select></div>
-                <div class="field"><label>Accuracy ${h('Larger models are more accurate but use more memory and take longer.')}</label>
-                    <select><option value="base">Base — fast, good for drafts</option><option value="small">Small — balanced</option><option value="medium">Medium — best accuracy</option></select></div>
-                <button class="btn btn-primary" style="width:100%" onclick="runLyrics()">Transcribe</button>
-                <div id="lyricsOutput" style="margin-top:12px; font-size:12px; color:var(--text-dim); max-height:300px; overflow-y:auto;"></div>
-                <div style="margin-top:8px; display:none;" id="lyricsExport">
-                    <button class="btn btn-secondary" style="font-size:11px;" onclick="exportLyrics('lrc')">Export .LRC</button>
-                    <button class="btn btn-secondary" style="font-size:11px;" onclick="exportLyrics('txt')">Export .TXT</button>
-                    <button class="btn btn-secondary" style="font-size:11px;" onclick="exportLyrics('srt')">Export .SRT</button>
-                </div>`,
-
-            noise_gate: `<h3>Noise Gate ${h('Silences audio below a threshold. Same controls as hardware gates — Drawmer DS201, dbx 566. Use to remove background noise, bleed, or room tone between phrases.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">GATE — HARDWARE CONTROL LAYOUT</div>
-                <div class="field"><label>Threshold ${h('The level where the gate opens/closes. Audio below this gets silenced. On hardware: the threshold knob. Start at -40dB for room noise, -25dB for aggressive gating.')}</label>
-                    <input type="range" min="-80" max="0" value="-40" step="1" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-40dB</span></div>
-                <div class="field"><label>Attack ${h('How fast the gate opens when signal exceeds threshold. Fast (0.1-1ms) = tight, may click. Slow (5-20ms) = smooth fade in. On hardware: the attack knob.')}</label>
-                    <input type="range" min="0.1" max="100" value="5" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">5ms</span></div>
-                <div class="field"><label>Hold ${h('Minimum time the gate stays open once triggered. Prevents the gate from chattering on sustained notes. On hardware: the hold knob. 10-50ms for speech, 50-200ms for instruments.')}</label>
-                    <input type="range" min="0" max="500" value="50" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">50ms</span></div>
-                <div class="field"><label>Release ${h('How fast the gate closes after hold time. Longer = more natural tail, shorter = tighter cutoff. On hardware: the release knob. 50-150ms for most uses.')}</label>
-                    <input type="range" min="5" max="1000" value="100" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
-                <div class="field"><label>Range ${h('How much to reduce the signal when the gate is closed. -inf = full silence. -20dB = just quieter (more natural). On hardware: the range/depth knob. Use -40 to -60dB for noise removal, -10 to -20dB for subtle tightening.')}</label>
-                    <input type="range" min="-80" max="0" value="-80" step="1" oninput="this.nextElementSibling.textContent=this.value+(this.value<=-80?' (full mute)':'dB')"><span style="font-size:11px; color:var(--teal);">-80 (full mute)</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyNoiseGate()">Apply</button>`,
-
-            hum_remove: `<h3>Hum Removal ${h('Removes electrical hum using precision notch filters at the fundamental and harmonics. The same approach used in professional audio restoration — iZotope RX uses the same technique.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">ADAPTIVE NOTCH FILTER — HARMONIC SERIES</div>
-                <div class="field"><label>Fundamental ${h('The base frequency of the hum. US/Americas power = 60Hz. Europe/Asia/Africa/Australia = 50Hz. If unsure: record silence and listen — 60Hz sounds like a low buzz, 50Hz is slightly lower. On hardware: some units auto-detect.')}</label>
-                    <select><option value="60">60 Hz — US / Americas / Japan (60Hz regions)</option><option value="50">50 Hz — Europe / UK / Asia / Africa / Australia</option></select></div>
-                <div class="field"><label>Harmonics ${h('Hum produces overtones at exact multiples of the fundamental (60Hz → 120, 180, 240, 300, 360, 420, 480Hz). Each harmonic needs its own notch filter. More harmonics = cleaner, but removing too many above 6 can thin vocals.')}</label>
-                    <input type="range" min="1" max="10" value="5" oninput="this.nextElementSibling.textContent=this.value+' harmonics ('+this.value+'x notch filters)'"><span style="font-size:11px; color:var(--teal);">5 harmonics (5x notch filters)</span></div>
-                <div class="field"><label>Q Factor / Notch Width ${h('How narrow each notch filter is. Higher Q = narrower notch = removes only the hum frequency precisely. Lower Q = wider notch = catches more hum but may remove wanted audio. On hardware: the bandwidth control. Q 20-40 for precise, Q 5-15 for aggressive.')}</label>
-                    <input type="range" min="5" max="60" value="30" step="1" oninput="this.nextElementSibling.textContent='Q '+this.value+(this.value>25?' (precise)':' (wide)')"><span style="font-size:11px; color:var(--teal);">Q 30 (precise)</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyHumRemoval()">Apply</button>`,
-
-            de_ess: `<h3>De-esser ${h('Frequency-selective compressor that targets sibilance (harsh S, T, SH sounds). Same concept as the Waves DeEsser, FabFilter Pro-DS, or hardware units like the DBX 520.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">DYNAMIC SIBILANCE CONTROL</div>
-                <div class="field"><label>Frequency ${h('Center frequency of the sibilant range. Male vocals: 4-6kHz. Female vocals: 6-9kHz. Children: 7-10kHz. On hardware: the frequency selector. Listen for where the harsh "S" sounds live.')}</label>
-                    <input type="range" min="2000" max="16000" value="6000" step="200" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">6.0kHz</span></div>
-                <div class="field"><label>Reduction ${h('Maximum gain reduction when sibilance is detected. 3-6dB = subtle smoothing. 8-12dB = aggressive control. 15dB+ = heavy-handed (may sound lispy). On hardware: the range/depth knob.')}</label>
-                    <input type="range" min="0" max="24" value="6" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">6dB</span></div>
-                <div class="field"><label>Detection Mode ${h('Wideband = compresses the full signal when sibilance is detected (more transparent). Split-band = only compresses the high frequencies (more surgical, can sound unnatural if overdone). On hardware: the mode switch.')}</label>
-                    <select><option value="wide">Wideband — compresses full signal</option><option value="split">Split-band — compresses highs only</option></select></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyDeEss()">Apply</button>`,
-
-            normalize: `<h3>Normalize ${h('Adjusts the overall volume to a target level. The same function as "normalize" on any hardware recorder or DAW. Three modes for different needs.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">LEVEL NORMALIZATION</div>
-                <div class="field"><label>Mode ${h('Peak = sets the loudest single sample to target (preserves dynamics). RMS = sets the average energy to target (more consistent perceived loudness). LUFS = broadcast standard loudness (what streaming platforms use).')}</label>
-                    <select><option value="peak">Peak — loudest sample hits target</option><option value="rms">RMS — average energy hits target</option><option value="lufs">LUFS — broadcast standard</option></select></div>
-                <div class="field"><label>Target ${h('The level to normalize to. Peak: -1dB leaves headroom for mastering. RMS: -18dBFS is standard mixing level. LUFS: -14 for Spotify/YouTube, -16 for Apple Music.')}</label>
-                    <input type="range" min="-24" max="0" value="-1" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-1dB</span></div>
-                <div style="font-size:10px; color:var(--text-dim); margin:8px 0; padding:8px; background:var(--bg-deep); border-radius:var(--radius);">
-                    Common targets:<br>
-                    Peak: -1dB (mastering headroom) | -0.3dB (maximized)<br>
-                    RMS: -18dBFS (mixing standard) | -14dBFS (broadcast)<br>
-                    LUFS: -14 (Spotify) | -16 (Apple) | -23 (EBU broadcast)
-                </div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyNormalize()">Apply</button>`,
-
-            eq: `<h3>Parametric EQ ${h('A parametric EQ gives you control over frequency, gain, and bandwidth (Q) for each band — the same controls found on professional mixing consoles.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">HPF + 4 BANDS + LPF — SAME LAYOUT AS SSL / NEVE HARDWARE</div>
-
-                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                        <span style="font-size:10px; color:var(--red); font-weight:600; width:32px;">HPF</span>
-                        <span style="font-size:9px; color:var(--text-muted);">${h('High-pass filter — removes everything below this frequency. Use to cut rumble, handling noise, and low-end mud.')}</span>
-                    </div>
-                    <div class="field"><label>Cutoff ${h('Frequencies below this are removed. 20Hz = off (passes everything). 80Hz = removes rumble. 120Hz = removes mud. On a console: the HPF knob.')}</label>
-                        <input type="range" id="eq_hpf" min="20" max="500" value="20" step="5" oninput="this.nextElementSibling.textContent=this.value+'Hz'"><span style="font-size:11px; color:var(--teal);">20Hz</span></div>
-                </div>
-
-                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                        <span style="font-size:10px; color:var(--violet-glow); font-weight:600; width:32px;">LOW</span>
-                        <select id="eq_low_type" style="font-size:10px; padding:2px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); border-radius:3px;"><option value="shelf">Shelf</option><option value="bell">Bell</option></select>
-                        ${h('Shelf = boosts/cuts everything below the frequency (like tilting the low end up or down). Bell = boosts/cuts a specific range around the frequency (like a hill). On hardware: the shelf/bell switch. Use shelf for broad tone shaping, bell for targeting a specific problem.')}
-                    </div>
-                    <div class="field"><label>Freq ${h('Center frequency of this band. On hardware: the frequency knob.')}</label>
-                        <input type="range" id="eq_low_freq" min="20" max="500" value="80" step="5" oninput="this.nextElementSibling.textContent=this.value+'Hz'"><span style="font-size:11px; color:var(--teal);">80Hz</span></div>
-                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. +dB = louder, -dB = quieter. On hardware: the boost/cut knob.')}</label>
-                        <input type="range" id="eq_low_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
-                        <input type="range" id="eq_low_q" min="0.1" max="10" value="0.7" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 0.7</span></div>
-                </div>
-
-                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
-                    <span style="font-size:10px; color:var(--violet-glow); font-weight:600;">LO-MID</span>
-                    <div class="field"><label>Freq ${h('Center frequency for the lo-mid band. 200-500Hz = body/warmth. Cut here to reduce boxiness or muddiness.')}</label>
-                        <input type="range" id="eq_lomid_freq" min="100" max="2000" value="250" step="10" oninput="this.nextElementSibling.textContent=this.value+'Hz'"><span style="font-size:11px; color:var(--teal);">250Hz</span></div>
-                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. On hardware: the lo-mid gain knob.')}</label>
-                        <input type="range" id="eq_lomid_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
-                        <input type="range" id="eq_lomid_q" min="0.1" max="10" value="1.0" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 1.0</span></div>
-                </div>
-
-                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
-                    <span style="font-size:10px; color:var(--violet-glow); font-weight:600;">HI-MID</span>
-                    <div class="field"><label>Freq ${h('Center frequency for the hi-mid band. 1-3kHz = presence. 3-5kHz = clarity/bite. On hardware: the hi-mid frequency knob.')}</label>
-                        <input type="range" id="eq_himid_freq" min="500" max="10000" value="4000" step="100" oninput="this.nextElementSibling.textContent=(this.value>=1000?(this.value/1000).toFixed(1)+'kHz':this.value+'Hz')"><span style="font-size:11px; color:var(--teal);">4.0kHz</span></div>
-                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. On hardware: the hi-mid gain knob.')}</label>
-                        <input type="range" id="eq_himid_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
-                        <input type="range" id="eq_himid_q" min="0.1" max="10" value="1.0" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 1.0</span></div>
-                </div>
-
-                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                        <span style="font-size:10px; color:var(--violet-glow); font-weight:600; width:32px;">HIGH</span>
-                        <select id="eq_high_type" style="font-size:10px; padding:2px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); border-radius:3px;"><option value="shelf">Shelf</option><option value="bell">Bell</option></select>
-                        ${h('Shelf = boosts/cuts everything above the frequency (like adding air or removing harshness across all highs). Bell = targets a specific high frequency range. On hardware: the HF shelf/bell switch. Use shelf for overall brightness, bell for surgical high-frequency work.')}
-                    </div>
-                    <div class="field"><label>Freq ${h('Center frequency for the high band. 8-12kHz = air/shimmer. 4-8kHz = presence. On hardware: the HF frequency knob.')}</label>
-                        <input type="range" id="eq_high_freq" min="2000" max="20000" value="12000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">12.0kHz</span></div>
-                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. On hardware: the HF gain knob.')}</label>
-                        <input type="range" id="eq_high_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
-                        <input type="range" id="eq_high_q" min="0.1" max="10" value="0.7" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 0.7</span></div>
-                </div>
-
-                <div style="padding-bottom:10px; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                        <span style="font-size:10px; color:var(--red); font-weight:600; width:32px;">LPF</span>
-                        <span style="font-size:9px; color:var(--text-muted);">${h('Low-pass filter — removes everything above this frequency. Use to tame harshness or cut hiss.')}</span>
-                    </div>
-                    <div class="field"><label>Cutoff ${h('Frequencies above this are removed. 20kHz = off (passes everything). 12kHz = removes harsh highs. 8kHz = removes sibilance. On a console: the LPF knob.')}</label>
-                        <input type="range" id="eq_lpf" min="2000" max="20000" value="20000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">20.0kHz</span></div>
-                </div>
-
-                <button class="btn btn-primary" style="width:100%" onclick="applyFullEQ()">Apply</button>`,
-
-            compressor: `<h3>Compressor ${h('Evens out the volume — makes quiet parts louder and loud parts quieter. These are the same controls found on hardware units like the 1176, LA-2A, and SSL bus compressor.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">MODELED AFTER HARDWARE COMPRESSOR CONTROLS</div>
-
-                <div class="field"><label>Threshold ${h('The level where compression begins. Everything above this gets compressed. On hardware: the threshold knob. Lower = more compression. Start around -20dB for gentle, -40dB for heavy.')}</label>
-                    <input type="range" min="-60" max="0" value="-20" step="1" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-20dB</span></div>
-                <div class="field"><label>Ratio ${h('How much to reduce the signal above the threshold. 2:1 = gentle leveling. 4:1 = moderate. 10:1 = heavy. 20:1 = near-limiting. Infinity = brick wall. On an 1176: the ratio buttons (4, 8, 12, 20).')}</label>
-                    <input type="range" min="1" max="20" value="3" step="0.5" oninput="this.nextElementSibling.textContent=this.value+':1'"><span style="font-size:11px; color:var(--teal);">3:1</span></div>
-                <div class="field"><label>Attack ${h('How fast compression engages after signal crosses threshold. Fast (0.02-1ms) catches transients — good for controlling drums. Slow (10-100ms) lets the initial transient through — more punch and snap. On an 1176: fully clockwise = slowest.')}</label>
-                    <input type="range" min="0.02" max="100" value="10" step="0.5" oninput="this.nextElementSibling.textContent=(this.value<1?this.value+'ms':Math.round(this.value)+'ms')"><span style="font-size:11px; color:var(--teal);">10ms</span></div>
-                <div class="field"><label>Release ${h('How fast compression lets go after signal drops below threshold. Fast (50-100ms) = responsive, may pump. Slow (300ms-1s) = smoother but can squash dynamics. Auto = adapts to the material. On an 1176: fully clockwise = slowest.')}</label>
-                    <input type="range" min="10" max="1200" value="100" step="10" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
-                <div class="field"><label>Knee ${h('Soft knee = gradual onset of compression (smoother, more transparent). Hard knee = abrupt compression at threshold (more aggressive, audible pumping). On hardware: some have a soft/hard switch.')}</label>
-                    <input type="range" min="0" max="20" value="6" step="1" oninput="this.nextElementSibling.textContent=this.value+'dB ('+( this.value<5?'hard':'soft')+')'"><span style="font-size:11px; color:var(--teal);">6dB (soft)</span></div>
-                <div class="field"><label>Makeup Gain ${h('Compression reduces the overall level. Makeup gain adds volume back so the compressed signal matches the original perceived loudness. On hardware: the output or gain knob.')}</label>
-                    <input type="range" min="0" max="30" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
-                <div class="field"><label>Sidechain HPF ${h('Filters the detector signal so the compressor ignores low frequencies. Prevents bass from triggering compression. Set to 80-150Hz for full mixes. On hardware: the sidechain filter.')}</label>
-                    <input type="range" min="20" max="500" value="20" step="10" oninput="this.nextElementSibling.textContent=this.value+'Hz'+(this.value>20?' (active)':' (off)')"><span style="font-size:11px; color:var(--teal);">20Hz (off)</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyCompressor()">Apply</button>`,
-
-            reverb: `<h3>Reverb ${h('Adds the sound of a room or space. These controls mirror what you find on hardware reverb units like the Lexicon 480L and PCM series.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SCHROEDER ALGORITHM — SAME TOPOLOGY AS LEXICON HARDWARE</div>
-                <div class="field"><label>Pre-Delay ${h('Time before the reverb starts. Separates the direct sound from the reflections. 0-20ms = tight/intimate. 50-100ms = creates depth without muddying the source. On hardware: the pre-delay knob.')}</label>
-                    <input type="range" min="0" max="200" value="20" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">20ms</span></div>
-                <div class="field"><label>Room Size ${h('Physical size of the simulated space. Small = closet/bathroom. Medium = room/studio. Large = hall/cathedral. Affects the spacing of early reflections. On hardware: the size parameter.')}</label>
-                    <input type="range" min="0" max="100" value="40" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">40%</span></div>
-                <div class="field"><label>Decay / RT60 ${h('How long it takes for the reverb to fade by 60dB. 0.5s = tight room. 1-2s = studio/hall. 5s+ = cathedral. On hardware: the decay or RT60 knob.')}</label>
-                    <input type="range" min="100" max="8000" value="1500" step="100" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'s'"><span style="font-size:11px; color:var(--teal);">1.5s</span></div>
-                <div class="field"><label>Damping ${h('High-frequency absorption in the reverb tail. Higher damping = warmer/darker reverb (like a carpeted room). Lower = brighter (like a tile bathroom). On hardware: the HF damping control.')}</label>
-                    <input type="range" min="0" max="100" value="50" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">50%</span></div>
-                <div class="field"><label>Diffusion ${h('How dense the reflections are. High = smooth wash. Low = audible individual echoes. On hardware: the diffusion parameter.')}</label>
-                    <input type="range" min="0" max="100" value="70" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">70%</span></div>
-                <div class="field"><label>Wet/Dry Mix ${h('Balance between the original (dry) signal and the reverb (wet). 100% = all reverb. 0% = no reverb. Vocals: 15-30%. Drums: 10-20%. Pads: 30-60%. On hardware: the mix knob.')}</label>
-                    <input type="range" min="0" max="100" value="25" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">25%</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyReverb()">Apply</button>`,
-
-            delay: `<h3>Delay ${h('Creates echoes of your audio. Same controls as hardware delay units — Boss DD, Eventide TimeFactor, TC Electronic.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">FEEDBACK DELAY — HARDWARE CONTROL LAYOUT</div>
-                <div class="field"><label>Delay Time ${h('Time between echoes in milliseconds. For rhythmic delays, calculate from BPM: quarter note = 60000/BPM. At 120 BPM: 1/4 = 500ms, 1/8 = 250ms, dotted 1/8 = 375ms. On hardware: the delay time knob.')}</label>
-                    <input type="range" min="1" max="3000" value="375" step="1" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">375ms</span></div>
-                <div class="field"><label>BPM Sync Helper ${h('Click a note value to auto-calculate the delay time from your current BPM. Quarter note (1/4) and dotted eighth (dot 1/8) are the most common rhythmic delays.')}</label>
-                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(60000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/4</button>
-                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(60000/parseFloat(document.getElementById('bpmDisplay').textContent||120)*0.75);document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">dot 1/8</button>
-                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(30000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/8</button>
-                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(20000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/8T</button>
-                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(15000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/16</button>
-                    </div></div>
-                <div class="field"><label>Feedback ${h('How much of the echo feeds back into the input. Controls how many repeats you hear. 0% = one echo. 50% = several fading repeats. 90% = long cascading trail. On hardware: the feedback/repeats knob. WARNING: above 95% can cause runaway feedback.')}</label>
-                    <input type="range" min="0" max="95" value="30" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">30%</span></div>
-                <div class="field"><label>Hi-Cut ${h('Rolls off high frequencies in the feedback loop. Each repeat gets darker — like a tape delay or analog echo. Lower = warmer echoes. On hardware: the tone/damping knob.')}</label>
-                    <input type="range" min="1000" max="20000" value="12000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">12.0kHz</span></div>
-                <div class="field"><label>Mix ${h('Balance between dry (original) and wet (echoes). 100% = echoes only. On hardware: the mix or level knob. For subtle depth: 10-20%. For rhythmic effect: 30-50%.')}</label>
-                    <input type="range" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">20%</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyDelay()">Apply</button>`,
-
-            limiter: `<h3>Limiter ${h('Brick-wall limiter — nothing exceeds the ceiling. Same concept as the Waves L2, FabFilter Pro-L, or any mastering limiter. The last processor in the chain before export.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">BRICK-WALL LIMITER — MASTERING GRADE</div>
-                <div class="field"><label>Input Gain ${h('Drives audio into the limiter. More gain = louder output but more limiting (less dynamics). On hardware: the input/drive knob. This is how you control loudness — NOT by raising the ceiling.')}</label>
-                    <input type="range" min="0" max="24" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
-                <div class="field"><label>Ceiling ${h('The absolute maximum output level. Nothing goes above this. On hardware: the output ceiling. -1.0 dBTP is safe for all streaming platforms. -0.3 dBTP for CD. True Peak (TP) accounts for inter-sample peaks that digital meters miss.')}</label>
-                    <input type="range" min="-6" max="0" value="-1" step="0.1" oninput="this.nextElementSibling.textContent=this.value+' dBTP'"><span style="font-size:11px; color:var(--teal);">-1.0 dBTP</span></div>
-                <div class="field"><label>Release ${h('How quickly the limiter recovers after reducing a peak. Fast (10-50ms) = transparent on transients but may distort. Slow (100-300ms) = smoother but pumps on dense material. Auto = program-dependent. On hardware: the release knob.')}</label>
-                    <input type="range" min="5" max="500" value="50" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">50ms</span></div>
-                <div style="font-size:10px; color:var(--text-dim); margin:8px 0; padding:8px; background:var(--bg-deep); border-radius:var(--radius);">
-                    Target loudness for streaming:<br>
-                    Spotify: -14 LUFS | Apple Music: -16 LUFS | YouTube: -14 LUFS | CD: -9 to -12 LUFS
-                </div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyLimiter()">Apply</button>`,
-
-            lufs: `<h3>Loudness Meter ${h('Measures your audio loudness in LUFS — the standard used by Spotify, Apple Music, YouTube. -14 LUFS is the target for streaming.')}</h3>
-                <div style="text-align:center; padding:16px; background:var(--bg-deep); border-radius:var(--radius); margin-bottom:12px;">
-                    <div style="font-size:36px; font-family:monospace; color:var(--teal);" id="lufsValue">—</div>
-                    <div style="font-size:10px; color:var(--text-muted);">Integrated LUFS</div>
-                </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-                    <div style="text-align:center; padding:8px; background:var(--bg-deep); border-radius:var(--radius);">
-                        <div style="font-size:16px; font-family:monospace; color:var(--text);" id="peakValue">—</div>
-                        <div style="font-size:9px; color:var(--text-muted);">True Peak</div>
-                    </div>
-                    <div style="text-align:center; padding:8px; background:var(--bg-deep); border-radius:var(--radius);">
-                        <div style="font-size:16px; font-family:monospace; color:var(--text);" id="dynamicRange">—</div>
-                        <div style="font-size:9px; color:var(--text-muted);">Dynamic Range</div>
-                    </div>
-                </div>
-                <div style="font-size:11px; color:var(--text-dim);">
-                    <div>Spotify: -14 LUFS</div>
-                    <div>Apple Music: -16 LUFS</div>
-                    <div>YouTube: -14 LUFS</div>
-                    <div>CD: -9 to -12 LUFS</div>
-                </div>`,
-
-            reference: `<h3>Reference A/B ${h('Load a professionally mixed track and compare it to yours. Level-matched so you hear the difference in tone, not volume.')}</h3>
-                <button class="btn btn-secondary" style="width:100%" onclick="openFile()">Load Reference Track</button>
-                <div class="field" style="margin-top:12px;"><label>A/B Toggle ${h('Switch between your mix and the reference track. Both are level-matched so you compare tone and balance, not volume.')}</label>
-                    <button class="btn btn-teal" style="width:100%">A (Your Mix) / B (Reference)</button></div>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Reference is level-matched so you compare tone and balance, not loudness.</p>`,
-
-            export: `<h3>Export ${h('Render your mix to a file. Choose format and quality based on where it will be used.')}</h3>
-                <div class="field"><label>Format ${h('WAV = uncompressed, full quality, large files. FLAC = lossless compression, same quality, smaller files. MP3 = lossy compression, smallest files, slight quality loss. Use WAV for mastering, FLAC for archiving, MP3 for sharing.')}</label>
-                    <select>
-                        <option>WAV 24-bit — lossless, studio quality</option>
-                        <option>WAV 16-bit — lossless, CD quality</option>
-                        <option>MP3 320kbps — compressed, high quality</option>
-                        <option>MP3 192kbps — compressed, good quality</option>
-                        <option>FLAC — lossless, smaller than WAV</option>
-                        <option>OGG Vorbis — compressed, open format</option>
-                        <option>AIFF — lossless, Apple compatible</option>
-                    </select></div>
-                <div class="field"><label>Sample Rate ${h('44100Hz = CD standard, fine for everything. 48000Hz = video standard (use if syncing to video). 96000Hz = high resolution (overkill for most uses, doubles file size).')}</label>
-                    <select><option>44100 Hz — CD standard</option><option>48000 Hz — video standard</option><option>96000 Hz — high resolution</option></select></div>
-                <div class="field"><label>Dithering ${h('Adds very quiet noise when converting bit depth. Sounds better than truncation. Use when going from 24-bit to 16-bit.')}</label>
-                    <select><option>Off</option><option>Triangular (TPDF) — recommended</option><option>Shaped — least audible</option></select></div>
-                <button class="btn btn-primary" style="width:100%">Export Mix</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:6px;">Export All Stems</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Export Selection Only</button>`,
-
-            analyze: `<h3>Analysis ${h('Detects key, tempo, loudness, and other characteristics of your audio.')}</h3>
-                <div id="analysisResults" style="font-size:12px; color:var(--text-dim);">Analyzing...</div>`,
-
-            split: `<h3>Split ${h('Divide a clip into two pieces at the playhead position. Press S as a shortcut.')}</h3>
-                <button class="btn btn-primary" style="width:100%" onclick="splitAtPlayhead()">Split at Playhead</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Position the playhead where you want to cut, then click Split. Both pieces stay on the same track.</p>`,
-
-            trim: `<h3>Trim ${h('Remove the beginning or end of a clip. Select a range first, then trim.')}</h3>
-                <div class="field"><label>Trim Mode ${h('Trim to selection = keep only the selected range, remove everything else. Trim start = remove everything before the playhead. Trim end = remove everything after the playhead.')}</label>
-                    <select><option>Trim to selection — keep only selected area</option><option>Trim start — remove before playhead</option><option>Trim end — remove after playhead</option></select></div>
-                <button class="btn btn-primary" style="width:100%">Trim</button>`,
-
-            crossfade: `<h3>Crossfade ${h('Smoothly blend two adjacent clips where they overlap. Prevents clicks at edit points.')}</h3>
-                <div class="field"><label>Duration ${h('How long the crossfade lasts. Shorter = tighter cut. Longer = smoother transition.')}</label>
-                    <input type="range" min="10" max="2000" value="100" step="10" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
-                <div class="field"><label>Curve ${h('Shape of the fade. Linear is even. Equal power keeps volume consistent. S-curve is smoothest.')}</label>
-                    <select><option>Equal Power — volume stays consistent</option><option>Linear — simple straight fade</option><option>S-Curve — smooth and natural</option></select></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyCrossfade()">Apply Crossfade</button>`,
-
-            stretch: `<h3>Time Stretch ${h('Changes speed/duration without changing pitch. Uses phase vocoder algorithm — same technique as Ableton Warp, Logic Flex Time, and hardware samplers like the Akai MPC.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">PHASE VOCODER TIME STRETCH</div>
-                <div class="field"><label>Rate ${h('Playback speed multiplier. 1.0 = original. 0.5 = half speed (twice as long, same pitch). 2.0 = double speed (half as long, same pitch). On an MPC or sampler: the time stretch percentage.')}</label>
-                    <input type="range" min="0.1" max="4.0" value="1.0" step="0.01" oninput="this.nextElementSibling.textContent=this.value+'x ('+(this.value<1?'slower':'faster')+(this.value==1.0?'original':'')+')'"><span style="font-size:11px; color:var(--teal);">1.0x</span></div>
-                <div class="field"><label>BPM Match ${h('Instead of a rate, match tempos. Enter the original BPM and your target BPM — the rate is calculated automatically. Works like Ableton Warp or Logic tempo matching.')}</label>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="text" id="stretchOrigBPM" placeholder="Original" style="width:40%; text-align:center;">
-                        <span style="color:var(--text-muted); font-size:11px;">BPM to</span>
-                        <input type="text" id="stretchTargetBPM" placeholder="Target" style="width:40%; text-align:center;">
-                    </div></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyTimeStretch()">Stretch</button>`,
-
-            pitch: `<h3>Pitch Shift ${h('Changes pitch without changing speed. Same algorithm used in Auto-Tune, Melodyne, and hardware pitch shifters like the Eventide H3000. Uses phase vocoder with optional formant preservation.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">PHASE VOCODER PITCH SHIFT</div>
-                <div class="field"><label>Semitones ${h('Coarse pitch adjustment. Each semitone = one piano key = one fret on guitar. +12 = one octave up. -12 = one octave down. -7 = a fifth down. +5 = a fourth up. On hardware pitch shifters: the pitch/interval knob.')}</label>
-                    <input type="range" min="-24" max="24" value="0" step="1" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+' semitones ('+(['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][((parseInt(this.value)%12)+12)%12])+')'"><span style="font-size:11px; color:var(--teal);">0 semitones (C)</span></div>
-                <div class="field"><label>Fine / Cents ${h('Fine pitch adjustment. 100 cents = 1 semitone. Use for tuning correction, detuning effects, or matching pitch between sources. On hardware: the fine tune/detune knob. +/- 10 cents = subtle detuning (chorus-like). +/- 50 cents = quarter-tone.')}</label>
-                    <input type="range" min="-50" max="50" value="0" step="1" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+' cents'"><span style="font-size:11px; color:var(--teal);">0 cents</span></div>
-                <div class="field"><label>Formant Preservation ${h('Formants are the resonances that make a voice sound like THAT voice. When you pitch shift up without formant preservation, the voice gets thin and chipmunk-like. With preservation, the pitch changes but the character stays human. On Melodyne: this is the formant control.')}</label>
-                    <select><option value="on">On — natural vocal character preserved</option><option value="off">Off — character shifts with pitch (effect/robotic)</option></select></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyPitchShift()">Apply</button>`,
-
-            reverse: `<h3>Reverse ${h('Play the audio backwards. Classic effect for transitions, impacts, and creative sound design.')}</h3>
-                <button class="btn btn-primary" style="width:100%" onclick="applyEffect('reverse',{})">Reverse Selected Clip</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Reverses the entire clip. Split first if you only want to reverse a section.</p>`,
-
-            metronome: `<h3>Metronome ${h('A click track that keeps you in time while recording. Set the BPM and time signature.')}</h3>
-                <div class="field"><label>BPM ${h('Beats per minute — the tempo. 60 = slow ballad. 120 = standard pop/rock. 140 = upbeat dance. 180 = fast punk/metal.')}</label>
-                    <input type="text" id="metronomeBPM" value="120" style="width:80px; text-align:center;"></div>
-                <div class="field"><label>Time Signature ${h('How beats are grouped. 4/4 = standard (most pop, rock, hip-hop). 3/4 = waltz. 6/8 = compound feel. 5/4 and 7/8 = odd meters (prog rock, jazz).')}</label>
-                    <select><option>4/4</option><option>3/4</option><option>6/8</option><option>2/4</option><option>5/4</option><option>7/8</option></select></div>
-                <div class="field"><label>Count-in Bars ${h('Bars of clicks before recording starts. Gives you time to get ready.')}</label>
-                    <select><option value="0">None</option><option value="1" selected>1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option></select></div>
-                <button class="btn btn-teal" style="width:100%">Tap Tempo</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Tap the button rhythmically to set BPM by feel.</p>`,
-
-            count_in: `<h3>Count-in ${h('Click track that plays before recording starts. Gives you a tempo reference before the first note.')}</h3>
-                <div class="field"><label>Bars ${h('How many bars of clicks before recording starts. 1 bar = 4 clicks in 4/4. 2 bars gives you more time to settle in.')}</label>
-                    <select><option value="1">1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option></select></div>
-                <button class="btn btn-primary" style="width:100%">Test Count-in</button>`,
-
-            de_clip: `<h3>De-clip ${h('Repairs audio that was recorded too loud and clipped (distorted). Reconstructs the waveform peaks.')}</h3>
-                <div class="field"><label>Sensitivity ${h('How aggressively to repair. Higher catches more clipping but may alter clean audio.')}</label>
-                    <input type="range" min="0" max="100" value="50" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">50%</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyDeclip()">Apply</button>`,
-
-            sends: `<h3>Sends ${h('Route audio from this track to a bus for shared effects. Common for reverb and delay — send multiple tracks to one reverb.')}</h3>
-                <p style="font-size:11px; color:var(--text-dim);">Create a Bus track first (Track menu), then set up sends here.</p>
-                <button class="btn btn-secondary" style="width:100%" onclick="addBusTrack()">Create Bus Track</button>`,
-
-            stereo_width: `<h3>Stereo Width ${h('Make the stereo image wider or narrower. Mid/Side processing separates center from sides.')}</h3>
-                <div class="field"><label>Width ${h('0% = mono (center only). 100% = original stereo. 200% = extra wide.')}</label>
-                    <input type="range" min="0" max="200" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">100%</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyStereoWidth()">Apply</button>`,
-
-            help: `<h3>Getting Started</h3>
-                <div style="font-size:12px; color:var(--text-dim); line-height:1.8;">
-                    <p><strong style="color:var(--teal);">1. Load audio</strong> — Click Open File or drag a song onto the timeline.</p>
-                    <p><strong style="color:var(--teal);">2. Record</strong> — Hit the red circle to record from your mic.</p>
-                    <p><strong style="color:var(--teal);">3. Edit</strong> — Click on the waveform to place the cursor. Use S to split.</p>
-                    <p><strong style="color:var(--teal);">4. Mix</strong> — Adjust volume and pan on each track header.</p>
-                    <p><strong style="color:var(--teal);">5. Export</strong> — File → Export Mix when you are done.</p>
-                    <p style="margin-top:12px;">Hover over any <span class="help-tip" data-tip="Like this one!">?</span> icon for an explanation.</p>
-                    <p>The sidebar adapts to what you are doing — relevant tools appear automatically.</p>
-                </div>`,
-
-            glossary: `<h3>Glossary</h3>
-                <div style="font-size:12px; color:var(--text-dim); line-height:2; max-height:400px; overflow-y:auto;">
-                    <div><strong>BPM</strong> — Beats per minute. The tempo of the song.</div>
-                    <div><strong>Clipping</strong> — When audio is too loud and distorts.</div>
-                    <div><strong>Compression</strong> — Evening out the volume of audio.</div>
-                    <div><strong>dB</strong> — Decibels. How we measure loudness.</div>
-                    <div><strong>EQ</strong> — Equalizer. Adjusts the tone by boosting or cutting frequencies.</div>
-                    <div><strong>FLAC</strong> — Lossless audio format. Smaller than WAV, no quality loss.</div>
-                    <div><strong>Gain</strong> — Volume level of a signal.</div>
-                    <div><strong>Key</strong> — The musical key of a song (C major, A minor, etc).</div>
-                    <div><strong>LUFS</strong> — Loudness Units Full Scale. Standard loudness measurement.</div>
-                    <div><strong>Normalize</strong> — Adjust volume to a standard level.</div>
-                    <div><strong>Pan</strong> — Left-right positioning in the stereo field.</div>
-                    <div><strong>Reverb</strong> — The sound of a space. Adds depth and ambiance.</div>
-                    <div><strong>Sample Rate</strong> — How many times per second audio is captured. 44100 = CD quality.</div>
-                    <div><strong>Stem</strong> — An individual instrument track separated from a mix.</div>
-                    <div><strong>WAV</strong> — Uncompressed audio format. Full quality, large files.</div>
-                </div>`,
-
-            bleed_remove: `<h3>Bleed Removal ${h('If your mic picked up guitar bleed from the room, this uses the clean DI signal to subtract it. Select which track has the clean source and which has the bleed.')}</h3>
-                <div class="field"><label>Track with bleed ${h('The track you want to clean — usually the vocal mic.')}</label>
-                    <select id="bleedTarget">${tracks.map(t => `<option value="${t.engineId}">${t.name}</option>`).join('')}</select></div>
-                <div class="field"><label>Clean reference ${h('The track with the clean source signal — usually the DI or line input.')}</label>
-                    <select id="bleedReference">${tracks.map(t => `<option value="${t.engineId}">${t.name}</option>`).join('')}</select></div>
-                <div class="field"><label>Strength ${h('How aggressively to remove bleed. Lower = more precise but may leave some. Higher = more aggressive but may affect the wanted signal.')}</label>
-                    <input type="range" min="1" max="50" value="10" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"><span style="font-size:11px; color:var(--teal);">0.10</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyBleedRemoval()">Remove Bleed</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Works best when both tracks were recorded simultaneously. The math is the same used in noise-cancelling headphones.</p>`,
-
-            bandmate: `<h3>The Bandmate</h3>
-                <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Ask about chords, arrangement, production, mixing — anything musical. The Bandmate listens to your session and responds.</div>
-                <div id="bandmateChat" style="max-height:280px; overflow-y:auto; margin-bottom:8px; padding:8px; background:var(--bg-deep); border-radius:var(--radius); font-size:12px; color:var(--text-dim); line-height:1.7;">
-                    <div style="color:var(--teal); font-style:italic;">What are you working on? I'm listening.</div>
-                </div>
-                <div style="display:flex; gap:6px;">
-                    <input type="text" id="bandmateInput" placeholder="Ask your bandmate..." style="flex:1; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px;"
-                        onkeydown="if(event.key==='Enter')askBandmate()">
-                    <button class="btn btn-teal" onclick="askBandmate()" style="padding:8px 12px; font-size:11px;">Ask</button>
-                </div>`,
-
-            community: `<h3>Community</h3>
-                <div style="font-size:12px; color:var(--text-dim); line-height:1.8; margin-bottom:16px;">
-                    You're not alone in this. Sozawen is built by musicians for musicians — and we want to hear from you.
-                </div>
-                <a href="https://discord.gg/WhzuhTeVsU" target="_blank" class="btn btn-secondary" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; margin-bottom:8px; padding:10px;">
-                    <span style="font-size:16px;">💬</span> Join the Discord
-                </a>
-                <p style="font-size:10px; color:var(--text-muted); margin-bottom:16px;">Share your work, get feedback, find collaborators, learn techniques.</p>
-
-                <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:8px;">
-                    <div style="font-size:12px; color:var(--teal); margin-bottom:8px; font-weight:500;">Send Feedback</div>
-                    <div class="field"><label>What's on your mind?</label>
-                        <select id="feedbackType">
-                            <option value="feedback">Feature request</option>
-                            <option value="bug">Bug report</option>
-                            <option value="love">Just saying thanks</option>
-                            <option value="help">I need help</option>
-                        </select></div>
-                    <div class="field">
-                        <textarea id="feedbackText" rows="4" placeholder="Tell us what you're thinking..."
-                            style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px; resize:vertical;"></textarea></div>
-                    <div class="field">
-                        <input type="email" id="feedbackEmail" placeholder="Your email (optional — for follow-up)"
-                            style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px;"></div>
-                    <button class="btn btn-primary" style="width:100%" onclick="sendFeedback()">Send</button>
-                    <div id="feedbackStatus" style="font-size:10px; color:var(--text-muted); margin-top:6px; min-height:14px;"></div>
-                </div>
-
-                <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:16px;">
-                    <div style="font-size:12px; color:var(--violet-glow); margin-bottom:8px; font-weight:500;">Share Your Project</div>
-                    <button class="btn btn-secondary" style="width:100%; margin-bottom:6px;" onclick="exportProject()">Export Project File (.sozawen)</button>
-                    <button class="btn btn-secondary" style="width:100%;" onclick="exportAllStems()">Export All Stems (ZIP)</button>
-                    <p style="font-size:10px; color:var(--text-muted); margin-top:6px;">Send the project file to a collaborator. They open it in Sozawen and pick up where you left off.</p>
-                </div>`,
-
-            shortcuts: `<h3>Keyboard Shortcuts</h3>
-                <div style="font-size:12px; line-height:2.2; color:var(--text-dim);">
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Space</kbd> Play / Pause</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">R</kbd> Record</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">S</kbd> Split at playhead</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Ctrl+Z</kbd> Undo</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Ctrl+S</kbd> Save project</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Ctrl+E</kbd> Export</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Ctrl+T</kbd> New track</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Ctrl++/-</kbd> Zoom in/out</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Del</kbd> Delete selection</div>
-                    <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">M</kbd> Mute selected track</div>
-                </div>`,
-        };
-
-        // Special handling for open_file — trigger picker, don't show panel
-        if (name === 'open_file') {
-            openFile();
-            return;
-        }
-
-        content.innerHTML = panels[name] || `<h3>${name}</h3><div style="color:var(--text-dim)">Coming soon</div>`;
-        panel.classList.add('visible');
-
-        // Load input devices when that panel opens
-        if (name === 'input_select') {
-            fetch('/api/input-devices').then(r=>r.json()).then(d => {
-                const sel = document.getElementById('inputDeviceSelect');
-                if (sel && d.devices) {
-                    sel.innerHTML = d.devices.map(dev =>
-                        `<option value="${dev.id}">${dev.name} (${dev.channels}ch)</option>`
-                    ).join('');
-                }
-            });
-        }
-
-        // Wire all Apply/Preview buttons to the appropriate effect
-        const effectMap = {
-            'noise_gate': 'noise_gate', 'hum_remove': 'hum_remove', 'de_ess': 'de_ess',
-            'normalize': 'normalize', 'eq': 'eq', 'compressor': 'compressor',
-            'reverb': 'reverb', 'delay': 'delay', 'limiter': 'limiter',
-            'crossfade': 'crossfade', 'stretch': 'time_stretch', 'pitch': 'pitch_shift',
-            'stereo_width': 'stereo_width', 'de_clip': 'de_clip',
-        };
-        if (effectMap[name]) {
-            content.querySelectorAll('.btn-primary').forEach(btn => {
-                if (btn.textContent.includes('Apply')) {
-                    btn.onclick = () => {
-                        // Collect slider values from the panel
-                        const params = {};
-                        content.querySelectorAll('input[type=range]').forEach(slider => {
-                            const label = slider.closest('.field')?.querySelector('label')?.textContent?.trim()?.toLowerCase() || '';
-                            params[label.replace(/[^a-z_]/g, '_').replace(/_+/g, '_')] = parseFloat(slider.value);
-                        });
-                        content.querySelectorAll('select').forEach(sel => {
-                            const label = sel.closest('.field')?.querySelector('label')?.textContent?.trim()?.toLowerCase() || '';
-                            params[label.replace(/[^a-z_]/g, '_').replace(/_+/g, '_')] = sel.value;
-                        });
-                        applyEffect(effectMap[name], params);
-                    };
-                }
-            });
-        }
-        // Wire export button
-        if (name === 'export') {
-            content.querySelectorAll('.btn-primary').forEach(btn => {
-                if (btn.textContent.includes('Export Mix')) btn.onclick = exportMix;
-            });
-        }
-        // Wire LUFS measurement
-        if (name === 'lufs') {
-            measureLoudness();
-        }
-        // Smart separation — detect channels and offer best options
-        if (name === 'stem_split') {
-            const track = getActiveTrack();
-            if (track && track.engineId !== null) {
-                fetch('/api/edit/detect-channels', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({track_id: track.engineId})
-                }).then(r=>r.json()).then(d => {
-                    const info = document.getElementById('channelInfo');
-                    const opts = document.getElementById('splitOptions');
-                    if (!info || !opts) return;
-
-                    const ch = d.channels || 1;
-                    const dur = Math.round(d.duration || 0);
-                    info.textContent = `${ch} channel${ch>1?'s':''} · ${d.sample_rate}Hz · ${dur}s`;
-
-                    if (ch <= 2) {
-                        // Stereo or mono — offer AI separation
-                        opts.innerHTML = `
-                            <div class="field"><label>Separate into</label>
-                                <select id="splitMode">
-                                    <option value="full">All parts — vocals, drums, bass, and instruments</option>
-                                    <option value="vocals">Just vocals and instrumental</option>
-                                    <option value="full_deep">Deep separation — all parts, then split instruments further</option>
-                                </select></div>`;
-                    } else {
-                        // Multi-channel — offer both options
-                        opts.innerHTML = `
-                            <div class="field"><label>This file has ${ch} channels</label>
-                                <select id="splitMode">
-                                    <option value="full">AI separate — find vocals, drums, bass, instruments</option>
-                                    <option value="channels">Split by channel — one track per channel (${ch} tracks)</option>
-                                    <option value="both">Both — split channels first, then AI separate each</option>
-                                </select></div>`;
-                    }
-                });
-            } else {
-                const info = document.getElementById('channelInfo');
-                if (info) info.textContent = 'Load a track first to separate.';
-            }
-        }
-        // Wire analyze — run analysis on the active track
-        if (name === 'analyze') {
-            const track = getActiveTrack();
-            if (track && track.file) {
-                fetch('/api/analyze', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({file_path: track.file})
-                }).then(r=>r.json()).then(d => {
-                    const el = document.getElementById('analysisResults');
-                    if (el) {
-                        el.innerHTML = `
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
-                                <div style="text-align:center; padding:12px; background:var(--bg-deep); border-radius:var(--radius);">
-                                    <div style="font-size:24px; color:var(--violet-glow);">${d.key || '?'}</div>
-                                    <div style="font-size:9px; color:var(--text-muted);">KEY</div>
-                                </div>
-                                <div style="text-align:center; padding:12px; background:var(--bg-deep); border-radius:var(--radius);">
-                                    <div style="font-size:24px; color:var(--teal);">${d.bpm || '?'}</div>
-                                    <div style="font-size:9px; color:var(--text-muted);">BPM</div>
-                                </div>
-                            </div>
-                            <div style="line-height:2;">
-                                <div>Duration: <strong>${d.duration ? Math.floor(d.duration/60)+':'+String(Math.floor(d.duration%60)).padStart(2,'0') : '?'}</strong></div>
-                                <div>Sample Rate: <strong>${d.sample_rate || '?'} Hz</strong></div>
-                                <div>Peak: <strong>${d.peak_db || '?'} dB</strong></div>
-                                <div>RMS: <strong>${d.rms_db || '?'} dB</strong></div>
-                            </div>`;
-                    }
-                }).catch(() => {
-                    const el = document.getElementById('analysisResults');
-                    if (el) el.textContent = 'Analysis failed — try loading a track first.';
-                });
-            } else {
-                const el = document.getElementById('analysisResults');
-                if (el) el.textContent = 'Load a track first to analyze.';
-            }
-        }
-    }
-
-    // ═══ RECORDING ═══
-    function armRecording() {
-        const sel = document.getElementById('inputDeviceSelect');
-        const deviceId = sel ? parseInt(sel.value) : null;
-        document.getElementById('statusText').textContent = 'Armed — hit Record to start';
-        document.getElementById('btnRecord').style.borderColor = 'var(--red)';
-        // Store selected device for when record is pressed
-        window._recordDeviceId = deviceId;
-    }
-
-    // Override toggleRecord to use the armed device
-    const _originalToggleRecord = toggleRecord;
-    toggleRecord = function() {
-        if (!isRecording) {
-            isRecording = true;
-            document.getElementById('btnRecord').classList.add('active');
-            document.getElementById('statusText').textContent = 'Recording...';
-            fetch('/api/record/start', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({device_id: window._recordDeviceId || null})
-            });
-            reportAction('hit_record');
-        } else {
-            isRecording = false;
-            document.getElementById('btnRecord').classList.remove('active');
-            document.getElementById('statusText').textContent = 'Stopping...';
-            fetch('/api/record/stop', {method:'POST'}).then(r=>r.json()).then(d => {
-                document.getElementById('statusText').textContent = 'Ready';
-                // Refresh tracks to show the new recording
-                if (d.state && d.state.tracks) {
-                    // Add any new tracks from recording
-                    d.state.tracks.forEach(t => {
-                        if (!tracks.find(existing => existing.engineId === t.id) && t.regions.length > 0) {
-                            const newTrack = {id: trackIdCounter++, name: t.name, file: null, muted: false, solo: false, volume: 80, engineId: t.id};
-                            tracks.push(newTrack);
-                        }
-                    });
-                    renderTracks();
-                }
-            });
-        }
-    };
-
-    // ═══ ACTIONS ═══
-    function getActiveTrack() {
-        // Return first track with audio, or null
-        return tracks.find(t => t.file) || null;
-    }
-
-    function applyEffect(effect, params) {
-        const track = getActiveTrack();
-        if (!track || track.engineId === null) { alert('Load a track first'); return; }
-        document.getElementById('statusText').textContent = `Applying ${effect}...`;
-        fetch('/api/fx/apply', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({track_id: track.engineId, effect, params})
-        }).then(r => r.json()).then(d => {
-            document.getElementById('statusText').textContent = d.ok ? 'Applied!' : ('Error: ' + d.error);
-            if (d.ok) {
-                setTimeout(() => document.getElementById('statusText').textContent = 'Ready', 1500);
-                reportAction('run_cleanup');
-            }
-        });
-    }
-
-    function measureLoudness() {
-        const track = getActiveTrack();
-        if (!track || track.engineId === null) { alert('Load a track first'); return; }
-        fetch('/api/fx/measure', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({track_id: track.engineId})
-        }).then(r => r.json()).then(d => {
-            if (d.lufs !== undefined) {
-                const el = document.getElementById('lufsValue');
-                if (el) el.textContent = d.lufs + ' LUFS';
-                const peak = document.getElementById('peakValue');
-                if (peak) peak.textContent = d.true_peak + ' dBTP';
-                const dr = document.getElementById('dynamicRange');
-                if (dr) dr.textContent = d.dynamic_range + ' dB';
-            }
-        });
-    }
-
-    function exportMix() {
-        const fmt = document.querySelector('#panelContent select')?.value?.split(' ')[0]?.toLowerCase() || 'wav';
-        document.getElementById('statusText').textContent = 'Exporting...';
-        fetch('/api/export', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({format: fmt})
-        }).then(r => r.json()).then(d => {
-            document.getElementById('statusText').textContent = d.ok ? 'Exported!' : ('Error: ' + (d.error || 'unknown'));
-            if (d.ok) alert('Exported to: ' + d.path);
-        });
-    }
-
-    function runSplit() {
-        // Legacy — redirects to smart split
-        runSmartSplit();
-    }
-
-    function runSmartSplit() {
-        const mode = document.getElementById('splitMode')?.value || 'full';
-        const track = getActiveTrack();
-        if (!track || !track.file) { alert('Load a track first'); return; }
-
-        // Show progress
-        const prog = document.getElementById('splitProgress');
-        const progBar = document.getElementById('splitProgressBar');
-        const progText = document.getElementById('splitProgressText');
-        if (prog) prog.style.display = 'block';
-
-        if (mode === 'channels') {
-            if (progText) progText.textContent = 'Splitting channels...';
-            fetch('/api/edit/split-channels', {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({track_id: track.engineId})
-            }).then(r=>r.json()).then(d => {
-                if (prog) prog.style.display = 'none';
-                document.getElementById('statusText').textContent = d.ok ? 'Separated!' : (d.message || d.error);
-                if (d.ok) { setTimeout(()=>document.getElementById('statusText').textContent='Ready', 2000); refreshTracks(); }
-            });
-        } else if (mode === 'vocals') {
-            if (progText) progText.textContent = 'Isolating vocals...';
-            runSeparation(2);
-        } else if (mode === 'full') {
-            if (progText) progText.textContent = 'Separating — vocals, drums, bass, instruments...';
-            runSeparation(4);
-        } else if (mode === 'full_deep') {
-            // Two-pass: first 4-stem, then split "other" further
-            if (progText) progText.textContent = 'Pass 1 — separating main parts...';
-            // Run 4-stem first, then when complete, run again on "other"
-            document.getElementById('statusText').textContent = 'Deep separation — this takes a while...';
-            runSeparation(4);
-            // Note: the second pass would need to trigger after the first completes
-            // For now, the user can manually run separation again on the "other" track
-        } else if (mode === 'both') {
-            // Channel split first, then AI on each
-            if (progText) progText.textContent = 'Splitting channels first...';
-            fetch('/api/edit/split-channels', {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({track_id: track.engineId})
-            }).then(r=>r.json()).then(d => {
-                if (d.ok) {
-                    if (progText) progText.textContent = `${d.channels} channels split. You can now AI-separate each one individually.`;
-                    refreshTracks();
-                    setTimeout(() => { if (prog) prog.style.display = 'none'; }, 3000);
-                }
-            });
-        }
-    }
-
-    function refreshTracks() {
-        fetch('/api/transport/state').then(r=>r.json()).then(d => {
-            if (d.tracks) {
-                // Sync UI tracks with engine tracks
-                d.tracks.forEach(t => {
-                    let existing = tracks.find(e => e.engineId === t.id);
-                    if (!existing) {
-                        existing = {id: trackIdCounter++, name: t.name, file: null, muted: t.muted, solo: t.solo, volume: t.volume * 100, engineId: t.id};
-                        tracks.push(existing);
-                    }
-                    // Update state
-                    existing.name = t.name;
-                    existing.muted = t.muted;
-                    existing.solo = t.solo;
-                    existing.hasAudio = t.regions && t.regions.length > 0;
-                });
-                renderTracks();
-                document.getElementById('emptyState').style.display = 'none';
-
-                // Load waveforms for all tracks that have audio
-                d.tracks.forEach(t => {
-                    if (t.regions && t.regions.length > 0) {
-                        const uiTrack = tracks.find(e => e.engineId === t.id);
-                        if (uiTrack) {
-                            loadAndDrawWaveform(uiTrack.id, t.id);
-                        }
-                    }
-                });
-            }
-        });
-    }
-
-    function runSeparation(stems) {
-        stems = stems || 4;
-        const track = getActiveTrack();
-        if(!track || !track.file) { alert('Load a track first'); return; }
-        document.getElementById('statusText').textContent = 'Separating stems...';
-        fetch('/api/separate', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({file_path: track.file, quality:'high', stems:4})
-        }).then(r=>r.json()).then(d=>{
-            if(d.job_id) pollJob(d.job_id);
-        });
-    }
-
-    function pollJob(jobId) {
-        const poll = setInterval(()=>{
-            fetch(`/api/job/${jobId}`).then(r=>r.json()).then(d=>{
-                document.getElementById('statusText').textContent = `${d.status} (${d.progress||0}%)`;
-                if(d.status==='complete') {
-                    clearInterval(poll);
-                    document.getElementById('statusText').textContent = 'Ready';
-                    // Add stems as new tracks
-                    if(d.stems) d.stems.forEach(s => addTrack(s.name, s.path));
-                } else if(d.status==='error') {
-                    clearInterval(poll);
-                    document.getElementById('statusText').textContent = 'Error: ' + (d.error||'unknown');
-                }
-            });
-        }, 1000);
-    }
-
-    function runLyrics() {
-        const track = tracks[0];
-        if(!track || !track.file) { alert('Load a track first'); return; }
-        document.getElementById('statusText').textContent = 'Transcribing lyrics...';
-        fetch('/api/transcribe-lyrics', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({file_path: track.file})
-        }).then(r=>r.json()).then(d=>{
-            document.getElementById('statusText').textContent = 'Ready';
-            if(d.lyrics) {
-                document.getElementById('lyricsOutput').innerHTML = d.lyrics.map(l=>
-                    `<div style="margin-bottom:4px;"><span style="color:var(--teal); font-size:10px;">${Math.floor(l.start/60)}:${String(Math.floor(l.start%60)).padStart(2,'0')}</span> ${l.text}</div>`
-                ).join('');
-            }
-        });
-    }
-
-    // ═══ GLOBAL DROP ═══
-    document.body.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('dropOverlay').classList.add('visible'); });
-    document.getElementById('dropOverlay').addEventListener('dragleave', () => { document.getElementById('dropOverlay').classList.remove('visible'); });
-    document.getElementById('dropOverlay').addEventListener('drop', e => {
-        e.preventDefault();
-        document.getElementById('dropOverlay').classList.remove('visible');
-
-        // Try to get the file path from the drop event
-        const files = e.dataTransfer.files;
-        if (files && files.length > 0) {
-            // In pywebview, File objects may have a .path property
-            const file = files[0];
-            const path = file.path || file.name;
-            if (path && path.includes('/') || path.includes('\\')) {
-                // Got a full path — load directly
-                const name = path.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
-                addTrack(name, path);
-                return;
-            }
-        }
-        // No path available from drop — use file picker
-        openFile();
-    });
-
-    // ═══ ADAPTIVE CONTEXT — the program reads the room ═══
-    let drawerOpen = false;
-
-    function toggleDrawer() {
-        drawerOpen = !drawerOpen;
-        document.getElementById('allToolsDrawer').style.display = drawerOpen ? 'block' : 'none';
-        document.getElementById('drawerToggle').querySelector('.icon').textContent = drawerOpen ? '▾' : '▸';
-    }
-
-    function refreshContext() {
-        fetch('/api/context').then(r => r.json()).then(ctx => {
-            // Update context message
-            if (ctx.message) {
-                document.getElementById('contextMessage').textContent = ctx.message;
-            }
-
-            // Render prominent tools
-            const prominent = document.getElementById('prominentTools');
-            prominent.innerHTML = ctx.prominent_tools.map(t => `
-                <button class="tool-btn" onclick="showPanel('${t.id}', this); reportAction('select_tool')"
-                        style="opacity:${0.5 + t.weight * 0.5}" title="${t.label}">
-                    <span class="icon">${t.icon}</span> ${t.label}
-                </button>
-            `).join('');
-
-            // Render drawer tools
-            const drawer = document.getElementById('drawerTools');
-            drawer.innerHTML = ctx.available_tools.map(t => `
-                <button class="tool-btn" onclick="showPanel('${t.id}', this)"
-                        style="opacity:0.5; font-size:11px;" title="${t.label}">
-                    <span class="icon" style="font-size:12px;">${t.icon}</span> ${t.label}
-                </button>
-            `).join('');
-
-            // Show issues as subtle alerts
-            if (ctx.issues && ctx.issues.length > 0) {
-                const issueHtml = ctx.issues.map(i =>
-                    `<div style="font-size:10px; color:var(--amber); padding:4px 0; border-bottom:1px solid var(--border);">
-                        ⚠ ${i.description}
-                    </div>`
-                ).join('');
-                document.getElementById('contextMessage').innerHTML += issueHtml;
-            }
-        }).catch(() => {});
-    }
-
-    function reportAction(action) {
-        fetch('/api/context/action', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({action})
-        }).then(r => r.json()).then(() => refreshContext());
-    }
-
-    // Poll context every 2 seconds
-    setInterval(refreshContext, 2000);
-    refreshContext();
-
-    // ═══ AUTO-SAVE (every 60 seconds) ═══
-    setInterval(() => {
-        if (tracks.length > 0) saveProject();
-    }, 60000);
-
-    // ═══ CRASH RECOVERY — check on startup ═══
-    fetch('/api/project/recover').then(r=>r.json()).then(d => {
-        if (d.available && d.project && d.project.tracks && d.project.tracks.length > 0) {
-            if (confirm(`Found an unsaved session from ${d.project.savedAt || 'earlier'}. Recover it?`)) {
-                tracks = d.project.tracks;
-                trackIdCounter = Math.max(...tracks.map(t=>t.id), 0) + 1;
-                renderTracks();
-                document.getElementById('emptyState').style.display = 'none';
-                reloadAllWaveforms();
-                document.getElementById('statusText').textContent = 'Session recovered';
-            }
-        }
-    }).catch(()=>{});
-
-    // ═══ MENU ACTIONS ═══
-    function newProject() { if(confirm('Start a new project? Unsaved changes will be lost.')) { tracks=[]; trackIdCounter=0; renderTracks(); document.getElementById('emptyState').style.display='flex'; stopAll(); reportAction('none'); }}
-    function openProject() {
-        // Use tkinter file dialog to pick a project file
-        fetch('/api/pick-file').then(r => r.json()).then(d => {
-            if (d.path && d.path.endsWith('.json')) {
-                fetch('/api/project/recover').then(r=>r.json()).then(proj => {
-                    if (proj.available && proj.project) {
-                        tracks = proj.project.tracks || [];
-                        trackIdCounter = Math.max(...tracks.map(t=>t.id), 0) + 1;
-                        renderTracks();
-                        document.getElementById('emptyState').style.display = 'none';
-                        reloadAllWaveforms();
-                        document.getElementById('statusText').textContent = 'Project loaded';
-                    }
-                });
-            }
-        }).catch(()=>{});
-    }
-    function saveProject() {
-        const project = {
-            version: '0.1.0',
-            tracks: tracks,
-            bpm: document.getElementById('bpmDisplay')?.textContent || '120 BPM',
-            key: document.getElementById('keyDisplay')?.textContent || '—',
-            savedAt: new Date().toISOString(),
-        };
-        fetch('/api/project/save', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify(project)
-        }).then(r=>r.json()).then(d => {
-            document.getElementById('statusText').textContent = d.ok ? 'Saved!' : 'Save failed';
-            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 1500);
-        }).catch(() => {
-            // Fallback: save to localStorage
-            localStorage.setItem('sozawen_project', JSON.stringify(project));
-            document.getElementById('statusText').textContent = 'Saved locally';
-            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 1500);
-        });
-    }
-    function saveProjectAs() { saveProject(); /* TODO: file picker for save location */ }
-    function exportStems() { showPanel('export'); }
-    function showSettings() { showPanel('help'); }
-    // ═══ UNDO/REDO ═══
-    function pushUndo(description) {
-        _undoStack.push({description, state: JSON.parse(JSON.stringify(tracks))});
-        _redoStack = [];
-        if (_undoStack.length > 50) _undoStack.shift();
-    }
-    function undo() {
-        if (_undoStack.length === 0) { document.getElementById('statusText').textContent = 'Nothing to undo'; return; }
-        const entry = _undoStack.pop();
-        _redoStack.push({description: 'redo', state: JSON.parse(JSON.stringify(tracks))});
-        tracks = entry.state;
-        renderTracks();
-        reloadAllWaveforms();
-        document.getElementById('statusText').textContent = `Undid: ${entry.description}`;
-        setTimeout(()=>document.getElementById('statusText').textContent='Ready', 1500);
-    }
-    function redo() {
-        if (_redoStack.length === 0) { document.getElementById('statusText').textContent = 'Nothing to redo'; return; }
-        const entry = _redoStack.pop();
-        _undoStack.push({description: 'undo', state: JSON.parse(JSON.stringify(tracks))});
-        tracks = entry.state;
-        renderTracks();
-        reloadAllWaveforms();
-        document.getElementById('statusText').textContent = 'Redone';
-        setTimeout(()=>document.getElementById('statusText').textContent='Ready', 1500);
-    }
-
-    // ═══ CLIPBOARD ═══
-    function cutSelection() { copySelection(); deleteSelection(); }
-    function copySelection() {
-        const track = getActiveTrack();
-        if (track) { _clipboard = JSON.parse(JSON.stringify(track)); document.getElementById('statusText').textContent = 'Copied'; }
-    }
-    function pasteSelection() {
-        if (!_clipboard) { document.getElementById('statusText').textContent = 'Nothing to paste'; return; }
-        pushUndo('paste');
-        const newTrack = JSON.parse(JSON.stringify(_clipboard));
-        newTrack.id = trackIdCounter++;
-        newTrack.name = newTrack.name + ' (copy)';
-        tracks.push(newTrack);
-        // Also create in engine
-        fetch('/api/track/add', {method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({name: newTrack.name, file_path: newTrack.file || ''})
-        }).then(r=>r.json()).then(d => { newTrack.engineId = d.track_id; });
-        renderTracks();
-        reloadAllWaveforms();
-        document.getElementById('statusText').textContent = 'Pasted';
-    }
-    function deleteSelection() {
-        const track = getActiveTrack();
-        if (!track) return;
-        pushUndo('delete track');
-        tracks = tracks.filter(t => t.id !== track.id);
-        if (track.engineId !== null) {
-            fetch(`/api/track/${track.engineId}/delete`, {method:'POST'}).catch(()=>{});
-        }
-        renderTracks();
-        if (tracks.length === 0) document.getElementById('emptyState').style.display = 'flex';
-        document.getElementById('statusText').textContent = 'Deleted';
-    }
-    function selectAll() { /* Select all tracks */ }
-
-    // ═══ SPLIT ═══
-    function splitAtPlayhead() {
-        pushUndo('split');
-        const track = getActiveTrack();
-        if (!track) return;
-        document.getElementById('statusText').textContent = 'Splitting...';
-        fetch('/api/edit/split', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({track_id: track.engineId})
-        }).then(r=>r.json()).then(d => {
-            document.getElementById('statusText').textContent = d.ok ? 'Split!' : (d.error || 'Nothing to split');
-            if (d.ok) { setTimeout(()=>document.getElementById('statusText').textContent='Ready', 1500); refreshTracks(); }
-            reportAction('split_clip');
-        });
-    }
-
-    // ═══ TRACK MANAGEMENT ═══
-    function addBusTrack() { pushUndo('add bus'); addTrack('Bus', null); }
-    function duplicateTrack() {
-        const track = getActiveTrack();
-        if (!track) return;
-        pushUndo('duplicate');
-        _clipboard = JSON.parse(JSON.stringify(track));
-        pasteSelection();
-    }
-    function removeSelectedTrack() { deleteSelection(); }
-    function freezeTrack() {
-        const t = getActiveTrack();
-        if (!t || !t.engineId) { document.getElementById('statusText').textContent = 'Select a track first'; return; }
-        if (t.frozen) { document.getElementById('statusText').textContent = 'Track already frozen'; return; }
-        document.getElementById('statusText').textContent = 'Freezing...';
-        // Export just this track to a rendered file
-        fetch('/api/export', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ format: 'wav', sample_rate: 44100, track_id: t.engineId })
-        }).then(r=>r.json()).then(d => {
-            t.frozen = true;
-            t.originalFile = t.file;
-            document.getElementById('statusText').textContent = 'Track frozen — CPU saved';
-            renderTracks();
-        }).catch(() => { document.getElementById('statusText').textContent = 'Freeze failed'; });
-    }
-    function unfreezeTrack() {
-        const t = getActiveTrack();
-        if (!t) return;
-        if (!t.frozen) { document.getElementById('statusText').textContent = 'Track not frozen'; return; }
-        t.frozen = false;
-        if (t.originalFile) t.file = t.originalFile;
-        document.getElementById('statusText').textContent = 'Track unfrozen';
-        renderTracks();
-    }
-
-    // ═══ ZOOM ═══
-    function zoomIn() {
-        _zoomLevel = Math.min(8.0, _zoomLevel * 1.5);
-        PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
-        reloadAllWaveforms();
-        buildRuler(Math.max(180, getMaxDuration()));
-        document.getElementById('statusText').textContent = `Zoom: ${Math.round(_zoomLevel*100)}%`;
-    }
-    function zoomOut() {
-        _zoomLevel = Math.max(0.25, _zoomLevel / 1.5);
-        PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
-        reloadAllWaveforms();
-        buildRuler(Math.max(180, getMaxDuration()));
-        document.getElementById('statusText').textContent = `Zoom: ${Math.round(_zoomLevel*100)}%`;
-    }
-    function zoomToFit() {
-        const dur = getMaxDuration();
-        if (dur > 0) {
-            const wp = document.getElementById('wavePanel');
-            _zoomLevel = wp.clientWidth / (dur * PIXELS_PER_SECOND_BASE);
-            _zoomLevel = Math.max(0.1, Math.min(8.0, _zoomLevel));
-            PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
-            reloadAllWaveforms();
-            buildRuler(Math.max(180, dur));
-        }
-    }
-    function getMaxDuration() {
-        return Math.max(...tracks.map(t => t.duration || 0), 0);
-    }
-    function toggleSpectrogram() { document.getElementById('statusText').textContent = 'Spectrogram view coming soon'; }
-    function toggleMixer() {
-        let mixer = document.getElementById('mixerPanel');
-        if (mixer) {
-            mixer.style.display = mixer.style.display === 'none' ? 'flex' : 'none';
-            return;
-        }
-        // Create mixer panel
-        mixer = document.createElement('div');
-        mixer.id = 'mixerPanel';
-        mixer.style.cssText = 'display:flex; gap:8px; padding:12px 16px; background:var(--bg-card); border-top:1px solid var(--border); overflow-x:auto; align-items:flex-end; max-height:180px;';
-
-        function renderMixer() {
-            mixer.innerHTML = tracks.map(t => `
-                <div style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:60px; padding:6px;">
-                    <div style="font-size:9px; color:var(--text-muted); max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</div>
-                    <input type="range" orient="vertical" min="0" max="100" value="${t.volume}"
-                        oninput="setVolume(${t.id}, this.value)"
-                        style="writing-mode:vertical-lr; direction:rtl; width:24px; height:100px; -webkit-appearance:slider-vertical;">
-                    <div style="font-size:9px; color:var(--teal);">${t.volume}%</div>
-                    <input type="range" min="-100" max="100" value="${t.pan||0}"
-                        oninput="setPan(${t.id}, this.value)"
-                        style="width:50px; height:3px; -webkit-appearance:none; background:var(--border); border-radius:2px;">
-                    <div style="font-size:8px; color:var(--text-muted);">L ← → R</div>
-                    <div style="display:flex; gap:3px;">
-                        <button onclick="toggleMute(${t.id})" style="font-size:8px; padding:2px 5px; border:1px solid ${t.muted?'var(--red)':'var(--border)'}; background:${t.muted?'var(--red)':'transparent'}; color:${t.muted?'#fff':'var(--text-dim)'}; border-radius:3px; cursor:pointer;">M</button>
-                        <button onclick="toggleSolo(${t.id})" style="font-size:8px; padding:2px 5px; border:1px solid ${t.solo?'var(--teal)':'var(--border)'}; background:${t.solo?'var(--teal)':'transparent'}; color:${t.solo?'#000':'var(--text-dim)'}; border-radius:3px; cursor:pointer;">S</button>
-                    </div>
-                </div>
-            `).join('') + `
-                <div style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:60px; padding:6px; border-left:2px solid var(--teal);">
-                    <div style="font-size:9px; color:var(--teal); font-weight:600;">MASTER</div>
-                    <input type="range" orient="vertical" min="0" max="100" value="100"
-                        style="writing-mode:vertical-lr; direction:rtl; width:24px; height:100px; -webkit-appearance:slider-vertical;">
-                    <div style="font-size:9px; color:var(--teal);">100%</div>
-                </div>`;
-        }
-        renderMixer();
-        document.querySelector('.workspace').appendChild(mixer);
-        // Re-render mixer when tracks change
-        window._renderMixer = renderMixer;
-    }
-    function toggleHelpMode() { document.body.classList.toggle('help-mode'); }
-    function showAbout() { alert('Sozawen v0.1.0\nBorn from the burn. Built by feeling.\n\nA bandmate who listens.\n\n\u00a9 2026 Daysha Lindale'); }
-
-    // ═══ EFFECTS — wire Apply/Preview buttons to backend ═══
-    function getActiveTrackEngineId() {
-        const t = getActiveTrack();
-        if (!t || t.engineId === null) { alert('Select a track first'); return null; }
-        return t.engineId;
-    }
-
-    function applyEffect(effect, params) {
-        const eid = getActiveTrackEngineId();
-        if (eid === null) return;
-        pushUndo('apply ' + effect);
-        document.getElementById('statusText').textContent = 'Applying ' + effect + '...';
-        fetch('/api/fx/apply', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ track_id: eid, effect, params })
-        }).then(r=>r.json()).then(d => {
-            if (d.ok) {
-                document.getElementById('statusText').textContent = effect + ' applied!';
-                const t = getActiveTrack();
-                if (t) t.effects.push(effect);
-                reloadAllWaveforms();
-                reportAction('run_cleanup');
-            } else {
-                document.getElementById('statusText').textContent = d.error || 'Failed';
-            }
-            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 2000);
-        }).catch(e => { document.getElementById('statusText').textContent = 'Error: ' + e; });
-    }
-
-    function applyNoiseGate() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('noise_gate', {
-            threshold_db: parseFloat(ranges[0]?.value || -40),
-            attack_ms: parseFloat(ranges[1]?.value || 10),
-            release_ms: parseFloat(ranges[2]?.value || 100),
-        });
-    }
-    function applyHumRemoval() {
-        const panel = document.getElementById('toolPanel');
-        const sel = panel.querySelector('select');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('hum_remove', {
-            freq: parseInt(sel?.value || 60),
-            harmonics: parseInt(ranges[0]?.value || 4),
-            strength: parseInt(ranges[1]?.value || 70) / 100,
-        });
-    }
-    function applyDeEss() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('de_ess', {
-            frequency: parseFloat(ranges[0]?.value || 6000),
-            reduction_db: parseFloat(ranges[1]?.value || 6),
-        });
-    }
-    function applyNormalize() {
-        const panel = document.getElementById('toolPanel');
-        const sel = panel.querySelector('select');
-        const range = panel.querySelector('input[type="range"]');
-        const mode = sel?.selectedIndex === 0 ? 'peak' : sel?.selectedIndex === 1 ? 'rms' : 'lufs';
-        applyEffect('normalize', { mode, target_db: parseFloat(range?.value || -1) });
-    }
-    function applyFullEQ() {
-        applyEffect('eq', {
-            hpf_freq: parseFloat(document.getElementById('eq_hpf')?.value || 20),
-            lpf_freq: parseFloat(document.getElementById('eq_lpf')?.value || 20000),
-            low_freq: parseFloat(document.getElementById('eq_low_freq')?.value || 80),
-            low_gain: parseFloat(document.getElementById('eq_low_gain')?.value || 0),
-            low_q: parseFloat(document.getElementById('eq_low_q')?.value || 0.7),
-            low_type: document.getElementById('eq_low_type')?.value || 'shelf',
-            lomid_freq: parseFloat(document.getElementById('eq_lomid_freq')?.value || 250),
-            lomid_gain: parseFloat(document.getElementById('eq_lomid_gain')?.value || 0),
-            lomid_q: parseFloat(document.getElementById('eq_lomid_q')?.value || 1.0),
-            himid_freq: parseFloat(document.getElementById('eq_himid_freq')?.value || 4000),
-            himid_gain: parseFloat(document.getElementById('eq_himid_gain')?.value || 0),
-            himid_q: parseFloat(document.getElementById('eq_himid_q')?.value || 1.0),
-            high_freq: parseFloat(document.getElementById('eq_high_freq')?.value || 12000),
-            high_gain: parseFloat(document.getElementById('eq_high_gain')?.value || 0),
-            high_q: parseFloat(document.getElementById('eq_high_q')?.value || 0.7),
-            high_type: document.getElementById('eq_high_type')?.value || 'shelf',
-        });
-    }
-    function applyEQ() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('eq', {
-            low_gain: parseFloat(ranges[0]?.value || 0),
-            low_mid_gain: parseFloat(ranges[1]?.value || 0),
-            mid_gain: parseFloat(ranges[2]?.value || 0),
-            high_mid_gain: parseFloat(ranges[3]?.value || 0),
-            high_gain: parseFloat(ranges[4]?.value || 0),
-        });
-    }
-    function applyCompressor() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('compressor', {
-            threshold_db: parseFloat(ranges[0]?.value || -20),
-            ratio: parseFloat(ranges[1]?.value || 3),
-            attack_ms: parseFloat(ranges[2]?.value || 10),
-            release_ms: parseFloat(ranges[3]?.value || 100),
-            makeup_db: parseFloat(ranges[4]?.value || 0),
-        });
-    }
-    function applyReverb() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('reverb', {
-            room_size: parseFloat(ranges[0]?.value || 40) / 100,
-            decay: parseFloat(ranges[1]?.value || 1500) / 1000,
-            wet: parseFloat(ranges[2]?.value || 25) / 100,
-        });
-    }
-    function applyDelay() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('delay', {
-            delay_ms: parseFloat(ranges[0]?.value || 375),
-            feedback: parseFloat(ranges[1]?.value || 30) / 100,
-            mix: parseFloat(ranges[2]?.value || 20) / 100,
-        });
-    }
-    function applyLimiter() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        applyEffect('limiter', {
-            ceiling_db: parseFloat(ranges[0]?.value || -1),
-            input_gain_db: parseFloat(ranges[1]?.value || 0),
-        });
-    }
-
-    function applyCrossfade() {
-        const panel = document.getElementById('toolPanel');
-        const range = panel.querySelector('input[type="range"]');
-        const sel = panel.querySelector('select');
-        const curveMap = {'Equal Power': 'equal_power', 'Linear': 'linear', 'S-Curve': 's_curve'};
-        const curveText = sel?.selectedOptions[0]?.textContent?.split(' —')[0] || 'Equal Power';
-        applyEffect('crossfade', {
-            duration_ms: parseInt(range?.value || 100),
-            curve: curveMap[curveText] || 'equal_power',
-        });
-    }
-    function applyTimeStretch() {
-        const panel = document.getElementById('toolPanel');
-        const range = panel.querySelector('input[type="range"]');
-        const inputs = panel.querySelectorAll('input[type="text"]');
-        const origBpm = inputs[0]?.value || null;
-        const targetBpm = inputs[1]?.value || null;
-        applyEffect('time_stretch', {
-            rate: parseFloat(range?.value || 1.0),
-            original_bpm: origBpm, target_bpm: targetBpm,
-        });
-    }
-    function applyPitchShift() {
-        const panel = document.getElementById('toolPanel');
-        const ranges = panel.querySelectorAll('input[type="range"]');
-        const sel = panel.querySelector('select');
-        applyEffect('pitch_shift', {
-            semitones: parseInt(ranges[0]?.value || 0),
-            cents: parseInt(ranges[1]?.value || 0),
-            preserve_formants: sel?.selectedIndex === 0,
-        });
-    }
-    function applyStereoWidth() {
-        const panel = document.getElementById('toolPanel');
-        const range = panel.querySelector('input[type="range"]');
-        applyEffect('stereo_width', { width: parseInt(range?.value || 100) });
-    }
-    function applyBleedRemoval() {
-        const target = document.getElementById('bleedTarget')?.value;
-        const ref = document.getElementById('bleedReference')?.value;
-        const strength = document.getElementById('toolPanel')?.querySelector('input[type="range"]')?.value || 10;
-        if (!target || !ref) { alert('Select both tracks'); return; }
-        if (target === ref) { alert('Target and reference must be different tracks'); return; }
-        pushUndo('bleed removal');
-        document.getElementById('statusText').textContent = 'Removing bleed...';
-        fetch('/api/fx/bleed-removal', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ target_track_id: parseInt(target), reference_track_id: parseInt(ref), strength: parseInt(strength) / 100 })
-        }).then(r=>r.json()).then(d => {
-            document.getElementById('statusText').textContent = d.ok ? 'Bleed removed!' : (d.error || 'Failed');
-            if (d.ok) reloadAllWaveforms();
-            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 2000);
-        }).catch(() => { document.getElementById('statusText').textContent = 'Bleed removal failed'; });
-    }
-    function applyDeclip() {
-        const panel = document.getElementById('toolPanel');
-        const range = panel.querySelector('input[type="range"]');
-        applyEffect('de_clip', { sensitivity: parseInt(range?.value || 50) });
-    }
-
-    // ═══ THE BANDMATE ═══
-    function askBandmate() {
-        const input = document.getElementById('bandmateInput');
-        const chat = document.getElementById('bandmateChat');
-        const msg = input.value.trim();
-        if (!msg) return;
-
-        // Show user message
-        chat.innerHTML += `<div style="color:var(--text); margin-top:8px;"><strong>You:</strong> ${msg}</div>`;
-        input.value = '';
-        chat.innerHTML += `<div style="color:var(--text-muted); margin-top:4px; font-style:italic;" id="bandmateThinking">Thinking...</div>`;
-        chat.scrollTop = chat.scrollHeight;
-
-        // Build session context
-        const ctx = {
-            key: document.getElementById('keyDisplay')?.textContent || '',
-            bpm: document.getElementById('bpmDisplay')?.textContent?.replace(' BPM','') || '',
-            tracks: tracks.map(t => ({ name: t.name, effects: t.effects || [] })),
-        };
-
-        fetch('/api/bandmate', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ message: msg, context: ctx })
-        }).then(r=>r.json()).then(d => {
-            const thinking = document.getElementById('bandmateThinking');
-            if (thinking) thinking.remove();
-            const response = d.response || d.error || 'No response';
-            chat.innerHTML += `<div style="color:var(--teal); margin-top:4px;"><strong>Bandmate:</strong> ${response}</div>`;
-            chat.scrollTop = chat.scrollHeight;
-        }).catch(() => {
-            const thinking = document.getElementById('bandmateThinking');
-            if (thinking) thinking.textContent = 'Could not reach the bandmate. Is Ollama running?';
-        });
-    }
-
-    // ═══ LUFS MEASUREMENT ═══
-    function measureLUFS() {
-        const eid = getActiveTrackEngineId();
-        if (eid === null) return;
-        document.getElementById('statusText').textContent = 'Measuring loudness...';
-        fetch('/api/fx/measure', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ track_id: eid })
-        }).then(r=>r.json()).then(d => {
-            if (d.error) { document.getElementById('statusText').textContent = d.error; return; }
-            document.getElementById('lufsValue').textContent = (d.integrated_lufs || 0).toFixed(1);
-            document.getElementById('peakValue').textContent = (d.true_peak_db || 0).toFixed(1) + ' dBTP';
-            document.getElementById('dynamicRange').textContent = (d.dynamic_range || 0).toFixed(1) + ' LU';
-            document.getElementById('statusText').textContent = 'Ready';
-        }).catch(e => { document.getElementById('statusText').textContent = 'Measurement failed'; });
-    }
-
-    // ═══ INPUT DEVICES ═══
-    let _inputDevices = [];
-
-    function loadInputDevices() {
-        fetch('/api/input-devices').then(r=>r.json()).then(d => {
-            _inputDevices = d.devices || [];
-            const sel = document.getElementById('inputDeviceSelect');
-            if (!sel) return;
-            sel.innerHTML = _inputDevices.map(dev =>
-                `<option value="${dev.id}" data-channels="${dev.channels}">${dev.name} (${dev.channels}ch)</option>`
-            ).join('') || '<option>No input devices found</option>';
-            onDeviceChange();
-        }).catch(()=>{});
-    }
-
-    function onDeviceChange() {
-        const sel = document.getElementById('inputDeviceSelect');
-        const chSel = document.getElementById('inputChannelSelect');
-        if (!sel || !chSel) return;
-        const opt = sel.selectedOptions[0];
-        const channels = parseInt(opt?.dataset?.channels || 1);
-        chSel.innerHTML = '';
-        for (let i = 0; i < channels; i++) {
-            const label = channels === 1 ? 'Mono' :
-                          channels === 2 ? (i === 0 ? 'Left' : 'Right') :
-                          `Channel ${i + 1}`;
-            chSel.innerHTML += `<option value="${i}">${label}</option>`;
-        }
-    }
-
-    function armRecording() {
-        const sel = document.getElementById('inputDeviceSelect');
-        const chSel = document.getElementById('inputChannelSelect');
-        const deviceId = sel ? parseInt(sel.value) : null;
-        const channel = chSel ? parseInt(chSel.value) : 0;
-        window._recordDeviceId = deviceId;
-
-        // Set the input channel on the active track
-        const t = getActiveTrack();
-        if (t && t.engineId !== null) {
-            fetch(`/api/track/${t.engineId}/input-channel`, {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ channel })
-            });
-        }
-
-        const chLabel = chSel?.selectedOptions[0]?.textContent || 'Mono';
-        document.getElementById('statusText').textContent = `Armed — ${chLabel} — hit Record`;
-    }
-
-    function toggleMonitoring(btn) {
-        fetch('/api/monitor/toggle', {method:'POST'}).then(r=>r.json()).then(d => {
-            if (btn) btn.textContent = 'Input Monitor: ' + (d.monitoring ? 'ON' : 'Off');
-            document.getElementById('statusText').textContent = d.monitoring ? 'Monitoring — you should hear yourself' : 'Monitor off';
-        });
-    }
-
-    // ═══ RECORDING ═══
-    function startRecording() {
-        const deviceId = window._recordDeviceId || null;
-        const track = getActiveTrack();
-        fetch('/api/record/start', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ device_id: deviceId, track_id: track?.engineId })
-        }).then(r=>r.json()).then(d => {
-            if (d.ok) {
-                isRecording = true;
-                document.getElementById('statusText').textContent = 'Recording...';
-                reportAction('hit_record');
-            }
-        });
-    }
-
-    function stopRecording() {
-        fetch('/api/record/stop', { method:'POST' }).then(r=>r.json()).then(d => {
-            isRecording = false;
-            document.getElementById('statusText').textContent = 'Recording saved';
-            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 2000);
-            refreshTracks();
-        });
-    }
-
-    // ═══ EXPORT ═══
-    function exportMix() {
-        const panel = document.getElementById('toolPanel');
-        const selects = panel.querySelectorAll('select');
-        const formatStr = selects[0]?.selectedOptions[0]?.textContent || 'WAV';
-        let format = 'wav';
-        if (formatStr.includes('MP3')) format = 'mp3';
-        else if (formatStr.includes('FLAC')) format = 'flac';
-        else if (formatStr.includes('OGG')) format = 'ogg';
-        else if (formatStr.includes('AIFF')) format = 'aiff';
-
-        let sr = 44100;
-        const srStr = selects[1]?.selectedOptions[0]?.textContent || '';
-        if (srStr.includes('48000')) sr = 48000;
-        else if (srStr.includes('96000')) sr = 96000;
-
-        document.getElementById('statusText').textContent = 'Exporting...';
-        fetch('/api/export', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ format, sample_rate: sr })
-        }).then(r=>r.json()).then(d => {
-            if (d.ok) {
-                document.getElementById('statusText').textContent = 'Exported to ' + d.path;
-            } else {
-                document.getElementById('statusText').textContent = d.error || 'Export failed';
-            }
-        }).catch(e => { document.getElementById('statusText').textContent = 'Export error'; });
-    }
-
-    // ═══ LYRICS EXPORT ═══
-    function exportLyrics(format) {
-        const output = document.getElementById('lyricsOutput');
-        if (!output || !output.textContent.trim()) { alert('No lyrics to export'); return; }
-        const text = output.textContent;
-        const blob = new Blob([text], {type:'text/plain'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url;
-        a.download = 'lyrics.' + format; a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    // ═══ COMMUNITY & FEEDBACK ═══
-    function sendFeedback() {
-        const type = document.getElementById('feedbackType')?.value || 'feedback';
-        const text = document.getElementById('feedbackText')?.value?.trim();
-        const email = document.getElementById('feedbackEmail')?.value?.trim();
-        const status = document.getElementById('feedbackStatus');
-
-        if (!text) { status.textContent = 'Write something first!'; status.style.color = 'var(--red)'; return; }
-
-        status.textContent = 'Sending...'; status.style.color = 'var(--teal)';
-
-        // Send via the backend which emails it
-        fetch('/api/feedback', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ type, text, email, version: '0.1.0' })
-        }).then(r => r.json()).then(d => {
-            if (d.ok) {
-                status.textContent = 'Sent! Thank you.'; status.style.color = 'var(--teal)';
-                document.getElementById('feedbackText').value = '';
-            } else {
-                // Fallback: open email client
-                const subject = encodeURIComponent(`Sozawen ${type}: from a user`);
-                const body = encodeURIComponent(`Type: ${type}\n\n${text}\n\nReply to: ${email || 'not provided'}`);
-                window.open(`mailto:dayshalindale@gmail.com?subject=${subject}&body=${body}`);
-                status.textContent = 'Opening email...'; status.style.color = 'var(--teal)';
-            }
-        }).catch(() => {
-            // Fallback: open email client
-            const subject = encodeURIComponent(`Sozawen ${type}`);
-            const body = encodeURIComponent(`${text}\n\nReply to: ${email || 'not provided'}`);
-            window.open(`mailto:dayshalindale@gmail.com?subject=${subject}&body=${body}`);
-            status.textContent = 'Opening email...'; status.style.color = 'var(--teal)';
-        });
-    }
-
-    function exportProject() {
-        const project = {
-            version: '0.1.0',
-            format: 'sozawen',
-            tracks: tracks.map(t => ({
-                name: t.name, file: t.file, volume: t.volume, pan: t.pan || 0,
-                muted: t.muted, solo: t.solo, effects: t.effects || [],
-            })),
-            bpm: document.getElementById('bpmDisplay')?.textContent?.replace(' BPM','') || '',
-            key: document.getElementById('keyDisplay')?.textContent || '',
-            savedAt: new Date().toISOString(),
-        };
-        const blob = new Blob([JSON.stringify(project, null, 2)], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${project.tracks[0]?.name || 'untitled'}.sozawen`;
-        a.click();
-        URL.revokeObjectURL(url);
-        document.getElementById('statusText').textContent = 'Project exported';
-    }
-
-    function exportAllStems() {
-        showPanel('export');
-        document.getElementById('statusText').textContent = 'Use Export All Stems in the Export panel';
-    }
-
-    // ═══ RESIZABLE PANELS ═══
-    function makeResizable(handleId, targetSelector, minW, maxW, side) {
-        const handle = document.getElementById(handleId);
-        if (!handle) return;
-        let dragging = false;
-        let startX = 0;
-        let startW = 0;
-        const target = document.querySelector(targetSelector);
-
-        handle.addEventListener('mousedown', (e) => {
-            dragging = true;
-            startX = e.clientX;
-            startW = target.offsetWidth;
-            handle.classList.add('dragging');
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!dragging) return;
-            const dx = side === 'left' ? (e.clientX - startX) : (startX - e.clientX);
-            const newW = Math.max(minW, Math.min(maxW, startW + dx));
-            target.style.width = newW + 'px';
-        });
-
-        document.addEventListener('mouseup', () => {
-            if (!dragging) return;
-            dragging = false;
-            handle.classList.remove('dragging');
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-        });
-    }
-
-    makeResizable('sidebarResize', '.sidebar', 120, 300, 'left');
-    makeResizable('trackResize', '.track-panel', 120, 350, 'left');
-
-    // ═══ KEYBOARD SHORTCUTS ═══
-    document.addEventListener('keydown', e => {
-        // Don't capture if typing in an input
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-
-        if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-        else if (e.code === 'KeyR' && !e.ctrlKey) { toggleRecord(); }
-        else if (e.code === 'KeyS' && !e.ctrlKey) { splitAtPlayhead(); }
-        else if (e.code === 'KeyM' && !e.ctrlKey) { /* mute selected */ }
-        else if (e.ctrlKey && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
-        else if (e.ctrlKey && e.code === 'KeyS') { e.preventDefault(); saveProject(); }
-        else if (e.ctrlKey && e.code === 'KeyE') { e.preventDefault(); showPanel('export'); }
-        else if (e.ctrlKey && e.code === 'KeyT') { e.preventDefault(); addTrack(); }
-        else if (e.ctrlKey && e.code === 'KeyN') { e.preventDefault(); newProject(); }
-        else if (e.ctrlKey && e.code === 'KeyO') { e.preventDefault(); openFile(); }
-        else if (e.ctrlKey && e.code === 'Equal') { e.preventDefault(); zoomIn(); }
-        else if (e.ctrlKey && e.code === 'Minus') { e.preventDefault(); zoomOut(); }
-        else if (e.ctrlKey && e.code === 'Digit0') { e.preventDefault(); zoomToFit(); }
-        else if (e.code === 'Delete') { deleteSelection(); }
-    });
-    // ═══ TOOLTIPS — positioned by JS to avoid clipping ═══
-    document.addEventListener('mouseover', e => {
-        const tip = e.target.closest('.help-tip');
-        if (!tip) return;
-        const text = tip.getAttribute('data-tip');
-        if (!text) return;
-        const el = document.getElementById('tooltip');
-        el.textContent = text;
-        el.style.display = 'block';
-        const rect = tip.getBoundingClientRect();
-        let top = rect.top - el.offsetHeight - 8;
-        let left = rect.left + rect.width/2 - el.offsetWidth/2;
-        // Keep on screen
-        if (top < 4) top = rect.bottom + 8;
-        if (left < 4) left = 4;
-        if (left + el.offsetWidth > window.innerWidth - 4) left = window.innerWidth - el.offsetWidth - 4;
-        el.style.top = top + 'px';
-        el.style.left = left + 'px';
-    });
-    document.addEventListener('mouseout', e => {
-        if (e.target.closest('.help-tip')) document.getElementById('tooltip').style.display = 'none';
-    });
-    </script>
-    <div id="tooltip"></div>
 </body>
 </html>
