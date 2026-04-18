@@ -1,0 +1,50 @@
+SOZAWEN — END USER LICENSE AGREEMENT
+
+Last updated: April 18, 2026
+
+This End User License Agreement ("Agreement") is between you ("User") and Daysha Lindale ("Licensor"), the creator of Sozawen ("Software"). By installing or using the Software, you agree to these terms.
+
+1. LICENSE GRANT
+Licensor grants you a non-exclusive, non-transferable, perpetual license to install and use the Software on one (1) computer for personal or commercial music production purposes. This license does not expire. All future updates are included at no additional cost.
+
+2. WHAT YOU CAN DO
+- Install and use Sozawen on one personal computer
+- Create, record, edit, mix, master, and export music for any purpose
+- Use AI features on any audio you have the right to process
+- Keep and use every update released for the Software
+
+3. WHAT YOU CANNOT DO
+- Share, distribute, sell, lease, or sublicense the Software or your license key
+- Reverse engineer, decompile, or disassemble the Software
+- Remove or alter any proprietary notices, labels, or marks
+- Use the Software to build a competing product
+- Circumvent, disable, or tamper with any license enforcement mechanisms
+
+4. OWNERSHIP
+You own everything you create with Sozawen. Your recordings, mixes, masters, and exports are yours — completely, unconditionally, forever. Licensor claims no rights to your music, your audio files, or your creative output.
+
+The Software itself (code, interface, design, branding) remains the property of Licensor.
+
+5. YOUR AUDIO STAYS YOURS
+Sozawen processes all audio locally on your computer. No audio data is uploaded, transmitted, or stored on any external server.
+
+6. LICENSE ACTIVATION
+The Software requires a one-time license activation via internet connection. After activation, the Software works offline. Your license is bound to one machine. To transfer to a new machine, contact lindale@sozawen.com.
+
+7. REFUNDS
+Sozawen offers a 30-day money-back guarantee. If you are not satisfied for any reason, request a refund through LemonSqueezy within 30 days of purchase.
+
+8. WARRANTY DISCLAIMER
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+
+9. LIMITATION OF LIABILITY
+IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE SOFTWARE. LICENSOR'S TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID FOR THE SOFTWARE.
+
+10. GOVERNING LAW
+This Agreement is governed by the laws of the State of South Carolina, United States.
+
+11. CONTACT
+lindale@sozawen.com
+https://sozawen.com
+
+(c) 2026 Daysha Lindale. Born from the burn. Built by feeling.

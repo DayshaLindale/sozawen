@@ -748,6 +748,103 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
 **10. Mastering in the mixing session.** Finish the mix. Export. Open a new session. THEN master. Fresh ears, fresh perspective."""
     },
 
+    "bass_guitar": {
+        "title": "Bass Guitar — The Foundation",
+        "category": "Instruments",
+        "content": """Bass bridges rhythm and harmony. It locks with the kick drum and outlines the chord progression.
+
+**4-String (Standard):** E A D G. Covers 90% of all music. **5-String:** Adds low B (30.87 Hz) — modern metal, worship, R&B. **6-String:** Adds high C — jazz, progressive, chordal playing. **Fretless:** No frets, singing tone with natural slides. Jaco Pastorius.
+
+**P-Bass vs J-Bass:** Precision = fat, punchy, sits in a mix (Motown, punk, rock). Jazz = brighter, growlier (slap, funk, fusion). **Active vs Passive:** Passive = warm, organic. Active = hotter, more clarity, extended low end.
+
+**Recording:** DI is standard. Mic the amp for grit, blend both. Keep bass below 200Hz mostly mono in the mix."""
+    },
+
+    "drums_detailed": {
+        "title": "Drums & Percussion — Complete Guide",
+        "category": "Instruments",
+        "content": """**Kick:** 20-24 inches. Muffle with a pillow inside for punch. **Snare:** 14 inches. Wood = warm, metal = bright. **Hi-Hat:** 13-15 inches. Foot pressure controls open/closed. **Toms:** Tune high to low, left to right. **Ride:** 20-22 inches, bell for accents. **Crash:** 16-18 inches, accents and transitions.
+
+**Percussion beyond the kit:** Congas/bongos (Latin), djembe (West African), cajon (acoustic), tambourine (shimmer), shaker (fills gaps), cowbell (funk/Latin).
+
+**Tuning matters more than the drum.** Even tension around each head. Snare wires tight enough to respond, loose enough to breathe."""
+    },
+
+    "keyboards_piano": {
+        "title": "Keyboards, Piano & Synths",
+        "category": "Instruments",
+        "content": """**Acoustic Piano:** 88 keys, A0-C8. Grand projects more, upright fits rooms. **Rhodes:** Warm, bell-like soul/jazz. **Wurlitzer:** Brighter, edgier. **Clavinet:** Funky, percussive (Stevie Wonder).
+
+**Synth types:** Subtractive (filter a rich waveform — Moog, Juno), FM (modulating oscillators — DX7 bells), Wavetable (morphing shapes — Serum), Granular (audio into textures).
+
+**Hammond B3:** THE organ sound. Leslie speaker adds rotating effect. **MIDI Controllers:** Send note data to synths like Sozawen's. Weighted keys = piano feel, synth-action = lighter.
+
+**In the mix:** Piano is wide-range — HPF at 100Hz, presence at 3-5kHz. Carve space so it doesn't step on vocals."""
+    },
+
+    "vocals_instrument": {
+        "title": "The Voice as an Instrument",
+        "category": "Instruments",
+        "content": """The most expressive instrument and the hardest to record well.
+
+**Ranges:** Bass (E2-E4, Johnny Cash), Baritone (A2-A4, Eddie Vedder), Tenor (C3-C5, Freddie Mercury), Alto (F3-F5, Amy Winehouse), Mezzo-Soprano (A3-A5, Adele), Soprano (C4-C6, Mariah Carey).
+
+**Layering:** Double track (sing it twice, pan L/R). Harmonies (3rds and 5ths). Ad-libs between phrases. Whisper track underneath for intimacy.
+
+**Processing chain:** HPF at 80Hz → cut mud 200-300Hz → presence 3-5kHz → compression 3:1 → de-esser 6-8kHz → reverb on a send.
+
+**The rule:** If it doesn't sound good raw, no processing will save it. Get the performance right first."""
+    },
+
+    "strings_brass_woodwinds": {
+        "title": "Strings, Brass & Woodwinds",
+        "category": "Instruments",
+        "content": """**Strings:** Violin (G3-E5, melody), Viola (C3-A4, inner voice), Cello (C2-A3, the most vocal), Double Bass (E1-G2, orchestral foundation). Record solo strings with a condenser 2-3 feet away aimed at the f-holes.
+
+**Brass:** Trumpet (Bb, bright/cutting), Trombone (Bb, warm/powerful), French Horn (F, rich/noble), Tuba (BBb, deep foundation). Brass cuts through any mix — use sparingly and it's devastating.
+
+**Woodwinds:** Flute (C, airy), Clarinet (Bb, woody), Saxophone (Bb/Eb, jazz/R&B/rock), Oboe (C, nasal/penetrating — the orchestra tunes to it).
+
+**In modern production:** Even one real string or brass track transforms a pop song. Layer real and sampled together — the real performance adds life."""
+    },
+
+    "electronic_production": {
+        "title": "Electronic Music Production",
+        "category": "Instruments",
+        "content": """Sound design IS the instrument. The synth patch, drum selection, and effect chain IS the performance.
+
+**Essential concepts:** Oscillator (raw tone) → Filter (shape it) → Envelope ADSR (evolve over time) → LFO (modulate parameters). **808 kick:** Pitch-swept sine wave — foundation of hip-hop, trap, modern pop.
+
+**Layering:** Stack sounds for thickness. Sub sine under saw bass. Clap with snare. Pluck with pad. Each layer covers a frequency range the others don't.
+
+**Genres:** House (120-130 BPM, four-on-the-floor), Techno (125-150, hypnotic), D&B (160-180, breakbeats), Dubstep (140 half-time, wobble bass), Ambient (no fixed BPM, texture), Lo-fi (deliberate imperfection)."""
+    },
+
+    "world_instruments": {
+        "title": "World & Folk Instruments",
+        "category": "Instruments",
+        "content": """**Stringed:** Sitar (India, buzzing resonance), Oud (Middle East, fretless/microtonal), Kora (West Africa, cascading arpeggios), Erhu (China, haunting two-string), Banjo (American/African origin, bright/percussive), Ukulele (Hawaiian, warm/intimate), Mandolin (Italian/bluegrass, paired strings).
+
+**Percussion:** Tabla (India, complex rhythmic patterns), Djembe (West Africa, three voices: bass/tone/slap), Bodhrán (Ireland, frame drum), Steel Pan (Trinidad, tuned metal from oil barrels).
+
+**Wind:** Didgeridoo (Australia, circular breathing drone), Shakuhachi (Japan, zen bamboo flute), Pan Flute (Andes, ethereal), Bagpipes (Scotland, continuous drone with melody).
+
+**Recording world instruments:** Respect the room. Many were designed for specific acoustic spaces. Use room mics. Don't over-process — the beauty is in the human touch."""
+    },
+
+    "microphone_guide": {
+        "title": "Microphone Types & Selection",
+        "category": "Instruments",
+        "content": """**Dynamic:** Rugged, handles loud sources. SM57 ($99, amps/snare/everything), SM58 (vocals live), SM7B ($399, broadcast/studio vocals). Use in untreated rooms and loud environments.
+
+**Condenser:** Sensitive, detailed. AT2020 ($99, honest entry), Rode NT1 ($269, ultra-quiet), AKG C414 ($1,099, multi-pattern workhorse), Neumann U87 ($3,200, the standard). Requires 48V phantom power. Captures room acoustics.
+
+**Ribbon:** Smooth, warm, vintage. Royer R-121 ($1,295, amps/brass). Figure-8 pattern. NEVER use phantom power with passive ribbons.
+
+**Polar Patterns:** Cardioid (front only, most common), Figure-8 (front+back), Omnidirectional (everything, most natural), Supercardioid (tighter rejection).
+
+**Buy first:** SM57 ($99) → large-diaphragm condenser ($99-269) → matched pencil pair ($200-400). Everything after is luxury."""
+    },
 }
 
 
