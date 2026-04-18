@@ -3546,15 +3546,39 @@
         osc.stop(ctx.currentTime + (duration || 0.4));
     }
 
+    let _activePads = new Set(); // currently held/active pad notes
+
     function hitPad(note, el) {
-        // Instant preview via Web Audio
-        playNote(note, 0.4);
+        if (_activePads.has(note)) {
+            // Deactivate
+            _activePads.delete(note);
+            el.style.background = 'var(--bg-card)';
+            el.style.borderColor = 'var(--border)';
+        } else {
+            // Activate — play the note and light up
+            _activePads.add(note);
+            el.style.background = 'var(--violet)';
+            el.style.borderColor = 'var(--violet-glow)';
+            playNote(note, 0.6);
+        }
+
+        // Play all active pads together as a chord
+        if (_activePads.size > 1) {
+            _activePads.forEach(n => { if (n !== note) playNote(n, 0.6); });
+        }
 
         // Record if recording
         if (_padRecording) {
             const now = performance.now();
             const beat = (now - _padRecordStart) / (60000 / (parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120));
-            _padSequence.push({ note, start_beat: Math.round(beat * 4) / 4, duration_beats: 0.25, velocity: 100 });
+            const snapBeat = Math.round(beat * 4) / 4;
+            // Record all currently active pads as a chord
+            _activePads.forEach(n => {
+                // Don't duplicate if this note is already at this beat
+                if (!_padSequence.find(s => s.note === n && Math.abs(s.start_beat - snapBeat) < 0.01)) {
+                    _padSequence.push({ note: n, start_beat: snapBeat, duration_beats: 0.5, velocity: 100 });
+                }
+            });
             updatePadDisplay();
         }
     }
