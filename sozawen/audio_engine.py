@@ -144,6 +144,7 @@ class Track:
         self.record_armed = False
         self.input_device = None
         self.input_channel = 0    # which input channel this track records from (0-based)
+        self.phase_invert = False  # flip phase (polarity) — for multi-mic
         self.fx_chain = []        # list of effect instances
         self.automation = {}      # param_name -> list of (sample, value) breakpoints
         self.parent_id = None     # for folder grouping
@@ -220,6 +221,10 @@ class AudioEngine:
         self._record_buffers = {}  # track_id -> list of numpy arrays
         self.input_monitoring = False
         self._monitor_buffer = None  # latest input audio for monitoring
+
+        # Metronome click during playback
+        self._metronome_click = None
+        self._metronome_click_samples = 0
         self._lock = threading.Lock()
 
         # Metering
@@ -370,12 +375,27 @@ class AudioEngine:
                     continue
 
                 track_audio = track.read_at(self.position, frames)
+                if track.phase_invert:
+                    track_audio = -track_audio
                 mix += track_audio
 
                 # Track metering
                 peak_l = float(np.max(np.abs(track_audio[:, 0])))
                 peak_r = float(np.max(np.abs(track_audio[:, 1])))
                 self.track_peaks[track_id] = [peak_l, peak_r]
+
+            # Metronome — click on each beat during playback
+            if self.metronome_on and self.playing:
+                beat_samples = int(60.0 / self.bpm * self.sample_rate)
+                pos_in_beat = self.position % beat_samples
+                if pos_in_beat < 600:  # short click at start of beat
+                    is_downbeat = (self.position // beat_samples) % self.time_sig_num == 0
+                    click_freq = 1500 if is_downbeat else 1000
+                    click_vol = 0.4 if is_downbeat else 0.25
+                    t = np.arange(min(frames, 600 - pos_in_beat)) / self.sample_rate
+                    click = np.sin(2 * np.pi * click_freq * t) * click_vol * np.exp(-t * 200)
+                    mix[:len(click), 0] += click
+                    mix[:len(click), 1] += click
 
             # Input monitoring — mix live input into output
             if self.input_monitoring and self._monitor_buffer is not None:

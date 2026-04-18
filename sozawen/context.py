@@ -98,6 +98,7 @@ TOOLS = {
     # Instruments
     "synth":        {"label": "Synth",            "icon": "🎹", "group": "record"},
     "drums":        {"label": "Drum Machine",     "icon": "🥁", "group": "record"},
+    "tuner":        {"label": "Tuner",            "icon": "🎵", "group": "record"},
 
     # Recording
     "input_select": {"label": "Input Device",     "icon": "🎤", "group": "record"},

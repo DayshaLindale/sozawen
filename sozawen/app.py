@@ -232,6 +232,8 @@ from sozawen.audio_fx import (apply_noise_gate, apply_eq, apply_compressor,
     apply_pitch_shift, apply_stereo_width, apply_declip, apply_reverse,
     apply_bleed_removal, apply_sidechain_compression,
     measure_loudness, export_mix)
+from sozawen.music_theory import (get_scale, get_chord, get_diatonic_chords,
+    get_progression, get_compatible_keys, SCALES, CHORDS, PROGRESSIONS)
 @api.post("/api/project/save")
 async def save_project(request: Request):
     """Save the current project state."""
@@ -611,6 +613,34 @@ async def render_drums(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@api.get("/api/theory/scales")
+async def list_scales():
+    return JSONResponse({"scales": list(SCALES.keys())})
+
+@api.get("/api/theory/chords")
+async def list_chords():
+    return JSONResponse({"chords": list(CHORDS.keys())})
+
+@api.get("/api/theory/progressions")
+async def list_progressions():
+    return JSONResponse({"progressions": list(PROGRESSIONS.keys())})
+
+@api.post("/api/theory/analyze-key")
+async def analyze_key(request: Request):
+    """Get music theory data for a key — diatonic chords, compatible keys, suggested progressions."""
+    data = await request.json()
+    key = data.get("key", "C")
+    result = {
+        "key": key,
+        "diatonic_chords": get_diatonic_chords(key),
+        "compatible_keys": get_compatible_keys(key),
+        "progressions": {},
+    }
+    for name in ['pop', 'blues', 'jazz_251', 'rock', 'sad']:
+        prog = get_progression(key, name)
+        result["progressions"][name] = [f"{c['root']} {c['quality']}" for c in prog]
+    return JSONResponse(result)
+
 @api.get("/api/instrument/drum-sounds")
 async def list_drum_sounds():
     from sozawen.instruments import DRUM_SOUNDS
@@ -656,6 +686,87 @@ async def set_input_channel(track_id: int, request: Request):
         track.input_channel = int(data.get("channel", 0))
         return JSONResponse({"ok": True, "channel": track.input_channel})
     return JSONResponse({"error": "Track not found"}, status_code=404)
+
+@api.post("/api/metronome/toggle")
+async def toggle_metronome():
+    """Toggle metronome click during playback."""
+    _engine.metronome_on = not _engine.metronome_on
+    return JSONResponse({"ok": True, "metronome": _engine.metronome_on})
+
+@api.post("/api/track/{track_id}/phase")
+async def toggle_phase(track_id: int):
+    """Toggle phase invert on a track."""
+    track = _engine.tracks.get(track_id)
+    if track:
+        track.phase_invert = not track.phase_invert
+        return JSONResponse({"ok": True, "phase_invert": track.phase_invert})
+    return JSONResponse({"error": "Track not found"}, status_code=404)
+
+@api.post("/api/loop")
+async def set_loop(request: Request):
+    """Set loop start/end points."""
+    data = await request.json()
+    _engine.loop_start = int(data.get("start", 0) * _engine.sample_rate)
+    _engine.loop_end = int(data.get("end", 0) * _engine.sample_rate)
+    _engine.looping = data.get("enabled", True) and _engine.loop_end > _engine.loop_start
+    return JSONResponse({
+        "ok": True, "looping": _engine.looping,
+        "start": _engine.loop_start / _engine.sample_rate,
+        "end": _engine.loop_end / _engine.sample_rate,
+    })
+
+@api.post("/api/tuner")
+async def get_tuner_data(request: Request):
+    """Analyze input pitch for chromatic tuner."""
+    if _engine._monitor_buffer is None:
+        return JSONResponse({"error": "No input — enable monitoring first"}, status_code=400)
+
+    import numpy as np
+    audio = _engine._monitor_buffer.copy()
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+
+    # Simple autocorrelation pitch detection
+    n = len(audio)
+    if n < 1024:
+        return JSONResponse({"error": "Not enough audio"}, status_code=400)
+
+    # Autocorrelation
+    corr = np.correlate(audio, audio, mode='full')
+    corr = corr[n:]
+    # Find first peak after the initial drop
+    d = np.diff(corr)
+    start = 0
+    for i in range(len(d)):
+        if d[i] > 0:
+            start = i
+            break
+    if start == 0:
+        return JSONResponse({"note": "—", "freq": 0, "cents": 0})
+
+    peak = start + np.argmax(corr[start:min(start+2000, len(corr))])
+    if peak == 0:
+        return JSONResponse({"note": "—", "freq": 0, "cents": 0})
+
+    freq = _engine.sample_rate / peak
+    # Frequency to note name
+    if freq < 20 or freq > 10000:
+        return JSONResponse({"note": "—", "freq": 0, "cents": 0})
+
+    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    import math
+    midi = 69 + 12 * math.log2(freq / 440.0)
+    nearest = round(midi)
+    cents = round((midi - nearest) * 100)
+    note = note_names[nearest % 12]
+    octave = (nearest // 12) - 1
+
+    return JSONResponse({
+        "note": f"{note}{octave}",
+        "freq": round(freq, 1),
+        "cents": cents,
+        "in_tune": abs(cents) < 5,
+    })
 
 @api.post("/api/monitor/toggle")
 async def toggle_monitoring():
