@@ -1223,6 +1223,7 @@
                 <button class="btn btn-teal" style="width:100%" onclick="armRecording()">Arm for Recording</button>
                 <button class="btn btn-secondary" style="width:100%; margin-top:6px;" onclick="toggleMonitoring(this)">Input Monitor: Off</button>
                 <div id="channelHelp" style="margin-top:8px;"></div>
+                <button class="btn btn-secondary" style="width:100%; margin-top:6px; font-size:10px;" onclick="autoMapChannels()">Auto-Map All Inputs to Tracks</button>
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your interface, choose which input this track records from, then Arm. Each track can record from a different input — guitar on 1, vocals on 2.</p>`,
 
             stem_split: `<h3>Separate ${h('Splits your audio into individual parts. The program detects what approach works best and handles the details.')}</h3>
@@ -2881,6 +2882,32 @@
 
         const chLabel = chSel?.selectedOptions[0]?.textContent || 'Mono';
         document.getElementById('statusText').textContent = `Armed — ${chLabel} — hit Record`;
+    }
+
+    function autoMapChannels() {
+        const sel = document.getElementById('inputDeviceSelect');
+        if (!sel) return;
+        const opt = sel.selectedOptions[0];
+        const channels = parseInt(opt?.dataset?.channels || 1);
+        const deviceName = opt?.textContent?.split('(')[0]?.trim() || 'Input';
+
+        for (let i = 0; i < channels; i++) {
+            const name = channels <= 2 ? `${deviceName} ${i===0?'L':'R'}` : `${deviceName} Ch${i+1}`;
+            const trackId = addTrack(name);
+            const t = tracks.find(t => t.id === trackId);
+            if (t) {
+                t.inputChannel = i;
+                t.recordArmed = true;
+                if (t.engineId !== null) {
+                    fetch(`/api/track/${t.engineId}/input-channel`, {
+                        method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({channel: i})
+                    });
+                }
+            }
+        }
+        renderTracks();
+        showStatus(`${channels} tracks created — one per input`);
     }
 
     function toggleMonitoring(btn) {
