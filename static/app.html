@@ -887,7 +887,7 @@
         // Track headers (left panel — fixed)
         const headers = document.getElementById('trackHeaders');
         headers.innerHTML = tracks.map(t => `
-            <div class="track-header" data-id="${t.id}" onclick="selectTrack(${t.id})" style="border-left: 3px solid ${t.color || 'var(--violet)'}; cursor:pointer; ${_activeTrackId===t.id?'outline:1px solid #2dd4a8;outline-offset:-1px;':''}">
+            <div class="track-header" data-id="${t.id}" onclick="selectTrack(${t.id})" oncontextmenu="showTrackMenu(event,${t.id})" style="border-left: 3px solid ${t.color || 'var(--violet)'}; cursor:pointer; ${_activeTrackId===t.id?'outline:1px solid #2dd4a8;outline-offset:-1px;':''}">
                 <input class="track-name" value="${t.name}" onchange="renameTrack(${t.id}, this.value)" onclick="event.stopPropagation()">
                 <div class="track-controls">
                     <button class="track-ctrl ${t.muted?'active-m':''}" onclick="toggleMute(${t.id})" title="Mute">M</button>
@@ -2447,6 +2447,76 @@
         reloadAllWaveforms();
         document.getElementById('statusText').textContent = 'Pasted';
     }
+    // ═══ TRACK RIGHT-CLICK MENU ═══
+    function showTrackMenu(event, trackId) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectTrack(trackId);
+
+        // Remove old menu
+        document.getElementById('trackMenu')?.remove();
+
+        const t = tracks.find(t => t.id === trackId);
+        if (!t) return;
+        const idx = tracks.indexOf(t);
+
+        const menu = document.createElement('div');
+        menu.id = 'trackMenu';
+        menu.style.cssText = `position:fixed; left:${event.clientX}px; top:${event.clientY}px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:6px 0; z-index:400; min-width:180px; box-shadow:0 8px 24px rgba(0,0,0,.5);`;
+
+        const items = [
+            { label: 'Rename', action: () => { const name = document.querySelector(`.track-header[data-id="${trackId}"] .track-name`); if(name) { name.focus(); name.select(); } }},
+            { label: 'Duplicate', action: () => duplicateTrack() },
+            { sep: true },
+            { label: 'Move Up', action: () => moveTrack(trackId, -1), disabled: idx === 0 },
+            { label: 'Move Down', action: () => moveTrack(trackId, 1), disabled: idx === tracks.length - 1 },
+            { sep: true },
+            { label: 'Color', action: () => { const input = document.createElement('input'); input.type='color'; input.value=t.color||'#9b59b6'; input.onchange=()=>{setTrackColor(trackId,input.value)}; input.click(); }},
+            { label: t.muted ? 'Unmute' : 'Mute', action: () => toggleMute(trackId) },
+            { label: t.solo ? 'Unsolo' : 'Solo', action: () => toggleSolo(trackId) },
+            { label: t.phaseInvert ? 'Phase: Normal' : 'Phase: Invert', action: () => togglePhase(trackId) },
+            { sep: true },
+            { label: 'Freeze', action: () => freezeTrack() },
+            { label: 'Remove', action: () => showDialog('Remove this track?','confirm',function(yes){if(yes)removeTrack(trackId)}), style: 'color:var(--red);' },
+        ];
+
+        menu.innerHTML = items.map(item => {
+            if (item.sep) return '<div style="height:1px;background:var(--border);margin:4px 0;"></div>';
+            return `<div onclick="${item.disabled ? '' : 'this.parentElement.remove();'}" style="padding:7px 16px;font-size:12px;cursor:${item.disabled?'default':'pointer'};color:${item.disabled?'var(--text-muted)':item.style||'var(--text-dim)'};transition:background 0.1s;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">${item.label}</div>`;
+        }).join('');
+
+        // Wire click handlers (can't use onclick with complex functions in innerHTML)
+        const divs = menu.querySelectorAll('div[onclick]');
+        items.filter(i => !i.sep).forEach((item, idx) => {
+            const el = menu.children[items.indexOf(item)];
+            if (el && !item.disabled && item.action) {
+                el.onclick = () => { menu.remove(); item.action(); };
+            }
+        });
+
+        document.body.appendChild(menu);
+
+        // Close on click outside
+        setTimeout(() => {
+            document.addEventListener('click', function close() {
+                menu.remove();
+                document.removeEventListener('click', close);
+            }, { once: true });
+        }, 10);
+    }
+
+    function moveTrack(trackId, direction) {
+        const idx = tracks.findIndex(t => t.id === trackId);
+        if (idx < 0) return;
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= tracks.length) return;
+        pushUndo('reorder');
+        const temp = tracks[idx];
+        tracks[idx] = tracks[newIdx];
+        tracks[newIdx] = temp;
+        renderTracks();
+    }
+
     function removeTrack(id) {
         pushUndo('remove track');
         const t = tracks.find(t => t.id === id);
