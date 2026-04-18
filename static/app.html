@@ -1630,12 +1630,22 @@
             drums: `<h3>Drum Machine ${h('Every sound synthesized from math — no samples needed. Kick, snare, hi-hat, clap, toms, rim. Click the grid to program a pattern, hit Render to create a track.')}</h3>
                 <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SYNTHESIZED DRUM MACHINE</div>
                 <div id="drumGrid" style="margin-bottom:12px;"></div>
-                <div class="field"><label>Steps ${h('How many steps in the pattern. 16 = one bar of 16th notes in 4/4. 32 = two bars.')}</label>
-                    <select id="drumSteps" onchange="buildDrumGrid()"><option value="8">8 steps</option><option value="16" selected>16 steps</option><option value="32">32 steps</option></select></div>
+                <div class="field"><label>Steps ${h('How many steps in the pattern. 16 = one bar of 16th notes in 4/4. 32 = two bars. 64 = four bars. Use the pop-out button for larger grids.')}</label>
+                    <select id="drumSteps" onchange="buildDrumGrid()"><option value="8">8 (half bar)</option><option value="16" selected>16 (1 bar)</option><option value="32">32 (2 bars)</option><option value="48">48 (3 bars)</option><option value="64">64 (4 bars)</option></select></div>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;">
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('basic')">Rock</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('hiphop')">Hip-Hop</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('funk')">Funk</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('edm')">EDM</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('jazz')">Jazz</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('reggae')">Reggae</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('latin')">Latin</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('metal')">Metal</button>
+                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('rnb')">R&B</button>
+                </div>
                 <div style="display:flex; gap:6px;">
                     <button class="btn btn-primary" style="flex:1;" onclick="renderDrumPattern()">Render to Track</button>
-                    <button class="btn btn-secondary" style="padding:8px 12px;" onclick="loadDrumPreset('basic')">Basic Beat</button>
-                    <button class="btn btn-secondary" style="padding:8px 12px;" onclick="loadDrumPreset('hiphop')">Hip-Hop</button>
+                    <button class="btn btn-secondary" style="padding:8px 10px;" onclick="popOutDrumMachine()" title="Open drum machine in a larger window">&#8599;</button>
                 </div>
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Click cells to toggle hits. Each row is a different drum sound. Rendered at the current BPM.</p>`,
 
@@ -3292,7 +3302,6 @@
         DRUM_ROWS.forEach(s => _drumState[s] = new Array(steps).fill(false));
 
         if (name === 'basic') {
-            // Basic rock/pop beat
             [0,8].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
             [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
             for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
@@ -3301,15 +3310,113 @@
             [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
             for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
             if(steps>14) _drumState.hihat_open[14] = true;
+        } else if (name === 'reggae') {
+            [6,14].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            [0,4,8,12].forEach(s => { if(s<steps) _drumState.hihat[s] = true; });
+            if(steps>2) _drumState.rim[2] = true;
+            if(steps>10) _drumState.rim[10] = true;
+        } else if (name === 'funk') {
+            [0,3,6,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            for(let i=0;i<steps;i++) _drumState.hihat[i] = true;
+            if(steps>14) _drumState.hihat_open[14] = true;
+            if(steps>7) _drumState.snare[7] = true; // ghost note
+        } else if (name === 'edm') {
+            [0,4,8,12].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [4,12].forEach(s => { if(s<steps) _drumState.clap[s] = true; });
+            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
+            [2,6,10,14].forEach(s => { if(s<steps) _drumState.hihat_open[s] = true; });
+        } else if (name === 'jazz') {
+            [0,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [6].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            // swing ride pattern: 0, 3, 4, 7, 8, 11, 12, 15 (triplet feel)
+            [0,3,4,7,8,11,12,15].forEach(s => { if(s<steps) _drumState.hihat[s] = true; });
+        } else if (name === 'latin') {
+            [0,6,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            [0,2,4,6,8,10,12,14].forEach(s => { if(s<steps) _drumState.hihat[s] = true; });
+            [3,7,11,15].forEach(s => { if(s<steps) _drumState.rim[s] = true; });
+            [0,8].forEach(s => { if(s<steps) _drumState.tom_mid[s] = true; });
+        } else if (name === 'metal') {
+            // double kick
+            for(let i=0;i<steps;i++) _drumState.kick[i] = true;
+            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
+        } else if (name === 'rnb') {
+            [0,5,8,13].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
+            [1,3,5,7,9,11,13,15].forEach(s => { if(s<steps) _drumState.hihat[s] = true; }); // all 16ths
         }
 
-        buildDrumGrid();
-        // Re-apply state visually
-        document.querySelectorAll('.drum-cell').forEach(el => {
-            const s = el.dataset.sound;
-            const step = parseInt(el.dataset.step);
-            if (_drumState[s] && _drumState[s][step]) el.style.background = 'var(--violet)';
-        });
+        // Rebuild grid with the state already set — DON'T reset in buildDrumGrid
+        _buildDrumGridFromState(steps);
+    }
+
+    function popOutDrumMachine() {
+        const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
+        const w = Math.max(800, steps * 18 + 100);
+        const h = DRUM_ROWS.length * 28 + 200;
+        const popup = window.open('', 'DrumMachine', `width=${w},height=${h},resizable=yes,scrollbars=yes`);
+        popup.document.write(`<!DOCTYPE html><html><head><title>Sozawen Drum Machine</title>
+            <style>body{background:#08080f;color:#d8d8e8;font-family:Inter,sans-serif;padding:20px;}
+            .cell{display:inline-block;width:20px;height:20px;border:1px solid #2a2a44;border-radius:3px;cursor:pointer;margin:1px;}
+            .cell.on{background:#9b59b6;} .cell:hover{opacity:0.7;}
+            .row{display:flex;align-items:center;margin:2px 0;}
+            .label{width:50px;font-size:11px;color:#7878a0;text-align:right;margin-right:8px;}
+            button{padding:8px 16px;background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;margin:4px;}
+            select,input{padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;}
+            </style></head><body>
+            <h2 style="font-weight:300;letter-spacing:4px;margin-bottom:16px;">DRUM MACHINE</h2>
+            <div id="grid"></div>
+            <div style="margin-top:12px;">
+                <button onclick="render()">Render to Track</button>
+                ${['Rock','Hip-Hop','Funk','EDM','Jazz','Reggae','Latin','Metal','R&B'].map(g =>
+                    `<button onclick="parent.loadDrumPreset('${g.toLowerCase().replace(/[^a-z]/g,'')}');buildGrid()">${g}</button>`
+                ).join('')}
+            </div>
+            <script>
+            const ROWS=${JSON.stringify(DRUM_ROWS)};
+            const LABELS=${JSON.stringify(DRUM_LABELS)};
+            const steps=${steps};
+            function buildGrid(){
+                const grid=document.getElementById('grid');
+                grid.innerHTML=ROWS.map(s=>{
+                    let cells='';
+                    for(let i=0;i<steps;i++){
+                        const on=parent._drumState[s]&&parent._drumState[s][i];
+                        const bar=i%4===0?'border-left:2px solid #353555;':'';
+                        cells+='<div class="cell'+(on?' on':'')+'" data-s="'+s+'" data-i="'+i+'" onclick="toggle(this)" style="'+bar+'"></div>';
+                    }
+                    return '<div class="row"><span class="label">'+LABELS[s]+'</span>'+cells+'</div>';
+                }).join('');
+            }
+            function toggle(el){
+                const s=el.dataset.s,i=parseInt(el.dataset.i);
+                parent._drumState[s][i]=!parent._drumState[s][i];
+                el.classList.toggle('on');
+            }
+            function render(){parent.renderDrumPattern();}
+            buildGrid();
+            <\/script></body></html>`);
+    }
+
+    function _buildDrumGridFromState(steps) {
+        const grid = document.getElementById('drumGrid');
+        if (!grid) return;
+        grid.innerHTML = DRUM_ROWS.map(sound => {
+            if (!_drumState[sound]) _drumState[sound] = new Array(steps).fill(false);
+            const cells = Array.from({length: steps}, (_, i) => {
+                const on = _drumState[sound][i];
+                const beatBorder = i % 4 === 0 ? 'border-left:2px solid var(--border-light);' : '';
+                return `<div class="drum-cell" data-sound="${sound}" data-step="${i}" onclick="toggleDrumCell(this)" style="width:${Math.max(14, 240/steps)}px; height:16px; background:${on?'var(--violet)':'var(--bg-deep)'}; border:1px solid var(--border); border-radius:2px; cursor:pointer; ${beatBorder}" title="${DRUM_LABELS[sound]} step ${i+1}"></div>`;
+            }).join('');
+            return `<div style="display:flex; gap:2px; align-items:center; margin-bottom:2px;">
+                <span style="font-size:9px; color:var(--text-muted); width:36px; text-align:right; margin-right:4px;">${DRUM_LABELS[sound]}</span>
+                ${cells}
+            </div>`;
+        }).join('');
     }
 
     // Build grids when panels open
