@@ -3518,21 +3518,37 @@
         </div>`;
     }
 
+    // Web Audio for instant pad preview — no server round trip
+    let _audioCtx = null;
+    function getAudioCtx() {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return _audioCtx;
+    }
+
+    function playNote(midiNote, duration) {
+        const ctx = getAudioCtx();
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        const waveform = document.getElementById('synthWaveform')?.value || 'sawtooth';
+        const waveMap = {saw:'sawtooth', square:'square', sine:'sine', triangle:'triangle', sawtooth:'sawtooth'};
+
+        const osc = ctx.createOscillator();
+        osc.type = waveMap[waveform] || 'sawtooth';
+        osc.frequency.value = freq;
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.01); // attack
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (duration || 0.4)); // release
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + (duration || 0.4));
+    }
+
     function hitPad(note, el) {
-        // Preview the note
-        fetch('/api/instrument/synth', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({
-                notes: [{note, start_beat: 0, duration_beats: 0.5, velocity: 100}],
-                bpm: 120,
-                params: {
-                    waveform: document.getElementById('synthWaveform')?.value || 'saw',
-                    cutoff: parseFloat(document.getElementById('synthCutoff')?.value || 4000),
-                    attack: 0.005, release: 0.3,
-                },
-                name: '_preview'
-            })
-        });
+        // Instant preview via Web Audio
+        playNote(note, 0.4);
 
         // Record if recording
         if (_padRecording) {
