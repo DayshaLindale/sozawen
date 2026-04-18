@@ -2916,9 +2916,17 @@
     }
 
     // ═══ LIVE INPUT METERING ═══
+    let _monitorStarted = false;
     setInterval(() => {
         const meters = document.querySelectorAll('.input-meter');
         if (meters.length === 0) return;
+        // Auto-start monitoring if meters are visible but not started
+        if (!_monitorStarted) {
+            fetch('/api/monitor/toggle', {method:'POST'}).then(r=>r.json()).then(d => {
+                if (!d.monitoring) fetch('/api/monitor/toggle', {method:'POST'});
+                _monitorStarted = true;
+            });
+        }
         fetch('/api/input-levels').then(r=>r.json()).then(d => {
             meters.forEach(m => {
                 const ch = m.dataset.channel;
