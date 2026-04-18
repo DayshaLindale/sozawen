@@ -96,8 +96,10 @@
         .track-ctrl.active-s { background: var(--teal); color: #0a0a14; border-color: var(--teal); }
         .track-ctrl.active-m { background: var(--red); color: #fff; border-color: var(--red); }
         .track-ctrl.active-r { background: var(--red); color: #fff; border-color: var(--red); animation: pulse-rec 1.5s infinite; }
-        .track-volume { width: 60px; height: 3px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+        .track-volume { width: 55px; height: 3px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
         .track-volume::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--violet); cursor: pointer; }
+        .track-pan { width: 40px; height: 3px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+        .track-pan::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); cursor: pointer; }
         .track-body { flex: 1; background: var(--bg-track); position: relative; overflow-x: auto; overflow-y: hidden; cursor: crosshair; }
         .track-waveform { position: absolute; top: 0; left: 0; height: 100%; min-width: 100%; }
         .track-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 11px; }
@@ -323,7 +325,52 @@
         <p>WAV, MP3, FLAC, OGG, AIFF, M4A</p>
     </div>
 
+    <!-- LICENSE MODAL -->
+    <div id="licenseModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(8,8,15,0.95); z-index:200; display:none; align-items:center; justify-content:center;">
+        <div style="max-width:400px; padding:40px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; text-align:center;">
+            <div style="font-size:28px; font-weight:200; letter-spacing:8px; background:linear-gradient(135deg,var(--violet),var(--teal)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px;">SOZAWEN</div>
+            <div style="font-family:'Crimson Pro',serif; font-style:italic; font-size:14px; color:var(--teal); margin-bottom:32px;">Born from the burn. Built by feeling.</div>
+            <div style="font-size:13px; color:var(--text-dim); margin-bottom:20px;">Enter your license key to activate.</div>
+            <input type="text" id="licenseKeyInput" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" style="width:100%; padding:12px; background:var(--bg-surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:monospace; font-size:14px; text-align:center; letter-spacing:1px; margin-bottom:12px;">
+            <div id="licenseMessage" style="font-size:12px; color:var(--text-muted); margin-bottom:16px; min-height:18px;"></div>
+            <button onclick="activateLicense()" style="width:100%; padding:14px; background:linear-gradient(135deg,var(--violet),var(--teal)); color:#fff; border:none; border-radius:50px; font-size:14px; font-weight:500; letter-spacing:2px; cursor:pointer; text-transform:uppercase;">Activate</button>
+            <div style="margin-top:16px;">
+                <a href="https://sozawen.lemonsqueezy.com/checkout/buy/e16a7e23-f6b3-411d-8f8b-92892735f262" target="_blank" style="font-size:11px; color:var(--violet-glow); text-decoration:none;">Don't have a key? Purchase here</a>
+            </div>
+        </div>
+    </div>
+
     <script>
+    // ═══ LICENSE CHECK ON STARTUP ═══
+    function checkLicense() {
+        fetch('/api/license/status').then(r=>r.json()).then(d => {
+            if (!d.valid) {
+                document.getElementById('licenseModal').style.display = 'flex';
+            }
+        }).catch(() => {
+            // If server can't check, allow use (offline mode)
+        });
+    }
+    function activateLicense() {
+        const key = document.getElementById('licenseKeyInput').value.trim();
+        const msg = document.getElementById('licenseMessage');
+        if (!key) { msg.textContent = 'Enter a license key'; msg.style.color = 'var(--red)'; return; }
+        msg.textContent = 'Activating...'; msg.style.color = 'var(--teal)';
+        fetch('/api/license/activate', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ key })
+        }).then(r=>r.json()).then(d => {
+            if (d.valid) {
+                msg.textContent = d.message; msg.style.color = 'var(--teal)';
+                setTimeout(() => { document.getElementById('licenseModal').style.display = 'none'; }, 1000);
+            } else {
+                msg.textContent = d.message || 'Invalid key'; msg.style.color = 'var(--red)';
+            }
+        }).catch(() => { msg.textContent = 'Could not connect to license server'; msg.style.color = 'var(--red)'; });
+    }
+    // Check license after a short delay (let the UI load first)
+    setTimeout(checkLicense, 2000);
+
     let tracks = [];
     let trackIdCounter = 0;
     let isPlaying = false;
@@ -370,7 +417,7 @@
     // ═══ TRACKS ═══
     function addTrack(name, filePath) {
         const id = trackIdCounter++;
-        const track = { id, name: name || `Track ${id+1}`, file: filePath || null, muted: false, solo: false, volume: 80, engineId: null };
+        const track = { id, name: name || `Track ${id+1}`, file: filePath || null, muted: false, solo: false, volume: 80, pan: 0, engineId: null, effects: [] };
         tracks.push(track);
         document.getElementById('emptyState').style.display = 'none';
 
@@ -493,11 +540,15 @@
                     <button class="track-ctrl ${t.muted?'active-m':''}" onclick="toggleMute(${t.id})" title="Mute">M</button>
                     <button class="track-ctrl ${t.solo?'active-s':''}" onclick="toggleSolo(${t.id})" title="Solo">S</button>
                     <button class="track-ctrl" onclick="armRecord(${t.id})" title="Record arm">R</button>
-                    <input type="range" class="track-volume" min="0" max="100" value="${t.volume}" oninput="setVolume(${t.id}, this.value)">
+                    <input type="range" class="track-volume" min="0" max="100" value="${t.volume}" oninput="setVolume(${t.id}, this.value)" title="Volume">
+                    <span style="font-size:8px;color:var(--text-muted);">L</span>
+                    <input type="range" class="track-pan" min="-100" max="100" value="${t.pan || 0}" oninput="setPan(${t.id}, this.value)" title="Pan">
+                    <span style="font-size:8px;color:var(--text-muted);">R</span>
                 </div>
                 <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">
                     ${t.file ? t.file.split(/[/\\]/).pop() : t.hasAudio ? 'Audio loaded' : 'Empty'}
                 </div>
+                ${t.effects && t.effects.length ? `<div style="display:flex; flex-wrap:wrap; gap:2px; margin-top:2px;">${t.effects.map(fx => `<span style="font-size:8px; padding:1px 4px; background:var(--violet-soft); border:1px solid var(--violet); border-radius:3px; color:var(--violet-glow);">${fx}</span>`).join('')}</div>` : ''}
             </div>
         `).join('');
 
@@ -542,8 +593,25 @@
             }
         });
     }
-    function setVolume(id, v) { const t = tracks.find(t=>t.id===id); if(t) t.volume = v; }
-    function armRecord(id) { /* TODO: arm specific track for recording */ }
+    function setVolume(id, v) {
+        const t = tracks.find(t=>t.id===id);
+        if(t) { t.volume = v; if(t.engineId !== null) fetch(`/api/track/${t.engineId}/volume`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({volume: v/100})}); }
+    }
+    function setPan(id, v) {
+        const t = tracks.find(t=>t.id===id);
+        if(t) { t.pan = parseInt(v); if(t.engineId !== null) fetch(`/api/track/${t.engineId}/pan`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pan: v/100})}); }
+    }
+    function armRecord(id) {
+        const t = tracks.find(t => t.id === id);
+        if (t) {
+            t.recordArmed = !t.recordArmed;
+            renderTracks();
+            if (t.recordArmed) {
+                showPanel('input_select');
+                document.getElementById('statusText').textContent = t.name + ' armed for recording';
+            }
+        }
+    }
 
     // ═══ TRANSPORT — wired to audio engine ═══
     function togglePlay() {
@@ -623,15 +691,75 @@
         seekToPosition(x / PIXELS_PER_SECOND);
     }
 
-    // Click anywhere on the waveform area to seek
-    document.getElementById('trackList').addEventListener('click', function(e) {
+    // ═══ WAVEFORM SELECTION — click to seek, drag to select range ═══
+    let _selecting = false;
+    let _selStart = 0;
+    let _selEnd = 0;
+    let _selTrackId = null;
+
+    function getSecondsFromEvent(e, row) {
+        const wp = document.getElementById('wavePanel');
+        const rect = row.getBoundingClientRect();
+        return (e.clientX - rect.left + wp.scrollLeft) / PIXELS_PER_SECOND;
+    }
+
+    document.getElementById('trackList').addEventListener('mousedown', function(e) {
         const row = e.target.closest('.track-row');
         if (!row) return;
-        const wavePanel = document.getElementById('wavePanel');
-        const rect = row.getBoundingClientRect();
-        const x = e.clientX - rect.left + wavePanel.scrollLeft;
-        seekToPosition(x / PIXELS_PER_SECOND);
+        _selecting = true;
+        _selStart = getSecondsFromEvent(e, row);
+        _selEnd = _selStart;
+        _selTrackId = parseInt(row.dataset.id);
+        clearSelection();
+        e.preventDefault();
     });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!_selecting) return;
+        const row = document.querySelector(`.track-row[data-id="${_selTrackId}"]`);
+        if (!row) return;
+        _selEnd = getSecondsFromEvent(e, row);
+        drawSelection();
+    });
+
+    document.addEventListener('mouseup', function(e) {
+        if (!_selecting) return;
+        _selecting = false;
+        const range = Math.abs(_selEnd - _selStart);
+        if (range < 0.05) {
+            // Click — seek to position
+            clearSelection();
+            seekToPosition(Math.max(0, _selStart));
+        } else {
+            // Drag — keep selection
+            if (_selEnd < _selStart) { const tmp = _selStart; _selStart = _selEnd; _selEnd = tmp; }
+            document.getElementById('statusText').textContent =
+                `Selected: ${_selStart.toFixed(2)}s — ${_selEnd.toFixed(2)}s (${(_selEnd-_selStart).toFixed(2)}s)`;
+        }
+    });
+
+    function drawSelection() {
+        clearSelection();
+        const start = Math.min(_selStart, _selEnd);
+        const end = Math.max(_selStart, _selEnd);
+        const row = document.querySelector(`.track-row[data-id="${_selTrackId}"]`);
+        if (!row || end - start < 0.01) return;
+        const sel = document.createElement('div');
+        sel.className = 'wave-selection';
+        sel.style.cssText = `position:absolute; top:0; bottom:0; left:${start*PIXELS_PER_SECOND}px; width:${(end-start)*PIXELS_PER_SECOND}px; background:rgba(155,89,182,0.2); border-left:1px solid var(--violet); border-right:1px solid var(--violet); pointer-events:none; z-index:5;`;
+        row.appendChild(sel);
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.wave-selection').forEach(el => el.remove());
+    }
+
+    function getSelection() {
+        if (_selEnd > _selStart && _selEnd - _selStart > 0.01) {
+            return { start: _selStart, end: _selEnd, trackId: _selTrackId };
+        }
+        return null;
+    }
 
     // Drag the playhead
     let _draggingPlayhead = false;
@@ -709,7 +837,8 @@
                         <div id="inputMeter" style="height:100%; width:0%; background:var(--teal); transition:width 0.1s;"></div>
                     </div></div>
                 <button class="btn btn-teal" style="width:100%" onclick="armRecording()">Arm for Recording</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your mic or interface, then hit the red Record button in the transport bar.</p>`,
+                <button class="btn btn-secondary" style="width:100%; margin-top:6px;" onclick="toggleMonitoring(this)">Input Monitor: Off</button>
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your mic or interface, then hit the red Record button in the transport bar. Turn on Input Monitor to hear yourself.</p>`,
 
             stem_split: `<h3>Separate ${h('Splits your audio into individual parts. The program detects what approach works best and handles the details.')}</h3>
                 <div id="channelInfo" style="font-size:11px; color:var(--teal); padding:6px 0 4px; margin-bottom:4px;">Analyzing your audio...</div>
@@ -745,8 +874,7 @@
                     <input type="range" min="1" max="100" value="10" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">10ms</span></div>
                 <div class="field"><label>Release ${h('How quickly the gate closes when sound stops. Longer = more natural tail.')}</label>
                     <input type="range" min="10" max="500" value="100" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyNoiseGate()">Apply</button>`,
 
             hum_remove: `<h3>Hum Removal ${h('Removes electrical hum (that low buzzing sound) from recordings. Common with older equipment or bad grounding.')}</h3>
                 <div class="field"><label>Frequency ${h('In the US, electrical hum is 60Hz. In Europe and most other countries, its 50Hz. If unsure, try both.')}</label>
@@ -755,23 +883,21 @@
                     <input type="range" min="1" max="8" value="4" oninput="this.nextElementSibling.textContent=this.value+' harmonics'"><span style="font-size:11px; color:var(--teal);">4 harmonics</span></div>
                 <div class="field"><label>Strength ${h('How aggressively to remove the hum. Too much can make vocals sound thin.')}</label>
                     <input type="range" min="0" max="100" value="70" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">70%</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyHumRemoval()">Apply</button>`,
 
             de_ess: `<h3>De-esser ${h('Reduces harsh S and T sounds (sibilance) in vocals. Makes singing and speech smoother without dulling the voice.')}</h3>
                 <div class="field"><label>Frequency ${h('Where the harshness lives. Usually 4-8kHz for most voices. Higher for female, lower for male.')}</label>
                     <input type="range" min="2000" max="12000" value="6000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">6.0kHz</span></div>
                 <div class="field"><label>Reduction ${h('How much to pull back the sibilance. Start gentle — too much makes S sounds disappear.')}</label>
                     <input type="range" min="0" max="20" value="6" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">6dB</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyDeEss()">Apply</button>`,
 
             normalize: `<h3>Normalize ${h('Adjusts the overall volume of your audio. Peak normalization sets the loudest moment to a target. RMS normalizes the average loudness.')}</h3>
                 <div class="field"><label>Mode</label>
                     <select><option>Peak — set the loudest point</option><option>RMS — set the average loudness</option><option>LUFS — broadcast standard</option></select></div>
                 <div class="field"><label>Target ${h('Where to set the level. 0dB is the maximum before clipping. -1dB leaves a tiny bit of headroom.')}</label>
                     <input type="range" min="-12" max="0" value="-1" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-1dB</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyNormalize()">Apply</button>`,
 
             eq: `<h3>Equalizer ${h('Shape the tone by boosting or cutting specific frequencies. Low = bass, mid = body/vocals, high = sparkle/air.')}</h3>
                 <div class="field"><label>Low (80Hz) ${h('Controls the bass. Boost for warmth, cut to reduce muddiness.')}</label>
@@ -784,9 +910,7 @@
                     <input type="range" min="-12" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
                 <div class="field"><label>High (12kHz) ${h('Air and sparkle. Boost for brightness, cut if too harsh or sibilant.')}</label>
                     <input type="range" min="-12" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Reset</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyEQ()">Apply</button>`,
 
             compressor: `<h3>Compressor ${h('Evens out the volume — makes quiet parts louder and loud parts quieter. Essential for vocals and drums.')}</h3>
                 <div class="field"><label>Threshold ${h('Audio above this level gets compressed. Lower = more compression. Start around -20dB.')}</label>
@@ -799,8 +923,7 @@
                     <input type="range" min="10" max="1000" value="100" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
                 <div class="field"><label>Makeup Gain ${h('Compression makes things quieter. This adds volume back to match the original loudness.')}</label>
                     <input type="range" min="0" max="24" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyCompressor()">Apply</button>`,
 
             reverb: `<h3>Reverb ${h('Adds the sound of a room or space. Makes things sound less dry and more natural. Use subtly for vocals, more for ambiance.')}</h3>
                 <div class="field"><label>Room Size ${h('Small = bathroom/closet. Medium = studio/bedroom. Large = hall/cathedral.')}</label>
@@ -809,8 +932,7 @@
                     <input type="range" min="100" max="5000" value="1500" step="100" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'s'"><span style="font-size:11px; color:var(--teal);">1.5s</span></div>
                 <div class="field"><label>Wet/Dry ${h('How much reverb vs original signal. 100% wet = all reverb. 0% = no reverb. Try 20-30% for vocals.')}</label>
                     <input type="range" min="0" max="100" value="25" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">25%</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyReverb()">Apply</button>`,
 
             delay: `<h3>Delay ${h('Creates echoes of your audio. Can be rhythmic (synced to tempo) or free. Adds depth and movement.')}</h3>
                 <div class="field"><label>Time ${h('How long between echoes. Sync to BPM for rhythmic delays.')}</label>
@@ -819,15 +941,14 @@
                     <input type="range" min="0" max="90" value="30" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">30%</span></div>
                 <div class="field"><label>Mix ${h('How loud the echoes are compared to the original.')}</label>
                     <input type="range" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">20%</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyDelay()">Apply</button>`,
 
             limiter: `<h3>Limiter ${h('Prevents audio from going above a ceiling. Essential for mastering — protects against clipping while maximizing loudness.')}</h3>
                 <div class="field"><label>Ceiling ${h('The maximum level audio can reach. -1dBTP is safe for all platforms. -0.3dBTP is tighter.')}</label>
                     <input type="range" min="-3" max="0" value="-1" step="0.1" oninput="this.nextElementSibling.textContent=this.value+'dBTP'"><span style="font-size:11px; color:var(--teal);">-1dBTP</span></div>
                 <div class="field"><label>Input Gain ${h('Push audio into the limiter harder for more loudness. Watch the meter — too much makes things squashed.')}</label>
                     <input type="range" min="0" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyLimiter()">Apply</button>`,
 
             lufs: `<h3>Loudness Meter ${h('Measures your audio loudness in LUFS — the standard used by Spotify, Apple Music, YouTube. -14 LUFS is the target for streaming.')}</h3>
                 <div style="text-align:center; padding:16px; background:var(--bg-deep); border-radius:var(--radius); margin-bottom:12px;">
@@ -893,7 +1014,7 @@
                     <input type="range" min="10" max="2000" value="100" step="10" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
                 <div class="field"><label>Curve ${h('Shape of the fade. Linear is even. Equal power keeps volume consistent. S-curve is smoothest.')}</label>
                     <select><option>Equal Power — volume stays consistent</option><option>Linear — simple straight fade</option><option>S-Curve — smooth and natural</option></select></div>
-                <button class="btn btn-primary" style="width:100%">Apply Crossfade</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyCrossfade()">Apply Crossfade</button>`,
 
             stretch: `<h3>Time Stretch ${h('Change the speed/duration without changing the pitch. Make a section longer or shorter while keeping the same notes.')}</h3>
                 <div class="field"><label>Rate ${h('1.0 = original speed. 0.5 = half speed (twice as long). 2.0 = double speed (half as long).')}</label>
@@ -904,7 +1025,7 @@
                         <span style="color:var(--text-muted);">to</span>
                         <input type="text" placeholder="Target BPM" style="width:45%">
                     </div></div>
-                <button class="btn btn-primary" style="width:100%">Stretch</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyTimeStretch()">Stretch</button>`,
 
             pitch: `<h3>Pitch Shift ${h('Change the pitch without changing the speed. Raise or lower the notes while keeping the same duration.')}</h3>
                 <div class="field"><label>Semitones ${h('Each semitone is one piano key. +12 = one octave up. -12 = one octave down.')}</label>
@@ -913,8 +1034,7 @@
                     <input type="range" min="-50" max="50" value="0" step="1" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+' cents'"><span style="font-size:11px; color:var(--teal);">0 cents</span></div>
                 <div class="field"><label>Preserve Formants ${h('Keeps vocals sounding natural when pitch shifting. Without this, voices sound chipmunk-like when raised.')}</label>
                     <select><option>On — natural sound</option><option>Off — robotic effect</option></select></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Preview</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyPitchShift()">Apply</button>`,
 
             reverse: `<h3>Reverse ${h('Play the audio backwards. Classic effect for transitions, impacts, and creative sound design.')}</h3>
                 <button class="btn btn-primary" style="width:100%" onclick="applyEffect('reverse',{})">Reverse Selected Clip</button>
@@ -938,7 +1058,7 @@
             de_clip: `<h3>De-clip ${h('Repairs audio that was recorded too loud and clipped (distorted). Reconstructs the waveform peaks.')}</h3>
                 <div class="field"><label>Sensitivity ${h('How aggressively to repair. Higher catches more clipping but may alter clean audio.')}</label>
                     <input type="range" min="0" max="100" value="50" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">50%</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyDeclip()">Apply</button>`,
 
             sends: `<h3>Sends ${h('Route audio from this track to a bus for shared effects. Common for reverb and delay — send multiple tracks to one reverb.')}</h3>
                 <p style="font-size:11px; color:var(--text-dim);">Create a Bus track first (Track menu), then set up sends here.</p>
@@ -947,7 +1067,7 @@
             stereo_width: `<h3>Stereo Width ${h('Make the stereo image wider or narrower. Mid/Side processing separates center from sides.')}</h3>
                 <div class="field"><label>Width ${h('0% = mono (center only). 100% = original stereo. 200% = extra wide.')}</label>
                     <input type="range" min="0" max="200" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">100%</span></div>
-                <button class="btn btn-primary" style="width:100%">Apply</button>`,
+                <button class="btn btn-primary" style="width:100%" onclick="applyStereoWidth()">Apply</button>`,
 
             help: `<h3>Getting Started</h3>
                 <div style="font-size:12px; color:var(--text-dim); line-height:1.8;">
@@ -977,6 +1097,17 @@
                     <div><strong>Sample Rate</strong> — How many times per second audio is captured. 44100 = CD quality.</div>
                     <div><strong>Stem</strong> — An individual instrument track separated from a mix.</div>
                     <div><strong>WAV</strong> — Uncompressed audio format. Full quality, large files.</div>
+                </div>`,
+
+            bandmate: `<h3>The Bandmate</h3>
+                <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Ask about chords, arrangement, production, mixing — anything musical. The Bandmate listens to your session and responds.</div>
+                <div id="bandmateChat" style="max-height:280px; overflow-y:auto; margin-bottom:8px; padding:8px; background:var(--bg-deep); border-radius:var(--radius); font-size:12px; color:var(--text-dim); line-height:1.7;">
+                    <div style="color:var(--teal); font-style:italic;">What are you working on? I'm listening.</div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="bandmateInput" placeholder="Ask your bandmate..." style="flex:1; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px;"
+                        onkeydown="if(event.key==='Enter')askBandmate()">
+                    <button class="btn btn-teal" onclick="askBandmate()" style="padding:8px 12px; font-size:11px;">Ask</button>
                 </div>`,
 
             shortcuts: `<h3>Keyboard Shortcuts</h3>
@@ -1020,6 +1151,8 @@
             'noise_gate': 'noise_gate', 'hum_remove': 'hum_remove', 'de_ess': 'de_ess',
             'normalize': 'normalize', 'eq': 'eq', 'compressor': 'compressor',
             'reverb': 'reverb', 'delay': 'delay', 'limiter': 'limiter',
+            'crossfade': 'crossfade', 'stretch': 'time_stretch', 'pitch': 'pitch_shift',
+            'stereo_width': 'stereo_width', 'de_clip': 'de_clip',
         };
         if (effectMap[name]) {
             content.querySelectorAll('.btn-primary').forEach(btn => {
@@ -1463,8 +1596,23 @@
 
     // ═══ MENU ACTIONS ═══
     function newProject() { if(confirm('Start a new project? Unsaved changes will be lost.')) { tracks=[]; trackIdCounter=0; renderTracks(); document.getElementById('emptyState').style.display='flex'; stopAll(); reportAction('none'); }}
-    function openProject() { /* TODO: load .sozawen project file */ alert('Project files coming soon'); }
-    function saveProject() { /* TODO: save project state to JSON */ document.getElementById('statusText').textContent='Saved'; setTimeout(()=>document.getElementById('statusText').textContent='Ready',1500); }
+    function openProject() {
+        // Use tkinter file dialog to pick a project file
+        fetch('/api/pick-file').then(r => r.json()).then(d => {
+            if (d.path && d.path.endsWith('.json')) {
+                fetch('/api/project/recover').then(r=>r.json()).then(proj => {
+                    if (proj.available && proj.project) {
+                        tracks = proj.project.tracks || [];
+                        trackIdCounter = Math.max(...tracks.map(t=>t.id), 0) + 1;
+                        renderTracks();
+                        document.getElementById('emptyState').style.display = 'none';
+                        reloadAllWaveforms();
+                        document.getElementById('statusText').textContent = 'Project loaded';
+                    }
+                });
+            }
+        }).catch(()=>{});
+    }
     function saveProject() {
         const project = {
             version: '0.1.0',
@@ -1488,7 +1636,7 @@
     }
     function saveProjectAs() { saveProject(); /* TODO: file picker for save location */ }
     function exportStems() { showPanel('export'); }
-    function showSettings() { alert('Preferences coming soon'); }
+    function showSettings() { showPanel('help'); }
     // ═══ UNDO/REDO ═══
     function pushUndo(description) {
         _undoStack.push({description, state: JSON.parse(JSON.stringify(tracks))});
@@ -1577,8 +1725,31 @@
         pasteSelection();
     }
     function removeSelectedTrack() { deleteSelection(); }
-    function freezeTrack() { document.getElementById('statusText').textContent = 'Freeze coming in next update'; }
-    function unfreezeTrack() { document.getElementById('statusText').textContent = 'Unfreeze coming in next update'; }
+    function freezeTrack() {
+        const t = getActiveTrack();
+        if (!t || !t.engineId) { document.getElementById('statusText').textContent = 'Select a track first'; return; }
+        if (t.frozen) { document.getElementById('statusText').textContent = 'Track already frozen'; return; }
+        document.getElementById('statusText').textContent = 'Freezing...';
+        // Export just this track to a rendered file
+        fetch('/api/export', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ format: 'wav', sample_rate: 44100, track_id: t.engineId })
+        }).then(r=>r.json()).then(d => {
+            t.frozen = true;
+            t.originalFile = t.file;
+            document.getElementById('statusText').textContent = 'Track frozen — CPU saved';
+            renderTracks();
+        }).catch(() => { document.getElementById('statusText').textContent = 'Freeze failed'; });
+    }
+    function unfreezeTrack() {
+        const t = getActiveTrack();
+        if (!t) return;
+        if (!t.frozen) { document.getElementById('statusText').textContent = 'Track not frozen'; return; }
+        t.frozen = false;
+        if (t.originalFile) t.file = t.originalFile;
+        document.getElementById('statusText').textContent = 'Track unfrozen';
+        renderTracks();
+    }
 
     // ═══ ZOOM ═══
     function zoomIn() {
@@ -1609,12 +1780,348 @@
     function getMaxDuration() {
         return Math.max(...tracks.map(t => t.duration || 0), 0);
     }
-    function zoomToFit() { /* TODO */ }
-    function toggleSpectrogram() { /* TODO */ }
-    function toggleMixer() { /* TODO */ }
+    function toggleSpectrogram() { document.getElementById('statusText').textContent = 'Spectrogram view coming soon'; }
+    function toggleMixer() {
+        let mixer = document.getElementById('mixerPanel');
+        if (mixer) {
+            mixer.style.display = mixer.style.display === 'none' ? 'flex' : 'none';
+            return;
+        }
+        // Create mixer panel
+        mixer = document.createElement('div');
+        mixer.id = 'mixerPanel';
+        mixer.style.cssText = 'display:flex; gap:8px; padding:12px 16px; background:var(--bg-card); border-top:1px solid var(--border); overflow-x:auto; align-items:flex-end; max-height:180px;';
+
+        function renderMixer() {
+            mixer.innerHTML = tracks.map(t => `
+                <div style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:60px; padding:6px;">
+                    <div style="font-size:9px; color:var(--text-muted); max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</div>
+                    <input type="range" orient="vertical" min="0" max="100" value="${t.volume}"
+                        oninput="setVolume(${t.id}, this.value)"
+                        style="writing-mode:vertical-lr; direction:rtl; width:24px; height:100px; -webkit-appearance:slider-vertical;">
+                    <div style="font-size:9px; color:var(--teal);">${t.volume}%</div>
+                    <input type="range" min="-100" max="100" value="${t.pan||0}"
+                        oninput="setPan(${t.id}, this.value)"
+                        style="width:50px; height:3px; -webkit-appearance:none; background:var(--border); border-radius:2px;">
+                    <div style="font-size:8px; color:var(--text-muted);">L ← → R</div>
+                    <div style="display:flex; gap:3px;">
+                        <button onclick="toggleMute(${t.id})" style="font-size:8px; padding:2px 5px; border:1px solid ${t.muted?'var(--red)':'var(--border)'}; background:${t.muted?'var(--red)':'transparent'}; color:${t.muted?'#fff':'var(--text-dim)'}; border-radius:3px; cursor:pointer;">M</button>
+                        <button onclick="toggleSolo(${t.id})" style="font-size:8px; padding:2px 5px; border:1px solid ${t.solo?'var(--teal)':'var(--border)'}; background:${t.solo?'var(--teal)':'transparent'}; color:${t.solo?'#000':'var(--text-dim)'}; border-radius:3px; cursor:pointer;">S</button>
+                    </div>
+                </div>
+            `).join('') + `
+                <div style="display:flex; flex-direction:column; align-items:center; gap:4px; min-width:60px; padding:6px; border-left:2px solid var(--teal);">
+                    <div style="font-size:9px; color:var(--teal); font-weight:600;">MASTER</div>
+                    <input type="range" orient="vertical" min="0" max="100" value="100"
+                        style="writing-mode:vertical-lr; direction:rtl; width:24px; height:100px; -webkit-appearance:slider-vertical;">
+                    <div style="font-size:9px; color:var(--teal);">100%</div>
+                </div>`;
+        }
+        renderMixer();
+        document.querySelector('.workspace').appendChild(mixer);
+        // Re-render mixer when tracks change
+        window._renderMixer = renderMixer;
+    }
     function toggleHelpMode() { document.body.classList.toggle('help-mode'); }
-    function showAbout() { alert('Sozawen v0.1.0\\nBorn from the burn. Built by feeling.\\n\\nA bandmate who listens.\\n\\n© 2026 Daysha Lindale'); }
-    function exportLyrics(format) { /* TODO: export lyrics in selected format */ }
+    function showAbout() { alert('Sozawen v0.1.0\nBorn from the burn. Built by feeling.\n\nA bandmate who listens.\n\n\u00a9 2026 Daysha Lindale'); }
+
+    // ═══ EFFECTS — wire Apply/Preview buttons to backend ═══
+    function getActiveTrackEngineId() {
+        const t = getActiveTrack();
+        if (!t || t.engineId === null) { alert('Select a track first'); return null; }
+        return t.engineId;
+    }
+
+    function applyEffect(effect, params) {
+        const eid = getActiveTrackEngineId();
+        if (eid === null) return;
+        pushUndo('apply ' + effect);
+        document.getElementById('statusText').textContent = 'Applying ' + effect + '...';
+        fetch('/api/fx/apply', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ track_id: eid, effect, params })
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('statusText').textContent = effect + ' applied!';
+                const t = getActiveTrack();
+                if (t) t.effects.push(effect);
+                reloadAllWaveforms();
+                reportAction('run_cleanup');
+            } else {
+                document.getElementById('statusText').textContent = d.error || 'Failed';
+            }
+            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 2000);
+        }).catch(e => { document.getElementById('statusText').textContent = 'Error: ' + e; });
+    }
+
+    function applyNoiseGate() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('noise_gate', {
+            threshold_db: parseFloat(ranges[0]?.value || -40),
+            attack_ms: parseFloat(ranges[1]?.value || 10),
+            release_ms: parseFloat(ranges[2]?.value || 100),
+        });
+    }
+    function applyHumRemoval() {
+        const panel = document.getElementById('toolPanel');
+        const sel = panel.querySelector('select');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('hum_remove', {
+            freq: parseInt(sel?.value || 60),
+            harmonics: parseInt(ranges[0]?.value || 4),
+            strength: parseInt(ranges[1]?.value || 70) / 100,
+        });
+    }
+    function applyDeEss() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('de_ess', {
+            frequency: parseFloat(ranges[0]?.value || 6000),
+            reduction_db: parseFloat(ranges[1]?.value || 6),
+        });
+    }
+    function applyNormalize() {
+        const panel = document.getElementById('toolPanel');
+        const sel = panel.querySelector('select');
+        const range = panel.querySelector('input[type="range"]');
+        const mode = sel?.selectedIndex === 0 ? 'peak' : sel?.selectedIndex === 1 ? 'rms' : 'lufs';
+        applyEffect('normalize', { mode, target_db: parseFloat(range?.value || -1) });
+    }
+    function applyEQ() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('eq', {
+            low_gain: parseFloat(ranges[0]?.value || 0),
+            low_mid_gain: parseFloat(ranges[1]?.value || 0),
+            mid_gain: parseFloat(ranges[2]?.value || 0),
+            high_mid_gain: parseFloat(ranges[3]?.value || 0),
+            high_gain: parseFloat(ranges[4]?.value || 0),
+        });
+    }
+    function applyCompressor() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('compressor', {
+            threshold_db: parseFloat(ranges[0]?.value || -20),
+            ratio: parseFloat(ranges[1]?.value || 3),
+            attack_ms: parseFloat(ranges[2]?.value || 10),
+            release_ms: parseFloat(ranges[3]?.value || 100),
+            makeup_db: parseFloat(ranges[4]?.value || 0),
+        });
+    }
+    function applyReverb() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('reverb', {
+            room_size: parseFloat(ranges[0]?.value || 40) / 100,
+            decay: parseFloat(ranges[1]?.value || 1500) / 1000,
+            wet: parseFloat(ranges[2]?.value || 25) / 100,
+        });
+    }
+    function applyDelay() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('delay', {
+            delay_ms: parseFloat(ranges[0]?.value || 375),
+            feedback: parseFloat(ranges[1]?.value || 30) / 100,
+            mix: parseFloat(ranges[2]?.value || 20) / 100,
+        });
+    }
+    function applyLimiter() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        applyEffect('limiter', {
+            ceiling_db: parseFloat(ranges[0]?.value || -1),
+            input_gain_db: parseFloat(ranges[1]?.value || 0),
+        });
+    }
+
+    function applyCrossfade() {
+        const panel = document.getElementById('toolPanel');
+        const range = panel.querySelector('input[type="range"]');
+        const sel = panel.querySelector('select');
+        const curveMap = {'Equal Power': 'equal_power', 'Linear': 'linear', 'S-Curve': 's_curve'};
+        const curveText = sel?.selectedOptions[0]?.textContent?.split(' —')[0] || 'Equal Power';
+        applyEffect('crossfade', {
+            duration_ms: parseInt(range?.value || 100),
+            curve: curveMap[curveText] || 'equal_power',
+        });
+    }
+    function applyTimeStretch() {
+        const panel = document.getElementById('toolPanel');
+        const range = panel.querySelector('input[type="range"]');
+        const inputs = panel.querySelectorAll('input[type="text"]');
+        const origBpm = inputs[0]?.value || null;
+        const targetBpm = inputs[1]?.value || null;
+        applyEffect('time_stretch', {
+            rate: parseFloat(range?.value || 1.0),
+            original_bpm: origBpm, target_bpm: targetBpm,
+        });
+    }
+    function applyPitchShift() {
+        const panel = document.getElementById('toolPanel');
+        const ranges = panel.querySelectorAll('input[type="range"]');
+        const sel = panel.querySelector('select');
+        applyEffect('pitch_shift', {
+            semitones: parseInt(ranges[0]?.value || 0),
+            cents: parseInt(ranges[1]?.value || 0),
+            preserve_formants: sel?.selectedIndex === 0,
+        });
+    }
+    function applyStereoWidth() {
+        const panel = document.getElementById('toolPanel');
+        const range = panel.querySelector('input[type="range"]');
+        applyEffect('stereo_width', { width: parseInt(range?.value || 100) });
+    }
+    function applyDeclip() {
+        const panel = document.getElementById('toolPanel');
+        const range = panel.querySelector('input[type="range"]');
+        applyEffect('de_clip', { sensitivity: parseInt(range?.value || 50) });
+    }
+
+    // ═══ THE BANDMATE ═══
+    function askBandmate() {
+        const input = document.getElementById('bandmateInput');
+        const chat = document.getElementById('bandmateChat');
+        const msg = input.value.trim();
+        if (!msg) return;
+
+        // Show user message
+        chat.innerHTML += `<div style="color:var(--text); margin-top:8px;"><strong>You:</strong> ${msg}</div>`;
+        input.value = '';
+        chat.innerHTML += `<div style="color:var(--text-muted); margin-top:4px; font-style:italic;" id="bandmateThinking">Thinking...</div>`;
+        chat.scrollTop = chat.scrollHeight;
+
+        // Build session context
+        const ctx = {
+            key: document.getElementById('keyDisplay')?.textContent || '',
+            bpm: document.getElementById('bpmDisplay')?.textContent?.replace(' BPM','') || '',
+            tracks: tracks.map(t => ({ name: t.name, effects: t.effects || [] })),
+        };
+
+        fetch('/api/bandmate', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ message: msg, context: ctx })
+        }).then(r=>r.json()).then(d => {
+            const thinking = document.getElementById('bandmateThinking');
+            if (thinking) thinking.remove();
+            const response = d.response || d.error || 'No response';
+            chat.innerHTML += `<div style="color:var(--teal); margin-top:4px;"><strong>Bandmate:</strong> ${response}</div>`;
+            chat.scrollTop = chat.scrollHeight;
+        }).catch(() => {
+            const thinking = document.getElementById('bandmateThinking');
+            if (thinking) thinking.textContent = 'Could not reach the bandmate. Is Ollama running?';
+        });
+    }
+
+    // ═══ LUFS MEASUREMENT ═══
+    function measureLUFS() {
+        const eid = getActiveTrackEngineId();
+        if (eid === null) return;
+        document.getElementById('statusText').textContent = 'Measuring loudness...';
+        fetch('/api/fx/measure', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ track_id: eid })
+        }).then(r=>r.json()).then(d => {
+            if (d.error) { document.getElementById('statusText').textContent = d.error; return; }
+            document.getElementById('lufsValue').textContent = (d.integrated_lufs || 0).toFixed(1);
+            document.getElementById('peakValue').textContent = (d.true_peak_db || 0).toFixed(1) + ' dBTP';
+            document.getElementById('dynamicRange').textContent = (d.dynamic_range || 0).toFixed(1) + ' LU';
+            document.getElementById('statusText').textContent = 'Ready';
+        }).catch(e => { document.getElementById('statusText').textContent = 'Measurement failed'; });
+    }
+
+    // ═══ INPUT DEVICES ═══
+    function loadInputDevices() {
+        fetch('/api/input-devices').then(r=>r.json()).then(d => {
+            const sel = document.getElementById('inputDeviceSelect');
+            if (!sel) return;
+            sel.innerHTML = d.devices.map(dev =>
+                `<option value="${dev.id}">${dev.name} (${dev.channels}ch)</option>`
+            ).join('') || '<option>No input devices found</option>';
+        }).catch(()=>{});
+    }
+
+    function armRecording() {
+        const sel = document.getElementById('inputDeviceSelect');
+        const deviceId = sel ? parseInt(sel.value) : null;
+        document.getElementById('statusText').textContent = 'Armed — hit Record in the transport bar';
+        window._recordDeviceId = deviceId;
+    }
+
+    function toggleMonitoring(btn) {
+        fetch('/api/monitor/toggle', {method:'POST'}).then(r=>r.json()).then(d => {
+            if (btn) btn.textContent = 'Input Monitor: ' + (d.monitoring ? 'ON' : 'Off');
+            document.getElementById('statusText').textContent = d.monitoring ? 'Monitoring — you should hear yourself' : 'Monitor off';
+        });
+    }
+
+    // ═══ RECORDING ═══
+    function startRecording() {
+        const deviceId = window._recordDeviceId || null;
+        const track = getActiveTrack();
+        fetch('/api/record/start', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ device_id: deviceId, track_id: track?.engineId })
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                isRecording = true;
+                document.getElementById('statusText').textContent = 'Recording...';
+                reportAction('hit_record');
+            }
+        });
+    }
+
+    function stopRecording() {
+        fetch('/api/record/stop', { method:'POST' }).then(r=>r.json()).then(d => {
+            isRecording = false;
+            document.getElementById('statusText').textContent = 'Recording saved';
+            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 2000);
+            refreshTracks();
+        });
+    }
+
+    // ═══ EXPORT ═══
+    function exportMix() {
+        const panel = document.getElementById('toolPanel');
+        const selects = panel.querySelectorAll('select');
+        const formatStr = selects[0]?.selectedOptions[0]?.textContent || 'WAV';
+        let format = 'wav';
+        if (formatStr.includes('MP3')) format = 'mp3';
+        else if (formatStr.includes('FLAC')) format = 'flac';
+        else if (formatStr.includes('OGG')) format = 'ogg';
+        else if (formatStr.includes('AIFF')) format = 'aiff';
+
+        let sr = 44100;
+        const srStr = selects[1]?.selectedOptions[0]?.textContent || '';
+        if (srStr.includes('48000')) sr = 48000;
+        else if (srStr.includes('96000')) sr = 96000;
+
+        document.getElementById('statusText').textContent = 'Exporting...';
+        fetch('/api/export', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ format, sample_rate: sr })
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('statusText').textContent = 'Exported to ' + d.path;
+            } else {
+                document.getElementById('statusText').textContent = d.error || 'Export failed';
+            }
+        }).catch(e => { document.getElementById('statusText').textContent = 'Export error'; });
+    }
+
+    // ═══ LYRICS EXPORT ═══
+    function exportLyrics(format) {
+        const output = document.getElementById('lyricsOutput');
+        if (!output || !output.textContent.trim()) { alert('No lyrics to export'); return; }
+        const text = output.textContent;
+        const blob = new Blob([text], {type:'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = 'lyrics.' + format; a.click();
+        URL.revokeObjectURL(url);
+    }
 
     // ═══ KEYBOARD SHORTCUTS ═══
     document.addEventListener('keydown', e => {

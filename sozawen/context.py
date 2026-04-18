@@ -91,6 +91,7 @@ TOOLS = {
     "stem_split":   {"label": "Stem Separation",  "icon": "✂", "group": "import"},
     "lyrics":       {"label": "Lyrics",           "icon": "♪", "group": "import"},
     "analyze":      {"label": "Analyze",          "icon": "≈", "group": "import"},
+    "bandmate":     {"label": "Bandmate",         "icon": "💬", "group": "import"},
 
     # Recording
     "input_select": {"label": "Input Device",     "icon": "🎤", "group": "record"},
@@ -196,6 +197,7 @@ class ContextEngine:
             },
             Phase.IMPORT: {
                 "stem_split": 1.0, "lyrics": 0.9, "analyze": 0.9,
+                "bandmate": 0.8,
                 "noise_gate": 0.7, "hum_remove": 0.6, "normalize": 0.6,
                 "de_ess": 0.5, "de_clip": 0.5,
                 "open_file": 0.4,
@@ -210,7 +212,7 @@ class ContextEngine:
             },
             Phase.MIX: {
                 "eq": 1.0, "compressor": 0.9, "reverb": 0.8, "delay": 0.7,
-                "sends": 0.7, "normalize": 0.5,
+                "sends": 0.7, "bandmate": 0.6, "normalize": 0.5,
                 "lufs": 0.4,
             },
             Phase.MASTER: {

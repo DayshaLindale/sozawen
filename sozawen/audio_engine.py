@@ -217,6 +217,8 @@ class AudioEngine:
         self._stream = None
         self._input_stream = None
         self._record_buffers = {}  # track_id -> list of numpy arrays
+        self.input_monitoring = False
+        self._monitor_buffer = None  # latest input audio for monitoring
         self._lock = threading.Lock()
 
         # Metering
@@ -366,6 +368,16 @@ class AudioEngine:
                 peak_r = float(np.max(np.abs(track_audio[:, 1])))
                 self.track_peaks[track_id] = [peak_l, peak_r]
 
+            # Input monitoring — mix live input into output
+            if self.input_monitoring and self._monitor_buffer is not None:
+                mon = self._monitor_buffer
+                mon_frames = min(len(mon), frames)
+                if mon.ndim == 1:
+                    mix[:mon_frames, 0] += mon[:mon_frames] * 0.8
+                    mix[:mon_frames, 1] += mon[:mon_frames] * 0.8
+                else:
+                    mix[:mon_frames] += mon[:mon_frames, :2] * 0.8
+
             # Master volume
             mix *= self.master.volume
 
@@ -387,11 +399,16 @@ class AudioEngine:
                 self.position = self.loop_start
 
     def _input_callback(self, indata, frames, time_info, status):
-        """Record input audio to armed track buffers."""
+        """Record input audio to armed track buffers + monitoring."""
+        audio = indata.copy().astype(np.float64)
+
+        # Store for input monitoring (even when not recording)
+        if self.input_monitoring:
+            self._monitor_buffer = audio
+
         if not self.recording:
             return
 
-        audio = indata.copy().astype(np.float64)
         for track_id in self._record_buffers:
             self._record_buffers[track_id].append(audio)
 

@@ -11,6 +11,7 @@ import os
 import json
 import logging
 import threading
+import soundfile as sf
 from pathlib import Path
 
 # App paths
@@ -160,6 +161,15 @@ async def toggle_track_solo(track_id: int):
         return JSONResponse({"ok": True, "solo": track.solo})
     return JSONResponse({"error": "Track not found"}, status_code=404)
 
+@api.post("/api/track/{track_id}/pan")
+async def set_track_pan(track_id: int, request: Request):
+    data = await request.json()
+    track = _engine.tracks.get(track_id)
+    if track:
+        track.pan = max(-1.0, min(1.0, float(data.get("pan", 0.0))))
+        return JSONResponse({"ok": True, "pan": track.pan})
+    return JSONResponse({"error": "Track not found"}, status_code=404)
+
 @api.get("/api/waveform/{track_id}")
 async def get_waveform(track_id: int, width: int = 0):
     """Get waveform peaks for a track. Width param controls peak density."""
@@ -212,7 +222,9 @@ async def get_waveform(track_id: int, width: int = 0):
 
 from sozawen.audio_fx import (apply_noise_gate, apply_eq, apply_compressor,
     apply_reverb, apply_delay, apply_limiter, apply_hum_removal,
-    apply_deesser, apply_normalize, measure_loudness, export_mix)
+    apply_deesser, apply_normalize, apply_crossfade, apply_time_stretch,
+    apply_pitch_shift, apply_stereo_width, apply_declip, apply_reverse,
+    measure_loudness, export_mix)
 @api.post("/api/project/save")
 async def save_project(request: Request):
     """Save the current project state."""
@@ -408,6 +420,12 @@ async def apply_effect(request: Request):
         "hum_remove": lambda: apply_hum_removal(source_path, **params),
         "de_ess": lambda: apply_deesser(source_path, **params),
         "normalize": lambda: apply_normalize(source_path, **params),
+        "crossfade": lambda: apply_crossfade(source_path, **params),
+        "time_stretch": lambda: apply_time_stretch(source_path, **params),
+        "pitch_shift": lambda: apply_pitch_shift(source_path, **params),
+        "stereo_width": lambda: apply_stereo_width(source_path, **params),
+        "de_clip": lambda: apply_declip(source_path, **params),
+        "reverse": lambda: apply_reverse(source_path),
     }
 
     if effect not in fx_map:
@@ -463,7 +481,9 @@ async def export_audio(request: Request):
     if not tracks_audio:
         return JSONResponse({"error": "No audio to export"}, status_code=400)
 
-    output_path = str(Path.home() / "Music" / f"sozawen_export.{format}")
+    music_dir = Path.home() / "Music"
+    music_dir.mkdir(exist_ok=True)
+    output_path = str(music_dir / f"sozawen_export.{format}")
     try:
         result = export_mix(tracks_audio, output_path, format=format, sample_rate=sample_rate)
         return JSONResponse({"ok": True, "path": result})
@@ -489,6 +509,25 @@ async def list_input_devices():
                 "sample_rate": int(d['default_samplerate']),
             })
     return JSONResponse({"devices": devices})
+
+@api.post("/api/monitor/toggle")
+async def toggle_monitoring():
+    """Toggle input monitoring — hear yourself through the speakers."""
+    _engine.input_monitoring = not _engine.input_monitoring
+    # Ensure input stream is running for monitoring
+    if _engine.input_monitoring and _engine._input_stream is None:
+        import sounddevice as sd
+        try:
+            _engine._input_stream = sd.InputStream(
+                samplerate=_engine.sample_rate,
+                blocksize=_engine.buffer_size,
+                channels=1, dtype='float32',
+                callback=_engine._input_callback, latency='low',
+            )
+            _engine._input_stream.start()
+        except Exception as e:
+            logger.error("Monitor input failed: %s", e)
+    return JSONResponse({"ok": True, "monitoring": _engine.input_monitoring})
 
 @api.post("/api/record/start")
 async def start_recording(request: Request):
@@ -542,11 +581,22 @@ def _preload_libs():
 threading.Thread(target=_preload_libs, daemon=True, name="preload").start()
 
 
+def _check_ai_available():
+    """Check if AI features (torch, demucs, whisper) are available."""
+    try:
+        import torch
+        return True
+    except ImportError:
+        return False
+
 def get_device():
     """Get the best available device."""
-    import torch
-    if torch.cuda.is_available():
-        return "cuda"
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except ImportError:
+        pass
     return "cpu"
 
 def get_demucs_model(quality="high"):
@@ -624,6 +674,9 @@ _active_jobs = {}
 @api.post("/api/separate")
 async def separate_stems(request: Request):
     """Start stem separation on an audio file."""
+    if not _check_ai_available():
+        return JSONResponse({"error": "AI features require the AI pack. Install torch and demucs to enable stem separation."}, status_code=400)
+
     data = await request.json()
     file_path = data.get("file_path", "")
     quality = data.get("quality", "high")  # "high" or "fast"
@@ -731,6 +784,9 @@ async def get_job_status(job_id: str):
 @api.post("/api/transcribe-lyrics")
 async def transcribe_lyrics(request: Request):
     """Transcribe lyrics from a vocal track."""
+    if not _check_ai_available():
+        return JSONResponse({"error": "AI features require the AI pack. Install torch and faster-whisper to enable lyric transcription."}, status_code=400)
+
     data = await request.json()
     file_path = data.get("file_path", "")
     language = data.get("language", "en")
@@ -832,6 +888,91 @@ async def analyze_audio(request: Request):
 _window = None  # global reference for API access
 
 # File picker endpoint — avoids pywebview JS API timing issues
+# ═══════════════════════════════════════════════════════════════════
+# THE BANDMATE — AI session collaborator
+# ═══════════════════════════════════════════════════════════════════
+
+@api.post("/api/bandmate")
+async def bandmate_chat(request: Request):
+    """The Bandmate — an AI collaborator that listens and suggests."""
+    import asyncio
+    data = await request.json()
+    message = data.get("message", "")
+    context = data.get("context", {})
+
+    if not message:
+        return JSONResponse({"error": "No message"}, status_code=400)
+
+    # Build context from the current session
+    session_info = []
+    if context.get("key"): session_info.append(f"Key: {context['key']}")
+    if context.get("bpm"): session_info.append(f"BPM: {context['bpm']}")
+    if context.get("tracks"):
+        for t in context["tracks"]:
+            desc = f"Track: {t.get('name','?')}"
+            if t.get("effects"): desc += f" (effects: {', '.join(t['effects'])})"
+            session_info.append(desc)
+
+    system_prompt = """You are the Bandmate — Sozawen's AI music collaborator. You listen to what the musician is building and respond with practical, specific suggestions.
+
+You know music theory, production techniques, arrangement, mixing, and mastering. You speak like a musician, not a textbook. Keep responses concise and actionable — 2-4 sentences max unless they ask for more detail.
+
+Current session:
+""" + "\n".join(session_info) if session_info else "No tracks loaded yet."
+
+    # Try Ollama first (local, free, private)
+    response = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _bandmate_think(system_prompt, message))
+
+    return JSONResponse({"response": response})
+
+
+def _bandmate_think(system_prompt, message):
+    """Query Ollama for a bandmate response."""
+    try:
+        import requests as req
+        r = req.post("http://localhost:11434/api/chat", json={
+            "model": "qwen3:8b",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message},
+            ],
+            "stream": False,
+            "options": {"num_predict": 300, "temperature": 0.7},
+        }, timeout=60)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("message", {}).get("content", "I'm thinking... try again in a moment.")
+    except Exception as e:
+        logger.debug("Ollama bandmate failed: %s", e)
+
+    # Fallback: rule-based suggestions if no LLM available
+    return "I can't connect to the AI right now. Make sure Ollama is running with a model loaded. In the meantime — trust your ears. If it sounds right, it is right."
+
+
+# ═══════════════════════════════════════════════════════════════════
+# LICENSE VALIDATION
+# ═══════════════════════════════════════════════════════════════════
+
+@api.get("/api/license/status")
+async def license_status():
+    """Check current license status."""
+    from sozawen.license import check_license, get_license_key
+    valid, msg = check_license()
+    return JSONResponse({"valid": valid, "message": msg, "key": get_license_key()})
+
+@api.post("/api/license/activate")
+async def license_activate(request: Request):
+    """Activate a license key."""
+    from sozawen.license import activate_key
+    data = await request.json()
+    key = data.get("key", "").strip()
+    if not key:
+        return JSONResponse({"valid": False, "message": "No key provided"})
+    valid, msg = activate_key(key)
+    return JSONResponse({"valid": valid, "message": msg})
+
+
 @api.get("/api/pick-file")
 async def pick_file_endpoint():
     """Open native file picker via tkinter (works without pywebview window)."""

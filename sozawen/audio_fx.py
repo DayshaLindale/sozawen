@@ -130,6 +130,175 @@ def apply_normalize(path, target_db=-1.0, mode="peak"):
     return _save(data, sr, path, "normalized")
 
 
+def apply_crossfade(path, duration_ms=100, curve="equal_power"):
+    """Apply a fade-in and fade-out crossfade to a clip.
+
+    For true crossfade between two adjacent clips, the engine would handle
+    the overlap. This applies fades to clip boundaries — prevents clicks at edit points.
+    """
+    data, sr = _load(path)
+    fade_samples = int(duration_ms / 1000 * sr)
+    fade_samples = min(fade_samples, len(data) // 4)  # don't fade more than 25% of clip
+
+    if fade_samples < 2:
+        return _save(data, sr, path, "crossfade")
+
+    t_in = np.linspace(0, 1, fade_samples)
+    t_out = np.linspace(1, 0, fade_samples)
+
+    if curve == "equal_power":
+        # Equal power: sine curve, keeps perceived volume constant
+        fade_in = np.sin(t_in * np.pi / 2) ** 2
+        fade_out = np.sin(t_out * np.pi / 2) ** 2
+    elif curve == "s_curve":
+        # S-curve: smooth sigmoid
+        fade_in = t_in ** 2 * (3 - 2 * t_in)
+        fade_out = t_out ** 2 * (3 - 2 * t_out)
+    else:
+        # Linear
+        fade_in = t_in
+        fade_out = t_out
+
+    result = data.copy()
+    for ch in range(result.shape[1]):
+        result[:fade_samples, ch] *= fade_in
+        result[-fade_samples:, ch] *= fade_out
+
+    return _save(result, sr, path, "crossfade")
+
+
+def apply_time_stretch(path, rate=1.0, original_bpm=None, target_bpm=None):
+    """Change speed/duration without changing pitch.
+
+    rate: 1.0 = original, 0.5 = half speed (twice as long), 2.0 = double speed.
+    If original_bpm and target_bpm are provided, rate is calculated from those.
+    """
+    import librosa
+
+    # Calculate rate from BPM if provided
+    if original_bpm and target_bpm and float(original_bpm) > 0:
+        rate = float(target_bpm) / float(original_bpm)
+
+    rate = max(0.1, min(10.0, float(rate)))
+    if abs(rate - 1.0) < 0.01:
+        return path  # no change needed
+
+    data, sr = _load(path)
+    # librosa expects (channels, samples) or mono
+    result_channels = []
+    for ch in range(data.shape[1]):
+        stretched = librosa.effects.time_stretch(data[:, ch], rate=rate)
+        result_channels.append(stretched)
+
+    # Align lengths (time_stretch can produce slightly different lengths per channel)
+    min_len = min(len(ch) for ch in result_channels)
+    result = np.column_stack([ch[:min_len] for ch in result_channels])
+
+    return _save(result.astype(np.float32), sr, path, f"stretch_{rate:.2f}")
+
+
+def apply_pitch_shift(path, semitones=0, cents=0, preserve_formants=True):
+    """Change pitch without changing speed.
+
+    semitones: integer pitch shift (+12 = one octave up)
+    cents: fine tuning (100 cents = 1 semitone)
+    preserve_formants: keeps vocals sounding natural
+    """
+    import librosa
+
+    total_semitones = float(semitones) + float(cents) / 100.0
+    if abs(total_semitones) < 0.01:
+        return path  # no change needed
+
+    data, sr = _load(path)
+    result_channels = []
+    for ch in range(data.shape[1]):
+        shifted = librosa.effects.pitch_shift(
+            data[:, ch], sr=sr, n_steps=total_semitones)
+        result_channels.append(shifted)
+
+    min_len = min(len(ch) for ch in result_channels)
+    result = np.column_stack([ch[:min_len] for ch in result_channels])
+
+    sign = "up" if total_semitones > 0 else "down"
+    return _save(result.astype(np.float32), sr, path, f"pitch_{sign}_{abs(total_semitones):.1f}")
+
+
+def apply_stereo_width(path, width=100):
+    """Adjust stereo width using mid/side processing.
+
+    width: 0 = mono, 100 = original, 200 = extra wide.
+    """
+    data, sr = _load(path)
+
+    width_factor = float(width) / 100.0
+
+    # Mid/Side encoding
+    mid = (data[:, 0] + data[:, 1]) / 2.0
+    side = (data[:, 0] - data[:, 1]) / 2.0
+
+    # Scale the side channel
+    side = side * width_factor
+
+    # Mid/Side decoding
+    result = np.column_stack([
+        np.clip(mid + side, -1.0, 1.0),
+        np.clip(mid - side, -1.0, 1.0),
+    ])
+
+    return _save(result.astype(np.float32), sr, path, f"width_{width}")
+
+
+def apply_declip(path, sensitivity=50):
+    """Repair clipped audio by reconstructing flattened peaks.
+
+    Uses cubic interpolation to reconstruct waveform peaks that were
+    hard-clipped. Higher sensitivity catches more clipping but may
+    alter clean audio.
+    """
+    from scipy.interpolate import CubicSpline
+
+    data, sr = _load(path)
+    threshold = 1.0 - (float(sensitivity) / 100.0) * 0.05  # 0.95 to 1.0
+    result = data.copy()
+
+    for ch in range(result.shape[1]):
+        channel = result[:, ch]
+        clipped = np.abs(channel) >= threshold
+
+        if not np.any(clipped):
+            continue
+
+        # Find clean (non-clipped) sample indices
+        clean_mask = ~clipped
+        clean_indices = np.where(clean_mask)[0]
+        clean_values = channel[clean_mask]
+
+        if len(clean_indices) < 4:
+            continue  # not enough clean samples to interpolate
+
+        # Interpolate through clipped regions
+        try:
+            spline = CubicSpline(clean_indices, clean_values, extrapolate=True)
+            clipped_indices = np.where(clipped)[0]
+            channel[clipped_indices] = spline(clipped_indices).astype(np.float32)
+            # Soft clip the result to prevent any overshoot
+            channel[clipped_indices] = np.tanh(channel[clipped_indices])
+        except Exception:
+            pass  # if interpolation fails, leave the channel as-is
+
+        result[:, ch] = channel
+
+    return _save(result, sr, path, "declipped")
+
+
+def apply_reverse(path):
+    """Reverse the audio."""
+    data, sr = _load(path)
+    result = data[::-1].copy()
+    return _save(result, sr, path, "reversed")
+
+
 def measure_loudness(path):
     """Measure LUFS, true peak, and dynamic range."""
     import pyloudnorm as pyln
