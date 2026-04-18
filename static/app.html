@@ -1534,6 +1534,41 @@
                     <button class="btn btn-teal" onclick="askBandmate()" style="padding:8px 12px; font-size:11px;">Ask</button>
                 </div>`,
 
+            synth: `<h3>Synth ${h('A subtractive synthesizer built from pure math. Choose a waveform, set the filter and envelope, draw notes on the piano roll. No samples, no plugins — every sound generated live.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SUBTRACTIVE SYNTHESIZER</div>
+                <div class="field"><label>Waveform ${h('The raw tone shape. Saw = bright and buzzy (leads, basses). Square = hollow and woody (sub bass, chiptune). Sine = pure tone (sub bass, pads). Triangle = soft and mellow.')}</label>
+                    <select id="synthWaveform"><option value="saw">Saw — bright, full</option><option value="square">Square — hollow, woody</option><option value="sine">Sine — pure, clean</option><option value="triangle">Triangle — soft, mellow</option></select></div>
+                <div class="field"><label>Filter Cutoff ${h('Lowpass filter frequency. Lower = darker, more muffled. Higher = brighter, more present. On a hardware synth: the big cutoff knob.')}</label>
+                    <input type="range" id="synthCutoff" min="100" max="16000" value="4000" step="100" oninput="this.nextElementSibling.textContent=(this.value>=1000?(this.value/1000).toFixed(1)+'kHz':this.value+'Hz')"><span style="font-size:11px; color:var(--teal);">4.0kHz</span></div>
+                <div class="field"><label>Attack ${h('How fast the note starts. Short = percussive pluck. Long = slow fade in (pads). On hardware: the A in ADSR.')}</label>
+                    <input type="range" id="synthAttack" min="0.001" max="2" value="0.01" step="0.01" oninput="this.nextElementSibling.textContent=(this.value*1000).toFixed(0)+'ms'"><span style="font-size:11px; color:var(--teal);">10ms</span></div>
+                <div class="field"><label>Release ${h('How long the note rings after you let go. Short = staccato. Long = sustained pad. On hardware: the R in ADSR.')}</label>
+                    <input type="range" id="synthRelease" min="0.01" max="3" value="0.1" step="0.01" oninput="this.nextElementSibling.textContent=(this.value*1000).toFixed(0)+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
+                <div class="field"><label>Detune ${h('Slight pitch offset for a thicker, chorus-like sound. 0 = clean. 5-15 = subtle width. 30+ = detuned effect.')}</label>
+                    <input type="range" id="synthDetune" min="0" max="50" value="0" step="1" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">0%</span></div>
+                <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:8px;">
+                    <div style="font-size:11px; color:var(--teal); margin-bottom:6px;">Quick pattern — click to generate:</div>
+                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                        <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="generateSynthPattern('chord')">Chord</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="generateSynthPattern('arp')">Arpeggio</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="generateSynthPattern('bass')">Bass Line</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="generateSynthPattern('pad')">Pad</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="generateSynthPattern('lead')">Lead</button>
+                    </div>
+                </div>`,
+
+            drums: `<h3>Drum Machine ${h('Every sound synthesized from math — no samples needed. Kick, snare, hi-hat, clap, toms, rim. Click the grid to program a pattern, hit Render to create a track.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SYNTHESIZED DRUM MACHINE</div>
+                <div id="drumGrid" style="margin-bottom:12px;"></div>
+                <div class="field"><label>Steps ${h('How many steps in the pattern. 16 = one bar of 16th notes in 4/4. 32 = two bars.')}</label>
+                    <select id="drumSteps" onchange="buildDrumGrid()"><option value="8">8 steps</option><option value="16" selected>16 steps</option><option value="32">32 steps</option></select></div>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="renderDrumPattern()">Render to Track</button>
+                    <button class="btn btn-secondary" style="padding:8px 12px;" onclick="loadDrumPreset('basic')">Basic Beat</button>
+                    <button class="btn btn-secondary" style="padding:8px 12px;" onclick="loadDrumPreset('hiphop')">Hip-Hop</button>
+                </div>
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Click cells to toggle hits. Each row is a different drum sound. Rendered at the current BPM.</p>`,
+
             community: `<h3>Community</h3>
                 <div style="font-size:12px; color:var(--text-dim); line-height:1.8; margin-bottom:16px;">
                     You're not alone in this. Sozawen is built by musicians for musicians — and we want to hear from you.
@@ -2712,6 +2747,160 @@
         showPanel('export');
         document.getElementById('statusText').textContent = 'Use Export All Stems in the Export panel';
     }
+
+    // ═══ SYNTH — generate patterns ═══
+    function generateSynthPattern(type) {
+        const bpmText = document.getElementById('bpmDisplay')?.textContent || '120';
+        const bpm = parseFloat(bpmText) || 120;
+        const keyText = document.getElementById('keyDisplay')?.textContent || 'C';
+        // Map key to root note (MIDI)
+        const keyMap = {'C':60,'C#':61,'D':62,'D#':63,'E':64,'F':65,'F#':66,'G':67,'G#':68,'A':69,'A#':70,'B':71};
+        const root = keyMap[keyText.replace('m','')] || 60;
+        const minor = keyText.includes('m');
+        const scale = minor ? [0,2,3,5,7,8,10] : [0,2,4,5,7,9,11]; // natural minor / major
+
+        let notes = [];
+        if (type === 'chord') {
+            // 4 chord progression, 1 bar each
+            const chords = [[0,2,4],[3,5,0],[4,6,1],[0,2,4]]; // I-IV-V-I in scale degrees
+            chords.forEach((deg, bar) => {
+                deg.forEach(d => {
+                    notes.push({note: root + scale[d % 7] + (d >= 7 ? 12 : 0), start_beat: bar * 4, duration_beats: 4, velocity: 80});
+                });
+            });
+        } else if (type === 'arp') {
+            [0,2,4,2,0,4,2,0].forEach((d, i) => {
+                notes.push({note: root + scale[d] + 12, start_beat: i * 0.5, duration_beats: 0.4, velocity: 90});
+            });
+        } else if (type === 'bass') {
+            [0,0,3,3,4,4,0,0].forEach((d, i) => {
+                notes.push({note: root - 12 + scale[d], start_beat: i * 0.5, duration_beats: 0.45, velocity: 100});
+            });
+        } else if (type === 'pad') {
+            [0,2,4].forEach(d => {
+                notes.push({note: root + scale[d], start_beat: 0, duration_beats: 16, velocity: 60});
+            });
+        } else if (type === 'lead') {
+            [0,2,4,5,4,2,0,4].forEach((d, i) => {
+                notes.push({note: root + 12 + scale[d % 7], start_beat: i * 0.5, duration_beats: 0.4, velocity: 95});
+            });
+        }
+
+        const params = {
+            waveform: document.getElementById('synthWaveform')?.value || 'saw',
+            cutoff: parseFloat(document.getElementById('synthCutoff')?.value || 4000),
+            attack: parseFloat(document.getElementById('synthAttack')?.value || 0.01),
+            release: parseFloat(document.getElementById('synthRelease')?.value || 0.1),
+            detune: parseFloat(document.getElementById('synthDetune')?.value || 0),
+        };
+
+        document.getElementById('statusText').textContent = 'Rendering synth...';
+        fetch('/api/instrument/synth', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ notes, bpm, params, name: type.charAt(0).toUpperCase() + type.slice(1) })
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('statusText').textContent = 'Synth rendered!';
+                refreshTracks();
+                reloadAllWaveforms();
+            } else {
+                document.getElementById('statusText').textContent = d.error || 'Failed';
+            }
+        });
+    }
+
+    // ═══ DRUM MACHINE ═══
+    const DRUM_ROWS = ['kick', 'snare', 'hihat', 'hihat_open', 'clap', 'tom_high', 'tom_mid', 'rim'];
+    const DRUM_LABELS = {'kick':'Kick', 'snare':'Snare', 'hihat':'HH', 'hihat_open':'OH', 'clap':'Clap', 'tom_high':'Tom H', 'tom_mid':'Tom M', 'rim':'Rim'};
+    let _drumState = {};
+
+    function buildDrumGrid() {
+        const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
+        const grid = document.getElementById('drumGrid');
+        if (!grid) return;
+        _drumState = {};
+
+        grid.innerHTML = DRUM_ROWS.map(sound => {
+            _drumState[sound] = new Array(steps).fill(false);
+            const cells = Array.from({length: steps}, (_, i) => {
+                const beatBorder = i % 4 === 0 ? 'border-left:2px solid var(--border-light);' : '';
+                return `<div class="drum-cell" data-sound="${sound}" data-step="${i}" onclick="toggleDrumCell(this)" style="width:${Math.max(14, 240/steps)}px; height:16px; background:var(--bg-deep); border:1px solid var(--border); border-radius:2px; cursor:pointer; ${beatBorder}" title="${DRUM_LABELS[sound]} step ${i+1}"></div>`;
+            }).join('');
+            return `<div style="display:flex; gap:2px; align-items:center; margin-bottom:2px;">
+                <span style="font-size:9px; color:var(--text-muted); width:36px; text-align:right; margin-right:4px;">${DRUM_LABELS[sound]}</span>
+                ${cells}
+            </div>`;
+        }).join('');
+    }
+
+    function toggleDrumCell(el) {
+        const sound = el.dataset.sound;
+        const step = parseInt(el.dataset.step);
+        _drumState[sound][step] = !_drumState[sound][step];
+        el.style.background = _drumState[sound][step] ? 'var(--violet)' : 'var(--bg-deep)';
+    }
+
+    function renderDrumPattern() {
+        const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
+        const bpmText = document.getElementById('bpmDisplay')?.textContent || '120';
+        const bpm = parseFloat(bpmText) || 120;
+        const pattern = [];
+
+        for (const sound in _drumState) {
+            _drumState[sound].forEach((on, step) => {
+                if (on) pattern.push({ sound, beat: step * 0.25, velocity: 0.8 });
+            });
+        }
+
+        if (pattern.length === 0) { alert('Click some cells first!'); return; }
+
+        document.getElementById('statusText').textContent = 'Rendering drums...';
+        fetch('/api/instrument/drums', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ pattern, bpm, name: 'Beat' })
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('statusText').textContent = 'Drums rendered!';
+                refreshTracks();
+                reloadAllWaveforms();
+            } else {
+                document.getElementById('statusText').textContent = d.error || 'Failed';
+            }
+        });
+    }
+
+    function loadDrumPreset(name) {
+        const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
+        _drumState = {};
+        DRUM_ROWS.forEach(s => _drumState[s] = new Array(steps).fill(false));
+
+        if (name === 'basic') {
+            // Basic rock/pop beat
+            [0,8].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
+        } else if (name === 'hiphop') {
+            [0,6,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
+            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
+            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
+            if(steps>14) _drumState.hihat_open[14] = true;
+        }
+
+        buildDrumGrid();
+        // Re-apply state visually
+        document.querySelectorAll('.drum-cell').forEach(el => {
+            const s = el.dataset.sound;
+            const step = parseInt(el.dataset.step);
+            if (_drumState[s] && _drumState[s][step]) el.style.background = 'var(--violet)';
+        });
+    }
+
+    // Build drum grid when panel opens
+    const _origShowPanel = showPanel;
+    showPanel = function(name, btn) {
+        _origShowPanel(name, btn);
+        if (name === 'drums') setTimeout(buildDrumGrid, 100);
+    };
 
     // ═══ RESIZABLE PANELS ═══
     function makeResizable(handleId, targetSelector, minW, maxW, side) {

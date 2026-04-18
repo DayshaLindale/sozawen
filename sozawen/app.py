@@ -552,6 +552,70 @@ async def fx_bleed_removal(request: Request):
         logger.error("Bleed removal failed: %s", e)
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# ═══════════════════════════════════════════════════════════════════
+# INSTRUMENTS — synth and drum machine
+# ═══════════════════════════════════════════════════════════════════
+
+@api.post("/api/instrument/synth")
+async def render_synth(request: Request):
+    """Render synth notes to a new track."""
+    import asyncio
+    data = await request.json()
+    notes = data.get("notes", [])
+    bpm = data.get("bpm", 120)
+    params = data.get("params", {})
+    name = data.get("name", "Synth")
+
+    if not notes:
+        return JSONResponse({"error": "No notes"}, status_code=400)
+
+    try:
+        from sozawen.instruments import render_synth_pattern
+        audio = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: render_synth_pattern(notes, sr=44100, bpm=bpm, **params))
+
+        output_path = str(BASE_DIR / "temp" / f"synth_{name}.wav")
+        Path(output_path).parent.mkdir(exist_ok=True)
+        sf.write(output_path, audio, 44100)
+
+        track = _engine.add_track(name=name)
+        track.add_region(output_path, source_type="generated")
+        return JSONResponse({"ok": True, "track_id": track.id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/instrument/drums")
+async def render_drums(request: Request):
+    """Render a drum pattern to a new track."""
+    import asyncio
+    data = await request.json()
+    pattern = data.get("pattern", [])
+    bpm = data.get("bpm", 120)
+    name = data.get("name", "Drums")
+
+    if not pattern:
+        return JSONResponse({"error": "No pattern"}, status_code=400)
+
+    try:
+        from sozawen.instruments import render_drum_pattern
+        audio = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: render_drum_pattern(pattern, sr=44100, bpm=bpm))
+
+        output_path = str(BASE_DIR / "temp" / f"drums_{name}.wav")
+        Path(output_path).parent.mkdir(exist_ok=True)
+        sf.write(output_path, audio, 44100)
+
+        track = _engine.add_track(name=name)
+        track.add_region(output_path, source_type="generated")
+        return JSONResponse({"ok": True, "track_id": track.id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.get("/api/instrument/drum-sounds")
+async def list_drum_sounds():
+    from sozawen.instruments import DRUM_SOUNDS
+    return JSONResponse({"sounds": list(DRUM_SOUNDS.keys())})
+
 @api.post("/api/fx/sidechain")
 async def fx_sidechain(request: Request):
     """Sidechain compression — duck one track based on another's level."""

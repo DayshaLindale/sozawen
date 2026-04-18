@@ -95,6 +95,10 @@ TOOLS = {
     "bleed_remove": {"label": "Bleed Removal",   "icon": "🔕", "group": "cleanup"},
     "community":    {"label": "Community",        "icon": "🌐", "group": "master"},
 
+    # Instruments
+    "synth":        {"label": "Synth",            "icon": "🎹", "group": "record"},
+    "drums":        {"label": "Drum Machine",     "icon": "🥁", "group": "record"},
+
     # Recording
     "input_select": {"label": "Input Device",     "icon": "🎤", "group": "record"},
     "metronome":    {"label": "Metronome",        "icon": "⏱", "group": "record"},
@@ -196,6 +200,7 @@ class ContextEngine:
         phase_weights = {
             Phase.EMPTY: {
                 "open_file": 1.0, "input_select": 0.8,
+                "synth": 0.7, "drums": 0.7,
             },
             Phase.IMPORT: {
                 "stem_split": 1.0, "lyrics": 0.9, "analyze": 0.9,
