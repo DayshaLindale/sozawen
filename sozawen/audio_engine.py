@@ -143,6 +143,7 @@ class Track:
         self.solo = False
         self.record_armed = False
         self.input_device = None
+        self.input_channel = 0    # which input channel this track records from (0-based)
         self.fx_chain = []        # list of effect instances
         self.automation = {}      # param_name -> list of (sample, value) breakpoints
         self.parent_id = None     # for folder grouping
@@ -289,19 +290,27 @@ class AudioEngine:
         for track in armed:
             self._record_buffers[track.id] = []
 
-        # Start input stream if not running
+        # Start input stream if not running — open all available channels
         if armed and self._input_stream is None:
             try:
+                # Query how many channels the selected device supports
+                device_info = sd.query_devices(sd.default.device[0], 'input')
+                max_channels = device_info['max_input_channels']
+                self._input_channels = max_channels
+                logger.info("Input device: %s (%d channels)",
+                            device_info['name'], max_channels)
+
                 self._input_stream = sd.InputStream(
                     samplerate=self.sample_rate,
                     blocksize=self.buffer_size,
-                    channels=1,  # mono recording by default
+                    channels=max_channels,
                     dtype='float32',
                     callback=self._input_callback,
                     latency='low',
                 )
                 self._input_stream.start()
-                logger.info("Recording started on %d tracks", len(armed))
+                logger.info("Recording started on %d tracks, %d input channels",
+                            len(armed), max_channels)
             except Exception as e:
                 logger.error("Failed to start recording: %s", e)
 
@@ -399,8 +408,12 @@ class AudioEngine:
                 self.position = self.loop_start
 
     def _input_callback(self, indata, frames, time_info, status):
-        """Record input audio to armed track buffers + monitoring."""
+        """Record input audio to armed track buffers + monitoring.
+
+        Multi-channel: each track gets only its assigned input channel.
+        """
         audio = indata.copy().astype(np.float64)
+        n_channels = audio.shape[1] if audio.ndim > 1 else 1
 
         # Store for input monitoring (even when not recording)
         if self.input_monitoring:
@@ -410,7 +423,20 @@ class AudioEngine:
             return
 
         for track_id in self._record_buffers:
-            self._record_buffers[track_id].append(audio)
+            track = self.tracks.get(track_id)
+            if not track:
+                continue
+            # Get the assigned channel for this track
+            ch = track.input_channel if hasattr(track, 'input_channel') else 0
+            ch = min(ch, n_channels - 1)  # clamp to available channels
+
+            if n_channels == 1 or audio.ndim == 1:
+                # Mono input — all tracks get the same signal
+                self._record_buffers[track_id].append(audio.reshape(-1, 1) if audio.ndim == 1 else audio)
+            else:
+                # Multi-channel — extract assigned channel as mono
+                channel_audio = audio[:, ch:ch+1]
+                self._record_buffers[track_id].append(channel_audio)
 
     # ═══════════════════════════════════════════════════════════════
     # Track management

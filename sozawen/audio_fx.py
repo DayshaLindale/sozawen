@@ -131,22 +131,62 @@ def _biquad_high_shelf(freq, gain_db, sr):
     return np.array([b0/a0, b1/a0, b2/a0, 1.0, a1/a0, a2/a0])
 
 
-def apply_eq(path, low_db=0, low_mid_db=0, mid_db=0, high_mid_db=0, high_db=0):
-    """5-band parametric EQ using biquad filters."""
-    data, sr = _load(path)
+def apply_eq(path, hpf_freq=20, lpf_freq=20000,
+             low_freq=80, low_gain=0, low_q=0.7, low_type='shelf',
+             lomid_freq=250, lomid_gain=0, lomid_q=1.0,
+             himid_freq=4000, himid_gain=0, himid_q=1.0,
+             high_freq=12000, high_gain=0, high_q=0.7, high_type='shelf',
+             # Legacy params for backward compatibility
+             low_db=None, low_mid_db=None, mid_db=None, high_mid_db=None, high_db=None,
+             **kwargs):
+    """Fully parametric EQ with HPF, LPF, and 4 bands (shelf/bell selectable).
 
-    # Build filter chain — only include bands with non-zero gain
+    Matches hardware console layout: HPF + Low + Lo-Mid + Hi-Mid + High + LPF.
+    Each band has independent frequency, gain, and Q controls.
+    """
+    # Handle legacy 5-band simple params
+    if low_db is not None: low_gain = low_db
+    if low_mid_db is not None: lomid_gain = low_mid_db
+    if mid_db is not None: himid_gain = mid_db  # map old 'mid' to hi-mid
+    if high_mid_db is not None: himid_gain = high_mid_db
+    if high_db is not None: high_gain = high_db
+
+    data, sr = _load(path)
     sections = []
-    s = _biquad_low_shelf(80, low_db, sr)
-    if s is not None: sections.append(s)
-    s = _biquad_peak(250, low_mid_db, 1.0, sr)
-    if s is not None: sections.append(s)
-    s = _biquad_peak(1000, mid_db, 1.0, sr)
-    if s is not None: sections.append(s)
-    s = _biquad_peak(4000, high_mid_db, 1.0, sr)
-    if s is not None: sections.append(s)
-    s = _biquad_high_shelf(12000, high_db, sr)
-    if s is not None: sections.append(s)
+
+    # High-pass filter (removes lows below cutoff)
+    hpf_freq = float(hpf_freq)
+    if hpf_freq > 25:
+        sos_hp = butter(2, hpf_freq, btype='highpass', fs=sr, output='sos')
+        sections.extend(sos_hp.tolist())
+
+    # Low band (shelf or bell)
+    if low_type == 'shelf':
+        s = _biquad_low_shelf(float(low_freq), float(low_gain), sr)
+    else:
+        s = _biquad_peak(float(low_freq), float(low_gain), float(low_q), sr)
+    if s is not None: sections.append(s.tolist())
+
+    # Lo-mid band (always bell)
+    s = _biquad_peak(float(lomid_freq), float(lomid_gain), float(lomid_q), sr)
+    if s is not None: sections.append(s.tolist())
+
+    # Hi-mid band (always bell)
+    s = _biquad_peak(float(himid_freq), float(himid_gain), float(himid_q), sr)
+    if s is not None: sections.append(s.tolist())
+
+    # High band (shelf or bell)
+    if high_type == 'shelf':
+        s = _biquad_high_shelf(float(high_freq), float(high_gain), sr)
+    else:
+        s = _biquad_peak(float(high_freq), float(high_gain), float(high_q), sr)
+    if s is not None: sections.append(s.tolist())
+
+    # Low-pass filter (removes highs above cutoff)
+    lpf_freq = float(lpf_freq)
+    if lpf_freq < 19500:
+        sos_lp = butter(2, lpf_freq, btype='lowpass', fs=sr, output='sos')
+        sections.extend(sos_lp.tolist())
 
     if not sections:
         return _save(data, sr, path, "eq")
@@ -541,6 +581,79 @@ def apply_declip(path, sensitivity=50):
 # ═══════════════════════════════════════════════════════════════════
 # REVERSE (already pure numpy)
 # ═══════════════════════════════════════════════════════════════════
+
+def apply_bleed_removal(target_path, reference_path, filter_length=4096, step_size=0.1):
+    """Remove bleed/leakage from one channel using another as reference.
+
+    If you're recording guitar DI on input 1 and vocals on input 2,
+    the mic picks up guitar bleed. This uses the clean guitar (reference)
+    to adaptively cancel the bleed from the vocal track (target).
+
+    Uses Normalized LMS adaptive filter — the same math used in
+    noise-cancelling headphones and conference call echo cancellation.
+
+    target_path: the track WITH bleed (e.g., vocal mic)
+    reference_path: the clean source causing the bleed (e.g., guitar DI)
+    filter_length: how many taps in the adaptive filter (longer = handles more room delay)
+    step_size: learning rate (0.01-0.5, lower = more precise, higher = faster adaptation)
+    """
+    target, sr = _load(target_path)
+    reference, sr2 = _load(reference_path)
+
+    # Work in mono for the adaptive filter
+    target_mono = target.mean(axis=1) if target.ndim > 1 else target
+    ref_mono = reference.mean(axis=1) if reference.ndim > 1 else reference
+
+    # Align lengths
+    n = min(len(target_mono), len(ref_mono))
+    target_mono = target_mono[:n]
+    ref_mono = ref_mono[:n]
+
+    # Normalize reference to prevent numerical issues
+    ref_power = np.sqrt(np.mean(ref_mono ** 2)) + 1e-10
+    ref_norm = ref_mono / ref_power
+
+    # NLMS adaptive filter
+    filter_len = min(filter_length, n // 4)
+    w = np.zeros(filter_len, dtype=np.float64)  # filter weights
+    mu = float(step_size)
+    output = np.zeros(n, dtype=np.float64)
+
+    for i in range(filter_len, n):
+        # Reference signal window
+        x = ref_norm[i - filter_len:i][::-1]
+        # Estimated bleed = filter applied to reference
+        bleed_estimate = np.dot(w, x)
+        # Error = target minus estimated bleed = clean signal
+        error = target_mono[i] - bleed_estimate
+        # Update filter weights (NLMS)
+        norm = np.dot(x, x) + 1e-10
+        w += mu * error * x / norm
+        output[i] = error
+
+    # Copy the initial samples unchanged (filter needs warmup)
+    output[:filter_len] = target_mono[:filter_len]
+
+    # Reconstruct stereo from the cleaned mono
+    if target.ndim > 1 and target.shape[1] == 2:
+        # Apply the same gain change to both channels
+        gain = np.zeros(n, dtype=np.float32)
+        safe = np.abs(target_mono) > 1e-6
+        gain[safe] = (output[safe] / target_mono[safe]).astype(np.float32)
+        gain[~safe] = 1.0
+        # Smooth the gain to avoid artifacts
+        from scipy.ndimage import uniform_filter1d
+        gain = uniform_filter1d(gain, size=512).astype(np.float32)
+        gain = np.clip(gain, 0.0, 2.0)
+        result = target[:n].copy()
+        result[:, 0] *= gain
+        result[:, 1] *= gain
+    else:
+        result = np.column_stack([output, output]).astype(np.float32)
+
+    result = np.clip(result, -1.0, 1.0)
+    return _save(result.astype(np.float32), sr, target_path, "bleed_removed")
+
 
 def apply_reverse(path):
     """Reverse the audio."""

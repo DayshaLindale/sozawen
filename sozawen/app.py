@@ -224,7 +224,7 @@ from sozawen.audio_fx import (apply_noise_gate, apply_eq, apply_compressor,
     apply_reverb, apply_delay, apply_limiter, apply_hum_removal,
     apply_deesser, apply_normalize, apply_crossfade, apply_time_stretch,
     apply_pitch_shift, apply_stereo_width, apply_declip, apply_reverse,
-    measure_loudness, export_mix)
+    apply_bleed_removal, measure_loudness, export_mix)
 @api.post("/api/project/save")
 async def save_project(request: Request):
     """Save the current project state."""
@@ -509,6 +509,51 @@ async def list_input_devices():
                 "sample_rate": int(d['default_samplerate']),
             })
     return JSONResponse({"devices": devices})
+
+@api.post("/api/fx/bleed-removal")
+async def fx_bleed_removal(request: Request):
+    """Remove bleed from one track using another as reference.
+
+    E.g., remove guitar bleed from a vocal mic using the clean DI guitar signal.
+    """
+    import asyncio
+    data = await request.json()
+    target_id = data.get("target_track_id")
+    reference_id = data.get("reference_track_id")
+    strength = data.get("strength", 0.1)  # step_size
+
+    target_track = _engine.tracks.get(target_id)
+    ref_track = _engine.tracks.get(reference_id)
+
+    if not target_track or not target_track.regions:
+        return JSONResponse({"error": "Target track has no audio"}, status_code=400)
+    if not ref_track or not ref_track.regions:
+        return JSONResponse({"error": "Reference track has no audio"}, status_code=400)
+
+    target_path = target_track.regions[0].source_path
+    ref_path = ref_track.regions[0].source_path
+
+    try:
+        output = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: apply_bleed_removal(target_path, ref_path, step_size=strength))
+        # Replace target track audio with cleaned version
+        target_track.regions[0] = target_track.regions[0].__class__(
+            output, source_type="processed", name=f"{target_track.name} (bleed removed)")
+        target_track.regions[0]._cache = None
+        return JSONResponse({"ok": True, "output": output})
+    except Exception as e:
+        logger.error("Bleed removal failed: %s", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/track/{track_id}/input-channel")
+async def set_input_channel(track_id: int, request: Request):
+    """Set which input channel a track records from."""
+    data = await request.json()
+    track = _engine.tracks.get(track_id)
+    if track:
+        track.input_channel = int(data.get("channel", 0))
+        return JSONResponse({"ok": True, "channel": track.input_channel})
+    return JSONResponse({"error": "Track not found"}, status_code=404)
 
 @api.post("/api/monitor/toggle")
 async def toggle_monitoring():
@@ -971,6 +1016,47 @@ async def license_activate(request: Request):
         return JSONResponse({"valid": False, "message": "No key provided"})
     valid, msg = activate_key(key)
     return JSONResponse({"valid": valid, "message": msg})
+
+
+# ═══════════════════════════════════════════════════════════════════
+# COMMUNITY & FEEDBACK
+# ═══════════════════════════════════════════════════════════════════
+
+@api.post("/api/feedback")
+async def submit_feedback(request: Request):
+    """Store user feedback locally. Can be reviewed and forwarded."""
+    data = await request.json()
+    fb_type = data.get("type", "feedback")
+    text = data.get("text", "").strip()
+    email = data.get("email", "")
+    version = data.get("version", "")
+
+    if not text:
+        return JSONResponse({"error": "No feedback text"}, status_code=400)
+
+    # Store locally
+    feedback_dir = BASE_DIR / "feedback"
+    feedback_dir.mkdir(exist_ok=True)
+
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    feedback_file = feedback_dir / f"{fb_type}_{timestamp}.json"
+
+    feedback_data = {
+        "type": fb_type,
+        "text": text,
+        "email": email,
+        "version": version,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    try:
+        feedback_file.write_text(json.dumps(feedback_data, indent=2))
+        logger.info("Feedback saved: %s", feedback_file.name)
+        return JSONResponse({"ok": True, "message": "Thank you for your feedback!"})
+    except Exception as e:
+        logger.error("Failed to save feedback: %s", e)
+        return JSONResponse({"error": "Could not save feedback"}, status_code=500)
 
 
 @api.get("/api/pick-file")

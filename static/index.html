@@ -37,30 +37,50 @@
         body { font-family: 'Inter', sans-serif; background: var(--bg-deep); color: var(--text); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 
         /* ═══ HEADER ═══ */
-        .header { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .header .brand { display: flex; align-items: center; gap: 12px; }
-        .header h1 { font-size: 16px; font-weight: 300; letter-spacing: 4px; color: var(--violet); }
-        .header .tagline { font-size: 9px; color: var(--text-muted); letter-spacing: 1px; }
-        .header .status { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
+        .header { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .header .brand { display: flex; align-items: center; gap: 10px; }
+        .header h1 { font-size: 13px; font-weight: 300; letter-spacing: 6px; background: linear-gradient(135deg, var(--violet) 30%, var(--teal) 70%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header .tagline { display: none; }
+        .header .status { font-size: 10px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
         .gpu-badge { padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 600; }
         .gpu-badge.on { background: var(--teal); color: #0a0a14; }
         .gpu-badge.off { background: var(--border); color: var(--text-dim); }
 
         /* ═══ TRANSPORT BAR ═══ */
-        .transport { display: flex; align-items: center; gap: 16px; padding: 8px 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .transport-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; transition: all 0.15s; }
-        .transport-btn:hover { border-color: var(--violet); background: var(--violet-soft); }
-        .transport-btn.record { border-color: var(--red); }
-        .transport-btn.record:hover { background: rgba(224, 90, 111, 0.2); }
+        .transport { display: flex; align-items: center; gap: 8px; padding: 6px 20px; background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-card) 100%); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .transport-group { display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--bg-deep); border-radius: 20px; border: 1px solid var(--border); }
+        .transport-btn { width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: var(--text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+        .transport-btn:hover { color: var(--text); background: var(--bg-hover); }
+        .transport-btn.record { color: var(--red); }
+        .transport-btn.record:hover { background: rgba(224, 90, 111, 0.15); }
         .transport-btn.record.active { background: var(--red); color: #fff; animation: pulse-rec 1.5s infinite; }
         @keyframes pulse-rec { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
-        .transport-btn.play.active { background: var(--teal); color: #0a0a14; border-color: var(--teal); }
-        .time-display { font-family: 'Courier New', monospace; font-size: 18px; color: var(--teal); letter-spacing: 2px; min-width: 100px; }
-        .bpm-display { font-size: 12px; color: var(--text-dim); padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); }
-        .key-display { font-size: 12px; color: var(--violet-glow); padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+        .transport-btn.play.active { background: var(--teal); color: #0a0a14; }
+        .transport-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+        .time-display { font-family: 'Courier New', monospace; font-size: 20px; color: var(--teal); letter-spacing: 3px; min-width: 110px; padding: 4px 12px; background: var(--bg-deep); border-radius: var(--radius); border: 1px solid var(--border); text-align: center; }
+        .info-pill { font-size: 11px; color: var(--text-dim); padding: 4px 12px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 20px; letter-spacing: 0.5px; }
+        .info-pill .value { color: var(--violet-glow); font-weight: 500; }
+        .info-pill.key .value { color: var(--teal); }
 
         /* ═══ MAIN LAYOUT ═══ */
         .main { display: flex; flex: 1; overflow: hidden; }
+
+        /* ═══ RESIZE HANDLES ═══ */
+        .resize-handle {
+            width: 4px; cursor: col-resize; background: transparent;
+            flex-shrink: 0; position: relative; z-index: 5;
+            transition: background 0.2s;
+        }
+        .resize-handle:hover, .resize-handle.dragging {
+            background: var(--violet);
+        }
+        .resize-handle::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px; height: 24px; border-radius: 1px;
+            background: var(--border); transition: background 0.2s;
+        }
+        .resize-handle:hover::after { background: var(--violet-glow); }
 
         /* ═══ SIDEBAR ═══ */
         .sidebar { width: 180px; background: var(--bg-surface); border-right: 1px solid var(--border); padding: 10px; overflow-y: auto; flex-shrink: 0; }
@@ -96,10 +116,28 @@
         .track-ctrl.active-s { background: var(--teal); color: #0a0a14; border-color: var(--teal); }
         .track-ctrl.active-m { background: var(--red); color: #fff; border-color: var(--red); }
         .track-ctrl.active-r { background: var(--red); color: #fff; border-color: var(--red); animation: pulse-rec 1.5s infinite; }
-        .track-volume { width: 55px; height: 3px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
-        .track-volume::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--violet); cursor: pointer; }
-        .track-pan { width: 40px; height: 3px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
-        .track-pan::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); cursor: pointer; }
+        .track-volume {
+            width: 55px; height: 5px; -webkit-appearance: none; outline: none; cursor: pointer;
+            background: var(--bg-deep); border: 1px solid var(--border); border-radius: 2px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+        }
+        .track-volume::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 5px; height: 14px;
+            background: linear-gradient(180deg, #c8c0d8 0%, #9b59b6 40%, #7b3fa0 100%);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 1px; cursor: grab;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+        .track-pan {
+            width: 40px; height: 5px; -webkit-appearance: none; outline: none; cursor: pointer;
+            background: var(--bg-deep); border: 1px solid var(--border); border-radius: 2px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+        }
+        .track-pan::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 5px; height: 14px;
+            background: linear-gradient(180deg, #a0e8d8 0%, #2dd4a8 40%, #1a9a78 100%);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 1px; cursor: grab;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
         .track-body { flex: 1; background: var(--bg-track); position: relative; overflow-x: auto; overflow-y: hidden; cursor: crosshair; }
         .track-waveform { position: absolute; top: 0; left: 0; height: 100%; min-width: 100%; }
         .track-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 11px; }
@@ -111,11 +149,11 @@
         .drop-overlay p { font-size: 13px; color: var(--text-dim); }
 
         /* ═══ BOTTOM BAR ═══ */
-        .bottom-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; background: var(--bg-surface); border-top: 1px solid var(--border); flex-shrink: 0; font-size: 11px; color: var(--text-muted); gap: 16px; }
+        .bottom-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; background: var(--bg-card); border-top: 1px solid var(--border); flex-shrink: 0; font-size: 10px; color: var(--text-muted); gap: 16px; }
 
         /* ═══ TOOL PANEL (right side) ═══ */
-        .tool-panel { width: 300px; background: var(--bg-surface); border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; flex-shrink: 0; display: none; }
-        .tool-panel.visible { display: block; }
+        .tool-panel { position: fixed; right: 0; top: 36px; bottom: 28px; width: 320px; background: var(--bg-surface); border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; z-index: 50; transform: translateX(100%); transition: transform 0.2s ease; box-shadow: -4px 0 20px rgba(0,0,0,0.3); }
+        .tool-panel.visible { transform: translateX(0); }
         .tool-panel h3 { font-size: 13px; color: var(--violet-glow); margin-bottom: 12px; }
         .tool-panel .field { margin-bottom: 12px; }
         .tool-panel label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
@@ -137,10 +175,32 @@
         .menu-option .shortcut { color: var(--text-muted); font-size: 11px; }
         .menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
-        /* Slider styling */
-        input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 2px; outline: none; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--violet); cursor: pointer; }
-        input[type="range"]::-webkit-slider-thumb:hover { background: var(--violet-glow); }
+        /* ═══ EQ-STYLE FADER SLIDERS ═══ */
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 6px; outline: none; cursor: pointer;
+            background: linear-gradient(to right, var(--bg-deep) 0%, var(--bg-deep) 100%);
+            border: 1px solid var(--border); border-radius: 3px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 6px; height: 18px;
+            background: linear-gradient(180deg, #c8c0d8 0%, #9b59b6 40%, #7b3fa0 100%);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: grab;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: linear-gradient(180deg, #e0d8f0 0%, #b76fcc 40%, #9b59b6 100%);
+            box-shadow: 0 1px 6px rgba(155,89,182,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+        input[type="range"]::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            background: linear-gradient(180deg, #f0e8ff 0%, #c084e0 40%, #b76fcc 100%);
+        }
+        /* Center notch line for sliders that have a center (gain, pan) */
+        input[type="range"]:focus { border-color: var(--violet); }
 
         /* Help tooltip */
         .help-tip { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--border); color: var(--text-muted); font-size: 9px; text-align: center; line-height: 14px; cursor: help; margin-left: 4px; vertical-align: middle; }
@@ -214,6 +274,9 @@
                 <button class="menu-option" onclick="showPanel('glossary')">Glossary</button>
                 <button class="menu-option" onclick="showPanel('shortcuts')">Keyboard Shortcuts</button>
                 <div class="menu-sep"></div>
+                <button class="menu-option" onclick="showPanel('community')">Community & Feedback</button>
+                <button class="menu-option" onclick="window.open('https://discord.gg/WhzuhTeVsU','_blank')">Join Discord</button>
+                <div class="menu-sep"></div>
                 <button class="menu-option" onclick="showAbout()">About Sozawen</button>
             </div>
         </div>
@@ -222,7 +285,8 @@
     <!-- HEADER -->
     <div class="header">
         <div class="brand">
-            <a href="/static/site.html" target="_blank" style="text-decoration:none; display:flex; align-items:center; gap:12px;">
+            <a href="/static/site.html" target="_blank" style="text-decoration:none; display:flex; align-items:center; gap:8px;">
+                <img src="/static/favicon.svg" style="height:18px; width:18px;" alt="">
                 <h1>SOZAWEN</h1>
             </a>
             <span class="tagline">BORN FROM THE BURN. BUILT BY FEELING.</span>
@@ -235,16 +299,28 @@
 
     <!-- TRANSPORT -->
     <div class="transport">
-        <button class="transport-btn record" id="btnRecord" onclick="toggleRecord()" title="Record">&#9679;</button>
-        <button class="transport-btn play" id="btnPlay" onclick="togglePlay()" title="Play">&#9654;</button>
-        <button class="transport-btn" onclick="stopAll()" title="Stop">&#9632;</button>
-        <button class="transport-btn" onclick="rewind()" title="Rewind">&#9664;&#9664;</button>
+        <!-- Transport controls — grouped like a hardware unit -->
+        <div class="transport-group">
+            <button class="transport-btn" onclick="rewind()" title="Return to start">&#9664;&#9664;</button>
+            <button class="transport-btn record" id="btnRecord" onclick="toggleRecord()" title="Record">&#9679;</button>
+            <button class="transport-btn play" id="btnPlay" onclick="togglePlay()" title="Play / Pause">&#9654;</button>
+            <button class="transport-btn" onclick="stopAll()" title="Stop">&#9632;</button>
+        </div>
+
+        <!-- Time display — the clock -->
         <div class="time-display" id="timeDisplay">00:00.00</div>
+
         <div style="flex:1;"></div>
-        <div class="key-display" id="keyDisplay">—</div>
-        <div class="bpm-display" id="bpmDisplay">— BPM</div>
-        <button class="btn btn-secondary" onclick="addTrack()" style="font-size:11px;">+ Track</button>
-        <button class="btn btn-secondary" onclick="openFile()" style="font-size:11px;">Open File</button>
+
+        <!-- Session info — key and tempo -->
+        <div class="info-pill key"><span class="value" id="keyDisplay">—</span></div>
+        <div class="info-pill"><span class="value" id="bpmDisplay">—</span> BPM</div>
+
+        <div class="transport-divider"></div>
+
+        <!-- Actions -->
+        <button class="btn btn-secondary" onclick="openFile()" style="font-size:10px; padding:5px 12px; border-radius:20px;">Open</button>
+        <button class="btn btn-secondary" onclick="addTrack()" style="font-size:10px; padding:5px 12px; border-radius:20px;">+ Track</button>
     </div>
 
     <!-- MAIN -->
@@ -274,6 +350,9 @@
             </div>
         </div>
 
+        <!-- Resize handle: sidebar ↔ workspace -->
+        <div class="resize-handle" id="sidebarResize"></div>
+
         <!-- TIMELINE — split: track panel (fixed) + wave panel (scrollable) -->
         <div class="workspace">
             <div class="timeline" id="timeline">
@@ -282,6 +361,9 @@
                     <div class="track-panel-header">TRACKS</div>
                     <div id="trackHeaders"></div>
                 </div>
+
+                <!-- Resize handle: track panel ↔ wave panel -->
+                <div class="resize-handle" id="trackResize"></div>
 
                 <!-- RIGHT: Waveforms + ruler + playhead (scrollable) -->
                 <div class="wave-panel" id="wavePanel">
@@ -307,10 +389,11 @@
             </div>
         </div>
 
-        <!-- TOOL PANEL (right side, hidden by default) -->
-        <div class="tool-panel" id="toolPanel">
-            <div id="panelContent"></div>
-        </div>
+    <!-- TOOL PANEL (slides in from right) -->
+    <div class="tool-panel" id="toolPanel">
+        <button onclick="closePanel()" style="position:absolute; top:8px; right:10px; background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; padding:4px 8px; line-height:1;">&times;</button>
+        <div id="panelContent"></div>
+    </div>
     </div>
 
     <!-- BOTTOM BAR -->
@@ -819,6 +902,10 @@
     }
 
     // ═══ TOOL PANEL ═══
+    function closePanel() {
+        document.getElementById('toolPanel').classList.remove('visible');
+        document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+    }
     function showPanel(name, btn) {
         document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
         if(btn) btn.classList.add('active');
@@ -830,15 +917,20 @@
         const panels = {
             open_file: 'OPEN_FILE',  // special: triggers file picker instead of panel
             input_select: `<h3>Input Device ${h('Choose which microphone or audio interface to record from.')}</h3>
-                <div class="field"><label>Input Device</label>
-                    <select id="inputDeviceSelect"><option>Loading...</option></select></div>
-                <div class="field"><label>Input Level</label>
+                <div class="field"><label>Input Device ${h('Your audio interface or microphone. If you have multiple, select which one to record from.')}</label>
+                    <select id="inputDeviceSelect" onchange="onDeviceChange()"><option>Loading...</option></select></div>
+                <div class="field"><label>Input Channel ${h('If your interface has multiple inputs (e.g. guitar on 1, vocals on 2), choose which channel this track records from.')}</label>
+                    <select id="inputChannelSelect">
+                        <option value="0">Channel 1 (Left / Mono)</option>
+                        <option value="1">Channel 2 (Right)</option>
+                    </select></div>
+                <div class="field"><label>Input Level ${h('Shows the current input level from your selected device. Green = good. Red = too hot, turn down the gain on your interface.')}</label>
                     <div style="height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
                         <div id="inputMeter" style="height:100%; width:0%; background:var(--teal); transition:width 0.1s;"></div>
                     </div></div>
                 <button class="btn btn-teal" style="width:100%" onclick="armRecording()">Arm for Recording</button>
                 <button class="btn btn-secondary" style="width:100%; margin-top:6px;" onclick="toggleMonitoring(this)">Input Monitor: Off</button>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your mic or interface, then hit the red Record button in the transport bar. Turn on Input Monitor to hear yourself.</p>`,
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your mic or interface and input channel, then hit Record. Each track can record from a different channel — guitar on 1, vocals on 2.</p>`,
 
             stem_split: `<h3>Separate ${h('Splits your audio into individual parts. The program detects what approach works best and handles the details.')}</h3>
                 <div id="channelInfo" style="font-size:11px; color:var(--teal); padding:6px 0 4px; margin-bottom:4px;">Analyzing your audio...</div>
@@ -855,7 +947,7 @@
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Each part becomes its own track that you can mix, edit, and export independently.</p>`,
 
             lyrics: `<h3>Lyric Transcription ${h('Listens to the vocals and writes out the words with timestamps. Works best on isolated vocal tracks — try Stem Split first.')}</h3>
-                <div class="field"><label>Language</label>
+                <div class="field"><label>Language ${h('The language of the vocals. Auto-detect works for most cases. Selecting the specific language improves accuracy.')}</label>
                     <select><option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="ja">Japanese</option><option value="ko">Korean</option><option value="auto">Auto-detect</option></select></div>
                 <div class="field"><label>Accuracy ${h('Larger models are more accurate but use more memory and take longer.')}</label>
                     <select><option value="base">Base — fast, good for drafts</option><option value="small">Small — balanced</option><option value="medium">Medium — best accuracy</option></select></div>
@@ -867,87 +959,192 @@
                     <button class="btn btn-secondary" style="font-size:11px;" onclick="exportLyrics('srt')">Export .SRT</button>
                 </div>`,
 
-            noise_gate: `<h3>Noise Gate ${h('Silences audio below a threshold. Use it to remove background noise between words or phrases.')}</h3>
-                <div class="field"><label>Threshold ${h('Audio quieter than this gets silenced. Start around -40dB and adjust until the noise disappears but your sound stays.')}</label>
-                    <input type="range" min="-60" max="0" value="-40" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-40dB</span></div>
-                <div class="field"><label>Attack ${h('How quickly the gate opens when sound starts. Fast = tight, slow = gentle fade in.')}</label>
-                    <input type="range" min="1" max="100" value="10" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">10ms</span></div>
-                <div class="field"><label>Release ${h('How quickly the gate closes when sound stops. Longer = more natural tail.')}</label>
-                    <input type="range" min="10" max="500" value="100" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
+            noise_gate: `<h3>Noise Gate ${h('Silences audio below a threshold. Same controls as hardware gates — Drawmer DS201, dbx 566. Use to remove background noise, bleed, or room tone between phrases.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">GATE — HARDWARE CONTROL LAYOUT</div>
+                <div class="field"><label>Threshold ${h('The level where the gate opens/closes. Audio below this gets silenced. On hardware: the threshold knob. Start at -40dB for room noise, -25dB for aggressive gating.')}</label>
+                    <input type="range" min="-80" max="0" value="-40" step="1" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-40dB</span></div>
+                <div class="field"><label>Attack ${h('How fast the gate opens when signal exceeds threshold. Fast (0.1-1ms) = tight, may click. Slow (5-20ms) = smooth fade in. On hardware: the attack knob.')}</label>
+                    <input type="range" min="0.1" max="100" value="5" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">5ms</span></div>
+                <div class="field"><label>Hold ${h('Minimum time the gate stays open once triggered. Prevents the gate from chattering on sustained notes. On hardware: the hold knob. 10-50ms for speech, 50-200ms for instruments.')}</label>
+                    <input type="range" min="0" max="500" value="50" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">50ms</span></div>
+                <div class="field"><label>Release ${h('How fast the gate closes after hold time. Longer = more natural tail, shorter = tighter cutoff. On hardware: the release knob. 50-150ms for most uses.')}</label>
+                    <input type="range" min="5" max="1000" value="100" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
+                <div class="field"><label>Range ${h('How much to reduce the signal when the gate is closed. -inf = full silence. -20dB = just quieter (more natural). On hardware: the range/depth knob. Use -40 to -60dB for noise removal, -10 to -20dB for subtle tightening.')}</label>
+                    <input type="range" min="-80" max="0" value="-80" step="1" oninput="this.nextElementSibling.textContent=this.value+(this.value<=-80?' (full mute)':'dB')"><span style="font-size:11px; color:var(--teal);">-80 (full mute)</span></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyNoiseGate()">Apply</button>`,
 
-            hum_remove: `<h3>Hum Removal ${h('Removes electrical hum (that low buzzing sound) from recordings. Common with older equipment or bad grounding.')}</h3>
-                <div class="field"><label>Frequency ${h('In the US, electrical hum is 60Hz. In Europe and most other countries, its 50Hz. If unsure, try both.')}</label>
-                    <select><option value="60">60 Hz (US / Americas)</option><option value="50">50 Hz (Europe / Asia / Africa)</option><option value="auto">Auto-detect</option></select></div>
-                <div class="field"><label>Harmonics ${h('Hum has overtones at 2x, 3x, 4x the base frequency. More harmonics removed = cleaner but may affect your audio.')}</label>
-                    <input type="range" min="1" max="8" value="4" oninput="this.nextElementSibling.textContent=this.value+' harmonics'"><span style="font-size:11px; color:var(--teal);">4 harmonics</span></div>
-                <div class="field"><label>Strength ${h('How aggressively to remove the hum. Too much can make vocals sound thin.')}</label>
-                    <input type="range" min="0" max="100" value="70" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">70%</span></div>
+            hum_remove: `<h3>Hum Removal ${h('Removes electrical hum using precision notch filters at the fundamental and harmonics. The same approach used in professional audio restoration — iZotope RX uses the same technique.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">ADAPTIVE NOTCH FILTER — HARMONIC SERIES</div>
+                <div class="field"><label>Fundamental ${h('The base frequency of the hum. US/Americas power = 60Hz. Europe/Asia/Africa/Australia = 50Hz. If unsure: record silence and listen — 60Hz sounds like a low buzz, 50Hz is slightly lower. On hardware: some units auto-detect.')}</label>
+                    <select><option value="60">60 Hz — US / Americas / Japan (60Hz regions)</option><option value="50">50 Hz — Europe / UK / Asia / Africa / Australia</option></select></div>
+                <div class="field"><label>Harmonics ${h('Hum produces overtones at exact multiples of the fundamental (60Hz → 120, 180, 240, 300, 360, 420, 480Hz). Each harmonic needs its own notch filter. More harmonics = cleaner, but removing too many above 6 can thin vocals.')}</label>
+                    <input type="range" min="1" max="10" value="5" oninput="this.nextElementSibling.textContent=this.value+' harmonics ('+this.value+'x notch filters)'"><span style="font-size:11px; color:var(--teal);">5 harmonics (5x notch filters)</span></div>
+                <div class="field"><label>Q Factor / Notch Width ${h('How narrow each notch filter is. Higher Q = narrower notch = removes only the hum frequency precisely. Lower Q = wider notch = catches more hum but may remove wanted audio. On hardware: the bandwidth control. Q 20-40 for precise, Q 5-15 for aggressive.')}</label>
+                    <input type="range" min="5" max="60" value="30" step="1" oninput="this.nextElementSibling.textContent='Q '+this.value+(this.value>25?' (precise)':' (wide)')"><span style="font-size:11px; color:var(--teal);">Q 30 (precise)</span></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyHumRemoval()">Apply</button>`,
 
-            de_ess: `<h3>De-esser ${h('Reduces harsh S and T sounds (sibilance) in vocals. Makes singing and speech smoother without dulling the voice.')}</h3>
-                <div class="field"><label>Frequency ${h('Where the harshness lives. Usually 4-8kHz for most voices. Higher for female, lower for male.')}</label>
-                    <input type="range" min="2000" max="12000" value="6000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">6.0kHz</span></div>
-                <div class="field"><label>Reduction ${h('How much to pull back the sibilance. Start gentle — too much makes S sounds disappear.')}</label>
-                    <input type="range" min="0" max="20" value="6" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">6dB</span></div>
+            de_ess: `<h3>De-esser ${h('Frequency-selective compressor that targets sibilance (harsh S, T, SH sounds). Same concept as the Waves DeEsser, FabFilter Pro-DS, or hardware units like the DBX 520.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">DYNAMIC SIBILANCE CONTROL</div>
+                <div class="field"><label>Frequency ${h('Center frequency of the sibilant range. Male vocals: 4-6kHz. Female vocals: 6-9kHz. Children: 7-10kHz. On hardware: the frequency selector. Listen for where the harsh "S" sounds live.')}</label>
+                    <input type="range" min="2000" max="16000" value="6000" step="200" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">6.0kHz</span></div>
+                <div class="field"><label>Reduction ${h('Maximum gain reduction when sibilance is detected. 3-6dB = subtle smoothing. 8-12dB = aggressive control. 15dB+ = heavy-handed (may sound lispy). On hardware: the range/depth knob.')}</label>
+                    <input type="range" min="0" max="24" value="6" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">6dB</span></div>
+                <div class="field"><label>Detection Mode ${h('Wideband = compresses the full signal when sibilance is detected (more transparent). Split-band = only compresses the high frequencies (more surgical, can sound unnatural if overdone). On hardware: the mode switch.')}</label>
+                    <select><option value="wide">Wideband — compresses full signal</option><option value="split">Split-band — compresses highs only</option></select></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyDeEss()">Apply</button>`,
 
-            normalize: `<h3>Normalize ${h('Adjusts the overall volume of your audio. Peak normalization sets the loudest moment to a target. RMS normalizes the average loudness.')}</h3>
-                <div class="field"><label>Mode</label>
-                    <select><option>Peak — set the loudest point</option><option>RMS — set the average loudness</option><option>LUFS — broadcast standard</option></select></div>
-                <div class="field"><label>Target ${h('Where to set the level. 0dB is the maximum before clipping. -1dB leaves a tiny bit of headroom.')}</label>
-                    <input type="range" min="-12" max="0" value="-1" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-1dB</span></div>
+            normalize: `<h3>Normalize ${h('Adjusts the overall volume to a target level. The same function as "normalize" on any hardware recorder or DAW. Three modes for different needs.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">LEVEL NORMALIZATION</div>
+                <div class="field"><label>Mode ${h('Peak = sets the loudest single sample to target (preserves dynamics). RMS = sets the average energy to target (more consistent perceived loudness). LUFS = broadcast standard loudness (what streaming platforms use).')}</label>
+                    <select><option value="peak">Peak — loudest sample hits target</option><option value="rms">RMS — average energy hits target</option><option value="lufs">LUFS — broadcast standard</option></select></div>
+                <div class="field"><label>Target ${h('The level to normalize to. Peak: -1dB leaves headroom for mastering. RMS: -18dBFS is standard mixing level. LUFS: -14 for Spotify/YouTube, -16 for Apple Music.')}</label>
+                    <input type="range" min="-24" max="0" value="-1" step="0.5" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-1dB</span></div>
+                <div style="font-size:10px; color:var(--text-dim); margin:8px 0; padding:8px; background:var(--bg-deep); border-radius:var(--radius);">
+                    Common targets:<br>
+                    Peak: -1dB (mastering headroom) | -0.3dB (maximized)<br>
+                    RMS: -18dBFS (mixing standard) | -14dBFS (broadcast)<br>
+                    LUFS: -14 (Spotify) | -16 (Apple) | -23 (EBU broadcast)
+                </div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyNormalize()">Apply</button>`,
 
-            eq: `<h3>Equalizer ${h('Shape the tone by boosting or cutting specific frequencies. Low = bass, mid = body/vocals, high = sparkle/air.')}</h3>
-                <div class="field"><label>Low (80Hz) ${h('Controls the bass. Boost for warmth, cut to reduce muddiness.')}</label>
-                    <input type="range" min="-12" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                <div class="field"><label>Low-Mid (250Hz) ${h('Where muddiness and boxiness live. Often needs cutting rather than boosting.')}</label>
-                    <input type="range" min="-12" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                <div class="field"><label>Mid (1kHz) ${h('The body of most instruments and vocals. Boost for presence, cut if things sound nasal.')}</label>
-                    <input type="range" min="-12" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                <div class="field"><label>High-Mid (4kHz) ${h('Presence and clarity. Boost for vocal articulation, cut if things sound harsh.')}</label>
-                    <input type="range" min="-12" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                <div class="field"><label>High (12kHz) ${h('Air and sparkle. Boost for brightness, cut if too harsh or sibilant.')}</label>
-                    <input type="range" min="-12" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
-                <button class="btn btn-primary" style="width:100%" onclick="applyEQ()">Apply</button>`,
+            eq: `<h3>Parametric EQ ${h('A parametric EQ gives you control over frequency, gain, and bandwidth (Q) for each band — the same controls found on professional mixing consoles.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">HPF + 4 BANDS + LPF — SAME LAYOUT AS SSL / NEVE HARDWARE</div>
 
-            compressor: `<h3>Compressor ${h('Evens out the volume — makes quiet parts louder and loud parts quieter. Essential for vocals and drums.')}</h3>
-                <div class="field"><label>Threshold ${h('Audio above this level gets compressed. Lower = more compression. Start around -20dB.')}</label>
-                    <input type="range" min="-60" max="0" value="-20" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-20dB</span></div>
-                <div class="field"><label>Ratio ${h('How much to compress. 2:1 is gentle, 4:1 is moderate, 10:1 is heavy. Start at 3:1.')}</label>
+                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <span style="font-size:10px; color:var(--red); font-weight:600; width:32px;">HPF</span>
+                        <span style="font-size:9px; color:var(--text-muted);">${h('High-pass filter — removes everything below this frequency. Use to cut rumble, handling noise, and low-end mud.')}</span>
+                    </div>
+                    <div class="field"><label>Cutoff ${h('Frequencies below this are removed. 20Hz = off (passes everything). 80Hz = removes rumble. 120Hz = removes mud. On a console: the HPF knob.')}</label>
+                        <input type="range" id="eq_hpf" min="20" max="500" value="20" step="5" oninput="this.nextElementSibling.textContent=this.value+'Hz'"><span style="font-size:11px; color:var(--teal);">20Hz</span></div>
+                </div>
+
+                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <span style="font-size:10px; color:var(--violet-glow); font-weight:600; width:32px;">LOW</span>
+                        <select id="eq_low_type" style="font-size:10px; padding:2px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); border-radius:3px;"><option value="shelf">Shelf</option><option value="bell">Bell</option></select>
+                        ${h('Shelf = boosts/cuts everything below the frequency (like tilting the low end up or down). Bell = boosts/cuts a specific range around the frequency (like a hill). On hardware: the shelf/bell switch. Use shelf for broad tone shaping, bell for targeting a specific problem.')}
+                    </div>
+                    <div class="field"><label>Freq ${h('Center frequency of this band. On hardware: the frequency knob.')}</label>
+                        <input type="range" id="eq_low_freq" min="20" max="500" value="80" step="5" oninput="this.nextElementSibling.textContent=this.value+'Hz'"><span style="font-size:11px; color:var(--teal);">80Hz</span></div>
+                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. +dB = louder, -dB = quieter. On hardware: the boost/cut knob.')}</label>
+                        <input type="range" id="eq_low_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
+                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
+                        <input type="range" id="eq_low_q" min="0.1" max="10" value="0.7" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 0.7</span></div>
+                </div>
+
+                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-size:10px; color:var(--violet-glow); font-weight:600;">LO-MID</span>
+                    <div class="field"><label>Freq ${h('Center frequency for the lo-mid band. 200-500Hz = body/warmth. Cut here to reduce boxiness or muddiness.')}</label>
+                        <input type="range" id="eq_lomid_freq" min="100" max="2000" value="250" step="10" oninput="this.nextElementSibling.textContent=this.value+'Hz'"><span style="font-size:11px; color:var(--teal);">250Hz</span></div>
+                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. On hardware: the lo-mid gain knob.')}</label>
+                        <input type="range" id="eq_lomid_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
+                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
+                        <input type="range" id="eq_lomid_q" min="0.1" max="10" value="1.0" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 1.0</span></div>
+                </div>
+
+                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-size:10px; color:var(--violet-glow); font-weight:600;">HI-MID</span>
+                    <div class="field"><label>Freq ${h('Center frequency for the hi-mid band. 1-3kHz = presence. 3-5kHz = clarity/bite. On hardware: the hi-mid frequency knob.')}</label>
+                        <input type="range" id="eq_himid_freq" min="500" max="10000" value="4000" step="100" oninput="this.nextElementSibling.textContent=(this.value>=1000?(this.value/1000).toFixed(1)+'kHz':this.value+'Hz')"><span style="font-size:11px; color:var(--teal);">4.0kHz</span></div>
+                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. On hardware: the hi-mid gain knob.')}</label>
+                        <input type="range" id="eq_himid_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
+                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
+                        <input type="range" id="eq_himid_q" min="0.1" max="10" value="1.0" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 1.0</span></div>
+                </div>
+
+                <div style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <span style="font-size:10px; color:var(--violet-glow); font-weight:600; width:32px;">HIGH</span>
+                        <select id="eq_high_type" style="font-size:10px; padding:2px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); border-radius:3px;"><option value="shelf">Shelf</option><option value="bell">Bell</option></select>
+                        ${h('Shelf = boosts/cuts everything above the frequency (like adding air or removing harshness across all highs). Bell = targets a specific high frequency range. On hardware: the HF shelf/bell switch. Use shelf for overall brightness, bell for surgical high-frequency work.')}
+                    </div>
+                    <div class="field"><label>Freq ${h('Center frequency for the high band. 8-12kHz = air/shimmer. 4-8kHz = presence. On hardware: the HF frequency knob.')}</label>
+                        <input type="range" id="eq_high_freq" min="2000" max="20000" value="12000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">12.0kHz</span></div>
+                    <div class="field"><label>Gain ${h('Boost or cut at this frequency. On hardware: the HF gain knob.')}</label>
+                        <input type="range" id="eq_high_gain" min="-18" max="18" value="0" step="0.5" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">0dB</span></div>
+                    <div class="field"><label>Q ${h('Bandwidth — how wide the boost/cut is. Low Q = wide and gentle. High Q = narrow and surgical. On hardware: the bandwidth knob.')}</label>
+                        <input type="range" id="eq_high_q" min="0.1" max="10" value="0.7" step="0.1" oninput="this.nextElementSibling.textContent='Q '+this.value"><span style="font-size:11px; color:var(--teal);">Q 0.7</span></div>
+                </div>
+
+                <div style="padding-bottom:10px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <span style="font-size:10px; color:var(--red); font-weight:600; width:32px;">LPF</span>
+                        <span style="font-size:9px; color:var(--text-muted);">${h('Low-pass filter — removes everything above this frequency. Use to tame harshness or cut hiss.')}</span>
+                    </div>
+                    <div class="field"><label>Cutoff ${h('Frequencies above this are removed. 20kHz = off (passes everything). 12kHz = removes harsh highs. 8kHz = removes sibilance. On a console: the LPF knob.')}</label>
+                        <input type="range" id="eq_lpf" min="2000" max="20000" value="20000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">20.0kHz</span></div>
+                </div>
+
+                <button class="btn btn-primary" style="width:100%" onclick="applyFullEQ()">Apply</button>`,
+
+            compressor: `<h3>Compressor ${h('Evens out the volume — makes quiet parts louder and loud parts quieter. These are the same controls found on hardware units like the 1176, LA-2A, and SSL bus compressor.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">MODELED AFTER HARDWARE COMPRESSOR CONTROLS</div>
+
+                <div class="field"><label>Threshold ${h('The level where compression begins. Everything above this gets compressed. On hardware: the threshold knob. Lower = more compression. Start around -20dB for gentle, -40dB for heavy.')}</label>
+                    <input type="range" min="-60" max="0" value="-20" step="1" oninput="this.nextElementSibling.textContent=this.value+'dB'"><span style="font-size:11px; color:var(--teal);">-20dB</span></div>
+                <div class="field"><label>Ratio ${h('How much to reduce the signal above the threshold. 2:1 = gentle leveling. 4:1 = moderate. 10:1 = heavy. 20:1 = near-limiting. Infinity = brick wall. On an 1176: the ratio buttons (4, 8, 12, 20).')}</label>
                     <input type="range" min="1" max="20" value="3" step="0.5" oninput="this.nextElementSibling.textContent=this.value+':1'"><span style="font-size:11px; color:var(--teal);">3:1</span></div>
-                <div class="field"><label>Attack ${h('How fast compression kicks in. Fast catches transients (drums). Slow lets the initial hit through (more punch).')}</label>
-                    <input type="range" min="1" max="100" value="10" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">10ms</span></div>
-                <div class="field"><label>Release ${h('How fast compression lets go. Too fast = pumping. Too slow = sustained squash.')}</label>
-                    <input type="range" min="10" max="1000" value="100" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
-                <div class="field"><label>Makeup Gain ${h('Compression makes things quieter. This adds volume back to match the original loudness.')}</label>
-                    <input type="range" min="0" max="24" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
+                <div class="field"><label>Attack ${h('How fast compression engages after signal crosses threshold. Fast (0.02-1ms) catches transients — good for controlling drums. Slow (10-100ms) lets the initial transient through — more punch and snap. On an 1176: fully clockwise = slowest.')}</label>
+                    <input type="range" min="0.02" max="100" value="10" step="0.5" oninput="this.nextElementSibling.textContent=(this.value<1?this.value+'ms':Math.round(this.value)+'ms')"><span style="font-size:11px; color:var(--teal);">10ms</span></div>
+                <div class="field"><label>Release ${h('How fast compression lets go after signal drops below threshold. Fast (50-100ms) = responsive, may pump. Slow (300ms-1s) = smoother but can squash dynamics. Auto = adapts to the material. On an 1176: fully clockwise = slowest.')}</label>
+                    <input type="range" min="10" max="1200" value="100" step="10" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">100ms</span></div>
+                <div class="field"><label>Knee ${h('Soft knee = gradual onset of compression (smoother, more transparent). Hard knee = abrupt compression at threshold (more aggressive, audible pumping). On hardware: some have a soft/hard switch.')}</label>
+                    <input type="range" min="0" max="20" value="6" step="1" oninput="this.nextElementSibling.textContent=this.value+'dB ('+( this.value<5?'hard':'soft')+')'"><span style="font-size:11px; color:var(--teal);">6dB (soft)</span></div>
+                <div class="field"><label>Makeup Gain ${h('Compression reduces the overall level. Makeup gain adds volume back so the compressed signal matches the original perceived loudness. On hardware: the output or gain knob.')}</label>
+                    <input type="range" min="0" max="30" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
+                <div class="field"><label>Sidechain HPF ${h('Filters the detector signal so the compressor ignores low frequencies. Prevents bass from triggering compression. Set to 80-150Hz for full mixes. On hardware: the sidechain filter.')}</label>
+                    <input type="range" min="20" max="500" value="20" step="10" oninput="this.nextElementSibling.textContent=this.value+'Hz'+(this.value>20?' (active)':' (off)')"><span style="font-size:11px; color:var(--teal);">20Hz (off)</span></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyCompressor()">Apply</button>`,
 
-            reverb: `<h3>Reverb ${h('Adds the sound of a room or space. Makes things sound less dry and more natural. Use subtly for vocals, more for ambiance.')}</h3>
-                <div class="field"><label>Room Size ${h('Small = bathroom/closet. Medium = studio/bedroom. Large = hall/cathedral.')}</label>
+            reverb: `<h3>Reverb ${h('Adds the sound of a room or space. These controls mirror what you find on hardware reverb units like the Lexicon 480L and PCM series.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SCHROEDER ALGORITHM — SAME TOPOLOGY AS LEXICON HARDWARE</div>
+                <div class="field"><label>Pre-Delay ${h('Time before the reverb starts. Separates the direct sound from the reflections. 0-20ms = tight/intimate. 50-100ms = creates depth without muddying the source. On hardware: the pre-delay knob.')}</label>
+                    <input type="range" min="0" max="200" value="20" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">20ms</span></div>
+                <div class="field"><label>Room Size ${h('Physical size of the simulated space. Small = closet/bathroom. Medium = room/studio. Large = hall/cathedral. Affects the spacing of early reflections. On hardware: the size parameter.')}</label>
                     <input type="range" min="0" max="100" value="40" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">40%</span></div>
-                <div class="field"><label>Decay ${h('How long the reverb rings out. Shorter for tight spaces, longer for big halls.')}</label>
-                    <input type="range" min="100" max="5000" value="1500" step="100" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'s'"><span style="font-size:11px; color:var(--teal);">1.5s</span></div>
-                <div class="field"><label>Wet/Dry ${h('How much reverb vs original signal. 100% wet = all reverb. 0% = no reverb. Try 20-30% for vocals.')}</label>
+                <div class="field"><label>Decay / RT60 ${h('How long it takes for the reverb to fade by 60dB. 0.5s = tight room. 1-2s = studio/hall. 5s+ = cathedral. On hardware: the decay or RT60 knob.')}</label>
+                    <input type="range" min="100" max="8000" value="1500" step="100" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'s'"><span style="font-size:11px; color:var(--teal);">1.5s</span></div>
+                <div class="field"><label>Damping ${h('High-frequency absorption in the reverb tail. Higher damping = warmer/darker reverb (like a carpeted room). Lower = brighter (like a tile bathroom). On hardware: the HF damping control.')}</label>
+                    <input type="range" min="0" max="100" value="50" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">50%</span></div>
+                <div class="field"><label>Diffusion ${h('How dense the reflections are. High = smooth wash. Low = audible individual echoes. On hardware: the diffusion parameter.')}</label>
+                    <input type="range" min="0" max="100" value="70" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">70%</span></div>
+                <div class="field"><label>Wet/Dry Mix ${h('Balance between the original (dry) signal and the reverb (wet). 100% = all reverb. 0% = no reverb. Vocals: 15-30%. Drums: 10-20%. Pads: 30-60%. On hardware: the mix knob.')}</label>
                     <input type="range" min="0" max="100" value="25" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">25%</span></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyReverb()">Apply</button>`,
 
-            delay: `<h3>Delay ${h('Creates echoes of your audio. Can be rhythmic (synced to tempo) or free. Adds depth and movement.')}</h3>
-                <div class="field"><label>Time ${h('How long between echoes. Sync to BPM for rhythmic delays.')}</label>
-                    <input type="range" min="50" max="2000" value="375" step="25" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">375ms</span></div>
-                <div class="field"><label>Feedback ${h('How many times the echo repeats. Low = one echo. High = many echoes fading out.')}</label>
-                    <input type="range" min="0" max="90" value="30" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">30%</span></div>
-                <div class="field"><label>Mix ${h('How loud the echoes are compared to the original.')}</label>
+            delay: `<h3>Delay ${h('Creates echoes of your audio. Same controls as hardware delay units — Boss DD, Eventide TimeFactor, TC Electronic.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">FEEDBACK DELAY — HARDWARE CONTROL LAYOUT</div>
+                <div class="field"><label>Delay Time ${h('Time between echoes in milliseconds. For rhythmic delays, calculate from BPM: quarter note = 60000/BPM. At 120 BPM: 1/4 = 500ms, 1/8 = 250ms, dotted 1/8 = 375ms. On hardware: the delay time knob.')}</label>
+                    <input type="range" min="1" max="3000" value="375" step="1" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">375ms</span></div>
+                <div class="field"><label>BPM Sync Helper ${h('Click a note value to auto-calculate the delay time from your current BPM. Quarter note (1/4) and dotted eighth (dot 1/8) are the most common rhythmic delays.')}</label>
+                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(60000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/4</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(60000/parseFloat(document.getElementById('bpmDisplay').textContent||120)*0.75);document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">dot 1/8</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(30000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/8</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(20000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/8T</button>
+                        <button class="btn btn-secondary" style="font-size:9px; padding:3px 6px;" onclick="document.querySelector('#toolPanel input[type=range]').value=Math.round(15000/parseFloat(document.getElementById('bpmDisplay').textContent||120));document.querySelector('#toolPanel input[type=range]').dispatchEvent(new Event('input'))">1/16</button>
+                    </div></div>
+                <div class="field"><label>Feedback ${h('How much of the echo feeds back into the input. Controls how many repeats you hear. 0% = one echo. 50% = several fading repeats. 90% = long cascading trail. On hardware: the feedback/repeats knob. WARNING: above 95% can cause runaway feedback.')}</label>
+                    <input type="range" min="0" max="95" value="30" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">30%</span></div>
+                <div class="field"><label>Hi-Cut ${h('Rolls off high frequencies in the feedback loop. Each repeat gets darker — like a tape delay or analog echo. Lower = warmer echoes. On hardware: the tone/damping knob.')}</label>
+                    <input type="range" min="1000" max="20000" value="12000" step="500" oninput="this.nextElementSibling.textContent=(this.value/1000).toFixed(1)+'kHz'"><span style="font-size:11px; color:var(--teal);">12.0kHz</span></div>
+                <div class="field"><label>Mix ${h('Balance between dry (original) and wet (echoes). 100% = echoes only. On hardware: the mix or level knob. For subtle depth: 10-20%. For rhythmic effect: 30-50%.')}</label>
                     <input type="range" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=this.value+'%'"><span style="font-size:11px; color:var(--teal);">20%</span></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyDelay()">Apply</button>`,
 
-            limiter: `<h3>Limiter ${h('Prevents audio from going above a ceiling. Essential for mastering — protects against clipping while maximizing loudness.')}</h3>
-                <div class="field"><label>Ceiling ${h('The maximum level audio can reach. -1dBTP is safe for all platforms. -0.3dBTP is tighter.')}</label>
-                    <input type="range" min="-3" max="0" value="-1" step="0.1" oninput="this.nextElementSibling.textContent=this.value+'dBTP'"><span style="font-size:11px; color:var(--teal);">-1dBTP</span></div>
-                <div class="field"><label>Input Gain ${h('Push audio into the limiter harder for more loudness. Watch the meter — too much makes things squashed.')}</label>
-                    <input type="range" min="0" max="12" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
+            limiter: `<h3>Limiter ${h('Brick-wall limiter — nothing exceeds the ceiling. Same concept as the Waves L2, FabFilter Pro-L, or any mastering limiter. The last processor in the chain before export.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">BRICK-WALL LIMITER — MASTERING GRADE</div>
+                <div class="field"><label>Input Gain ${h('Drives audio into the limiter. More gain = louder output but more limiting (less dynamics). On hardware: the input/drive knob. This is how you control loudness — NOT by raising the ceiling.')}</label>
+                    <input type="range" min="0" max="24" value="0" step="0.5" oninput="this.nextElementSibling.textContent='+'+this.value+'dB'"><span style="font-size:11px; color:var(--teal);">+0dB</span></div>
+                <div class="field"><label>Ceiling ${h('The absolute maximum output level. Nothing goes above this. On hardware: the output ceiling. -1.0 dBTP is safe for all streaming platforms. -0.3 dBTP for CD. True Peak (TP) accounts for inter-sample peaks that digital meters miss.')}</label>
+                    <input type="range" min="-6" max="0" value="-1" step="0.1" oninput="this.nextElementSibling.textContent=this.value+' dBTP'"><span style="font-size:11px; color:var(--teal);">-1.0 dBTP</span></div>
+                <div class="field"><label>Release ${h('How quickly the limiter recovers after reducing a peak. Fast (10-50ms) = transparent on transients but may distort. Slow (100-300ms) = smoother but pumps on dense material. Auto = program-dependent. On hardware: the release knob.')}</label>
+                    <input type="range" min="5" max="500" value="50" step="5" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span style="font-size:11px; color:var(--teal);">50ms</span></div>
+                <div style="font-size:10px; color:var(--text-dim); margin:8px 0; padding:8px; background:var(--bg-deep); border-radius:var(--radius);">
+                    Target loudness for streaming:<br>
+                    Spotify: -14 LUFS | Apple Music: -16 LUFS | YouTube: -14 LUFS | CD: -9 to -12 LUFS
+                </div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyLimiter()">Apply</button>`,
 
             lufs: `<h3>Loudness Meter ${h('Measures your audio loudness in LUFS — the standard used by Spotify, Apple Music, YouTube. -14 LUFS is the target for streaming.')}</h3>
@@ -974,12 +1171,12 @@
 
             reference: `<h3>Reference A/B ${h('Load a professionally mixed track and compare it to yours. Level-matched so you hear the difference in tone, not volume.')}</h3>
                 <button class="btn btn-secondary" style="width:100%" onclick="openFile()">Load Reference Track</button>
-                <div class="field" style="margin-top:12px;"><label>A/B Toggle</label>
+                <div class="field" style="margin-top:12px;"><label>A/B Toggle ${h('Switch between your mix and the reference track. Both are level-matched so you compare tone and balance, not volume.')}</label>
                     <button class="btn btn-teal" style="width:100%">A (Your Mix) / B (Reference)</button></div>
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Reference is level-matched so you compare tone and balance, not loudness.</p>`,
 
             export: `<h3>Export ${h('Render your mix to a file. Choose format and quality based on where it will be used.')}</h3>
-                <div class="field"><label>Format</label>
+                <div class="field"><label>Format ${h('WAV = uncompressed, full quality, large files. FLAC = lossless compression, same quality, smaller files. MP3 = lossy compression, smallest files, slight quality loss. Use WAV for mastering, FLAC for archiving, MP3 for sharing.')}</label>
                     <select>
                         <option>WAV 24-bit — lossless, studio quality</option>
                         <option>WAV 16-bit — lossless, CD quality</option>
@@ -989,7 +1186,7 @@
                         <option>OGG Vorbis — compressed, open format</option>
                         <option>AIFF — lossless, Apple compatible</option>
                     </select></div>
-                <div class="field"><label>Sample Rate</label>
+                <div class="field"><label>Sample Rate ${h('44100Hz = CD standard, fine for everything. 48000Hz = video standard (use if syncing to video). 96000Hz = high resolution (overkill for most uses, doubles file size).')}</label>
                     <select><option>44100 Hz — CD standard</option><option>48000 Hz — video standard</option><option>96000 Hz — high resolution</option></select></div>
                 <div class="field"><label>Dithering ${h('Adds very quiet noise when converting bit depth. Sounds better than truncation. Use when going from 24-bit to 16-bit.')}</label>
                     <select><option>Off</option><option>Triangular (TPDF) — recommended</option><option>Shaped — least audible</option></select></div>
@@ -1005,7 +1202,7 @@
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Position the playhead where you want to cut, then click Split. Both pieces stay on the same track.</p>`,
 
             trim: `<h3>Trim ${h('Remove the beginning or end of a clip. Select a range first, then trim.')}</h3>
-                <div class="field"><label>Trim Mode</label>
+                <div class="field"><label>Trim Mode ${h('Trim to selection = keep only the selected range, remove everything else. Trim start = remove everything before the playhead. Trim end = remove everything after the playhead.')}</label>
                     <select><option>Trim to selection — keep only selected area</option><option>Trim start — remove before playhead</option><option>Trim end — remove after playhead</option></select></div>
                 <button class="btn btn-primary" style="width:100%">Trim</button>`,
 
@@ -1016,24 +1213,26 @@
                     <select><option>Equal Power — volume stays consistent</option><option>Linear — simple straight fade</option><option>S-Curve — smooth and natural</option></select></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyCrossfade()">Apply Crossfade</button>`,
 
-            stretch: `<h3>Time Stretch ${h('Change the speed/duration without changing the pitch. Make a section longer or shorter while keeping the same notes.')}</h3>
-                <div class="field"><label>Rate ${h('1.0 = original speed. 0.5 = half speed (twice as long). 2.0 = double speed (half as long).')}</label>
-                    <input type="range" min="0.25" max="4.0" value="1.0" step="0.05" oninput="this.nextElementSibling.textContent=this.value+'x'"><span style="font-size:11px; color:var(--teal);">1.0x</span></div>
-                <div class="field"><label>Or match BPM</label>
+            stretch: `<h3>Time Stretch ${h('Changes speed/duration without changing pitch. Uses phase vocoder algorithm — same technique as Ableton Warp, Logic Flex Time, and hardware samplers like the Akai MPC.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">PHASE VOCODER TIME STRETCH</div>
+                <div class="field"><label>Rate ${h('Playback speed multiplier. 1.0 = original. 0.5 = half speed (twice as long, same pitch). 2.0 = double speed (half as long, same pitch). On an MPC or sampler: the time stretch percentage.')}</label>
+                    <input type="range" min="0.1" max="4.0" value="1.0" step="0.01" oninput="this.nextElementSibling.textContent=this.value+'x ('+(this.value<1?'slower':'faster')+(this.value==1.0?'original':'')+')'"><span style="font-size:11px; color:var(--teal);">1.0x</span></div>
+                <div class="field"><label>BPM Match ${h('Instead of a rate, match tempos. Enter the original BPM and your target BPM — the rate is calculated automatically. Works like Ableton Warp or Logic tempo matching.')}</label>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="text" placeholder="Original BPM" style="width:45%">
-                        <span style="color:var(--text-muted);">to</span>
-                        <input type="text" placeholder="Target BPM" style="width:45%">
+                        <input type="text" id="stretchOrigBPM" placeholder="Original" style="width:40%; text-align:center;">
+                        <span style="color:var(--text-muted); font-size:11px;">BPM to</span>
+                        <input type="text" id="stretchTargetBPM" placeholder="Target" style="width:40%; text-align:center;">
                     </div></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyTimeStretch()">Stretch</button>`,
 
-            pitch: `<h3>Pitch Shift ${h('Change the pitch without changing the speed. Raise or lower the notes while keeping the same duration.')}</h3>
-                <div class="field"><label>Semitones ${h('Each semitone is one piano key. +12 = one octave up. -12 = one octave down.')}</label>
-                    <input type="range" min="-24" max="24" value="0" step="1" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+' st'"><span style="font-size:11px; color:var(--teal);">0 st</span></div>
-                <div class="field"><label>Fine tune (cents) ${h('100 cents = 1 semitone. Use for subtle tuning adjustments.')}</label>
+            pitch: `<h3>Pitch Shift ${h('Changes pitch without changing speed. Same algorithm used in Auto-Tune, Melodyne, and hardware pitch shifters like the Eventide H3000. Uses phase vocoder with optional formant preservation.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">PHASE VOCODER PITCH SHIFT</div>
+                <div class="field"><label>Semitones ${h('Coarse pitch adjustment. Each semitone = one piano key = one fret on guitar. +12 = one octave up. -12 = one octave down. -7 = a fifth down. +5 = a fourth up. On hardware pitch shifters: the pitch/interval knob.')}</label>
+                    <input type="range" min="-24" max="24" value="0" step="1" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+' semitones ('+(['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][((parseInt(this.value)%12)+12)%12])+')'"><span style="font-size:11px; color:var(--teal);">0 semitones (C)</span></div>
+                <div class="field"><label>Fine / Cents ${h('Fine pitch adjustment. 100 cents = 1 semitone. Use for tuning correction, detuning effects, or matching pitch between sources. On hardware: the fine tune/detune knob. +/- 10 cents = subtle detuning (chorus-like). +/- 50 cents = quarter-tone.')}</label>
                     <input type="range" min="-50" max="50" value="0" step="1" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value+' cents'"><span style="font-size:11px; color:var(--teal);">0 cents</span></div>
-                <div class="field"><label>Preserve Formants ${h('Keeps vocals sounding natural when pitch shifting. Without this, voices sound chipmunk-like when raised.')}</label>
-                    <select><option>On — natural sound</option><option>Off — robotic effect</option></select></div>
+                <div class="field"><label>Formant Preservation ${h('Formants are the resonances that make a voice sound like THAT voice. When you pitch shift up without formant preservation, the voice gets thin and chipmunk-like. With preservation, the pitch changes but the character stays human. On Melodyne: this is the formant control.')}</label>
+                    <select><option value="on">On — natural vocal character preserved</option><option value="off">Off — character shifts with pitch (effect/robotic)</option></select></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyPitchShift()">Apply</button>`,
 
             reverse: `<h3>Reverse ${h('Play the audio backwards. Classic effect for transitions, impacts, and creative sound design.')}</h3>
@@ -1041,9 +1240,9 @@
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Reverses the entire clip. Split first if you only want to reverse a section.</p>`,
 
             metronome: `<h3>Metronome ${h('A click track that keeps you in time while recording. Set the BPM and time signature.')}</h3>
-                <div class="field"><label>BPM</label>
+                <div class="field"><label>BPM ${h('Beats per minute — the tempo. 60 = slow ballad. 120 = standard pop/rock. 140 = upbeat dance. 180 = fast punk/metal.')}</label>
                     <input type="text" id="metronomeBPM" value="120" style="width:80px; text-align:center;"></div>
-                <div class="field"><label>Time Signature</label>
+                <div class="field"><label>Time Signature ${h('How beats are grouped. 4/4 = standard (most pop, rock, hip-hop). 3/4 = waltz. 6/8 = compound feel. 5/4 and 7/8 = odd meters (prog rock, jazz).')}</label>
                     <select><option>4/4</option><option>3/4</option><option>6/8</option><option>2/4</option><option>5/4</option><option>7/8</option></select></div>
                 <div class="field"><label>Count-in Bars ${h('Bars of clicks before recording starts. Gives you time to get ready.')}</label>
                     <select><option value="0">None</option><option value="1" selected>1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option></select></div>
@@ -1051,7 +1250,7 @@
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Tap the button rhythmically to set BPM by feel.</p>`,
 
             count_in: `<h3>Count-in ${h('Click track that plays before recording starts. Gives you a tempo reference before the first note.')}</h3>
-                <div class="field"><label>Bars</label>
+                <div class="field"><label>Bars ${h('How many bars of clicks before recording starts. 1 bar = 4 clicks in 4/4. 2 bars gives you more time to settle in.')}</label>
                     <select><option value="1">1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option></select></div>
                 <button class="btn btn-primary" style="width:100%">Test Count-in</button>`,
 
@@ -1099,6 +1298,16 @@
                     <div><strong>WAV</strong> — Uncompressed audio format. Full quality, large files.</div>
                 </div>`,
 
+            bleed_remove: `<h3>Bleed Removal ${h('If your mic picked up guitar bleed from the room, this uses the clean DI signal to subtract it. Select which track has the clean source and which has the bleed.')}</h3>
+                <div class="field"><label>Track with bleed ${h('The track you want to clean — usually the vocal mic.')}</label>
+                    <select id="bleedTarget">${tracks.map(t => `<option value="${t.engineId}">${t.name}</option>`).join('')}</select></div>
+                <div class="field"><label>Clean reference ${h('The track with the clean source signal — usually the DI or line input.')}</label>
+                    <select id="bleedReference">${tracks.map(t => `<option value="${t.engineId}">${t.name}</option>`).join('')}</select></div>
+                <div class="field"><label>Strength ${h('How aggressively to remove bleed. Lower = more precise but may leave some. Higher = more aggressive but may affect the wanted signal.')}</label>
+                    <input type="range" min="1" max="50" value="10" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"><span style="font-size:11px; color:var(--teal);">0.10</span></div>
+                <button class="btn btn-primary" style="width:100%" onclick="applyBleedRemoval()">Remove Bleed</button>
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Works best when both tracks were recorded simultaneously. The math is the same used in noise-cancelling headphones.</p>`,
+
             bandmate: `<h3>The Bandmate</h3>
                 <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Ask about chords, arrangement, production, mixing — anything musical. The Bandmate listens to your session and responds.</div>
                 <div id="bandmateChat" style="max-height:280px; overflow-y:auto; margin-bottom:8px; padding:8px; background:var(--bg-deep); border-radius:var(--radius); font-size:12px; color:var(--text-dim); line-height:1.7;">
@@ -1108,6 +1317,41 @@
                     <input type="text" id="bandmateInput" placeholder="Ask your bandmate..." style="flex:1; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px;"
                         onkeydown="if(event.key==='Enter')askBandmate()">
                     <button class="btn btn-teal" onclick="askBandmate()" style="padding:8px 12px; font-size:11px;">Ask</button>
+                </div>`,
+
+            community: `<h3>Community</h3>
+                <div style="font-size:12px; color:var(--text-dim); line-height:1.8; margin-bottom:16px;">
+                    You're not alone in this. Sozawen is built by musicians for musicians — and we want to hear from you.
+                </div>
+                <a href="https://discord.gg/WhzuhTeVsU" target="_blank" class="btn btn-secondary" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; margin-bottom:8px; padding:10px;">
+                    <span style="font-size:16px;">💬</span> Join the Discord
+                </a>
+                <p style="font-size:10px; color:var(--text-muted); margin-bottom:16px;">Share your work, get feedback, find collaborators, learn techniques.</p>
+
+                <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:8px;">
+                    <div style="font-size:12px; color:var(--teal); margin-bottom:8px; font-weight:500;">Send Feedback</div>
+                    <div class="field"><label>What's on your mind?</label>
+                        <select id="feedbackType">
+                            <option value="feedback">Feature request</option>
+                            <option value="bug">Bug report</option>
+                            <option value="love">Just saying thanks</option>
+                            <option value="help">I need help</option>
+                        </select></div>
+                    <div class="field">
+                        <textarea id="feedbackText" rows="4" placeholder="Tell us what you're thinking..."
+                            style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px; resize:vertical;"></textarea></div>
+                    <div class="field">
+                        <input type="email" id="feedbackEmail" placeholder="Your email (optional — for follow-up)"
+                            style="width:100%; padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:inherit; font-size:12px;"></div>
+                    <button class="btn btn-primary" style="width:100%" onclick="sendFeedback()">Send</button>
+                    <div id="feedbackStatus" style="font-size:10px; color:var(--text-muted); margin-top:6px; min-height:14px;"></div>
+                </div>
+
+                <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:16px;">
+                    <div style="font-size:12px; color:var(--violet-glow); margin-bottom:8px; font-weight:500;">Share Your Project</div>
+                    <button class="btn btn-secondary" style="width:100%; margin-bottom:6px;" onclick="exportProject()">Export Project File (.sozawen)</button>
+                    <button class="btn btn-secondary" style="width:100%;" onclick="exportAllStems()">Export All Stems (ZIP)</button>
+                    <p style="font-size:10px; color:var(--text-muted); margin-top:6px;">Send the project file to a collaborator. They open it in Sozawen and pick up where you left off.</p>
                 </div>`,
 
             shortcuts: `<h3>Keyboard Shortcuts</h3>
@@ -1888,6 +2132,26 @@
         const mode = sel?.selectedIndex === 0 ? 'peak' : sel?.selectedIndex === 1 ? 'rms' : 'lufs';
         applyEffect('normalize', { mode, target_db: parseFloat(range?.value || -1) });
     }
+    function applyFullEQ() {
+        applyEffect('eq', {
+            hpf_freq: parseFloat(document.getElementById('eq_hpf')?.value || 20),
+            lpf_freq: parseFloat(document.getElementById('eq_lpf')?.value || 20000),
+            low_freq: parseFloat(document.getElementById('eq_low_freq')?.value || 80),
+            low_gain: parseFloat(document.getElementById('eq_low_gain')?.value || 0),
+            low_q: parseFloat(document.getElementById('eq_low_q')?.value || 0.7),
+            low_type: document.getElementById('eq_low_type')?.value || 'shelf',
+            lomid_freq: parseFloat(document.getElementById('eq_lomid_freq')?.value || 250),
+            lomid_gain: parseFloat(document.getElementById('eq_lomid_gain')?.value || 0),
+            lomid_q: parseFloat(document.getElementById('eq_lomid_q')?.value || 1.0),
+            himid_freq: parseFloat(document.getElementById('eq_himid_freq')?.value || 4000),
+            himid_gain: parseFloat(document.getElementById('eq_himid_gain')?.value || 0),
+            himid_q: parseFloat(document.getElementById('eq_himid_q')?.value || 1.0),
+            high_freq: parseFloat(document.getElementById('eq_high_freq')?.value || 12000),
+            high_gain: parseFloat(document.getElementById('eq_high_gain')?.value || 0),
+            high_q: parseFloat(document.getElementById('eq_high_q')?.value || 0.7),
+            high_type: document.getElementById('eq_high_type')?.value || 'shelf',
+        });
+    }
     function applyEQ() {
         const panel = document.getElementById('toolPanel');
         const ranges = panel.querySelectorAll('input[type="range"]');
@@ -1974,6 +2238,23 @@
         const range = panel.querySelector('input[type="range"]');
         applyEffect('stereo_width', { width: parseInt(range?.value || 100) });
     }
+    function applyBleedRemoval() {
+        const target = document.getElementById('bleedTarget')?.value;
+        const ref = document.getElementById('bleedReference')?.value;
+        const strength = document.getElementById('toolPanel')?.querySelector('input[type="range"]')?.value || 10;
+        if (!target || !ref) { alert('Select both tracks'); return; }
+        if (target === ref) { alert('Target and reference must be different tracks'); return; }
+        pushUndo('bleed removal');
+        document.getElementById('statusText').textContent = 'Removing bleed...';
+        fetch('/api/fx/bleed-removal', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ target_track_id: parseInt(target), reference_track_id: parseInt(ref), strength: parseInt(strength) / 100 })
+        }).then(r=>r.json()).then(d => {
+            document.getElementById('statusText').textContent = d.ok ? 'Bleed removed!' : (d.error || 'Failed');
+            if (d.ok) reloadAllWaveforms();
+            setTimeout(()=>document.getElementById('statusText').textContent='Ready', 2000);
+        }).catch(() => { document.getElementById('statusText').textContent = 'Bleed removal failed'; });
+    }
     function applyDeclip() {
         const panel = document.getElementById('toolPanel');
         const range = panel.querySelector('input[type="range"]');
@@ -2033,21 +2314,53 @@
     }
 
     // ═══ INPUT DEVICES ═══
+    let _inputDevices = [];
+
     function loadInputDevices() {
         fetch('/api/input-devices').then(r=>r.json()).then(d => {
+            _inputDevices = d.devices || [];
             const sel = document.getElementById('inputDeviceSelect');
             if (!sel) return;
-            sel.innerHTML = d.devices.map(dev =>
-                `<option value="${dev.id}">${dev.name} (${dev.channels}ch)</option>`
+            sel.innerHTML = _inputDevices.map(dev =>
+                `<option value="${dev.id}" data-channels="${dev.channels}">${dev.name} (${dev.channels}ch)</option>`
             ).join('') || '<option>No input devices found</option>';
+            onDeviceChange();
         }).catch(()=>{});
+    }
+
+    function onDeviceChange() {
+        const sel = document.getElementById('inputDeviceSelect');
+        const chSel = document.getElementById('inputChannelSelect');
+        if (!sel || !chSel) return;
+        const opt = sel.selectedOptions[0];
+        const channels = parseInt(opt?.dataset?.channels || 1);
+        chSel.innerHTML = '';
+        for (let i = 0; i < channels; i++) {
+            const label = channels === 1 ? 'Mono' :
+                          channels === 2 ? (i === 0 ? 'Left' : 'Right') :
+                          `Channel ${i + 1}`;
+            chSel.innerHTML += `<option value="${i}">${label}</option>`;
+        }
     }
 
     function armRecording() {
         const sel = document.getElementById('inputDeviceSelect');
+        const chSel = document.getElementById('inputChannelSelect');
         const deviceId = sel ? parseInt(sel.value) : null;
-        document.getElementById('statusText').textContent = 'Armed — hit Record in the transport bar';
+        const channel = chSel ? parseInt(chSel.value) : 0;
         window._recordDeviceId = deviceId;
+
+        // Set the input channel on the active track
+        const t = getActiveTrack();
+        if (t && t.engineId !== null) {
+            fetch(`/api/track/${t.engineId}/input-channel`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ channel })
+            });
+        }
+
+        const chLabel = chSel?.selectedOptions[0]?.textContent || 'Mono';
+        document.getElementById('statusText').textContent = `Armed — ${chLabel} — hit Record`;
     }
 
     function toggleMonitoring(btn) {
@@ -2122,6 +2435,106 @@
         a.download = 'lyrics.' + format; a.click();
         URL.revokeObjectURL(url);
     }
+
+    // ═══ COMMUNITY & FEEDBACK ═══
+    function sendFeedback() {
+        const type = document.getElementById('feedbackType')?.value || 'feedback';
+        const text = document.getElementById('feedbackText')?.value?.trim();
+        const email = document.getElementById('feedbackEmail')?.value?.trim();
+        const status = document.getElementById('feedbackStatus');
+
+        if (!text) { status.textContent = 'Write something first!'; status.style.color = 'var(--red)'; return; }
+
+        status.textContent = 'Sending...'; status.style.color = 'var(--teal)';
+
+        // Send via the backend which emails it
+        fetch('/api/feedback', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ type, text, email, version: '0.1.0' })
+        }).then(r => r.json()).then(d => {
+            if (d.ok) {
+                status.textContent = 'Sent! Thank you.'; status.style.color = 'var(--teal)';
+                document.getElementById('feedbackText').value = '';
+            } else {
+                // Fallback: open email client
+                const subject = encodeURIComponent(`Sozawen ${type}: from a user`);
+                const body = encodeURIComponent(`Type: ${type}\n\n${text}\n\nReply to: ${email || 'not provided'}`);
+                window.open(`mailto:dayshalindale@gmail.com?subject=${subject}&body=${body}`);
+                status.textContent = 'Opening email...'; status.style.color = 'var(--teal)';
+            }
+        }).catch(() => {
+            // Fallback: open email client
+            const subject = encodeURIComponent(`Sozawen ${type}`);
+            const body = encodeURIComponent(`${text}\n\nReply to: ${email || 'not provided'}`);
+            window.open(`mailto:dayshalindale@gmail.com?subject=${subject}&body=${body}`);
+            status.textContent = 'Opening email...'; status.style.color = 'var(--teal)';
+        });
+    }
+
+    function exportProject() {
+        const project = {
+            version: '0.1.0',
+            format: 'sozawen',
+            tracks: tracks.map(t => ({
+                name: t.name, file: t.file, volume: t.volume, pan: t.pan || 0,
+                muted: t.muted, solo: t.solo, effects: t.effects || [],
+            })),
+            bpm: document.getElementById('bpmDisplay')?.textContent?.replace(' BPM','') || '',
+            key: document.getElementById('keyDisplay')?.textContent || '',
+            savedAt: new Date().toISOString(),
+        };
+        const blob = new Blob([JSON.stringify(project, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${project.tracks[0]?.name || 'untitled'}.sozawen`;
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById('statusText').textContent = 'Project exported';
+    }
+
+    function exportAllStems() {
+        showPanel('export');
+        document.getElementById('statusText').textContent = 'Use Export All Stems in the Export panel';
+    }
+
+    // ═══ RESIZABLE PANELS ═══
+    function makeResizable(handleId, targetSelector, minW, maxW, side) {
+        const handle = document.getElementById(handleId);
+        if (!handle) return;
+        let dragging = false;
+        let startX = 0;
+        let startW = 0;
+        const target = document.querySelector(targetSelector);
+
+        handle.addEventListener('mousedown', (e) => {
+            dragging = true;
+            startX = e.clientX;
+            startW = target.offsetWidth;
+            handle.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            const dx = side === 'left' ? (e.clientX - startX) : (startX - e.clientX);
+            const newW = Math.max(minW, Math.min(maxW, startW + dx));
+            target.style.width = newW + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragging) return;
+            dragging = false;
+            handle.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
+    }
+
+    makeResizable('sidebarResize', '.sidebar', 120, 300, 'left');
+    makeResizable('trackResize', '.track-panel', 120, 350, 'left');
 
     // ═══ KEYBOARD SHORTCUTS ═══
     document.addEventListener('keydown', e => {

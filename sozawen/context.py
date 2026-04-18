@@ -92,6 +92,8 @@ TOOLS = {
     "lyrics":       {"label": "Lyrics",           "icon": "♪", "group": "import"},
     "analyze":      {"label": "Analyze",          "icon": "≈", "group": "import"},
     "bandmate":     {"label": "Bandmate",         "icon": "💬", "group": "import"},
+    "bleed_remove": {"label": "Bleed Removal",   "icon": "🔕", "group": "cleanup"},
+    "community":    {"label": "Community",        "icon": "🌐", "group": "master"},
 
     # Recording
     "input_select": {"label": "Input Device",     "icon": "🎤", "group": "record"},
@@ -212,7 +214,7 @@ class ContextEngine:
             },
             Phase.MIX: {
                 "eq": 1.0, "compressor": 0.9, "reverb": 0.8, "delay": 0.7,
-                "sends": 0.7, "bandmate": 0.6, "normalize": 0.5,
+                "sends": 0.7, "bandmate": 0.6, "bleed_remove": 0.6, "normalize": 0.5,
                 "lufs": 0.4,
             },
             Phase.MASTER: {
