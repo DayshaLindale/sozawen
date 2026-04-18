@@ -231,9 +231,10 @@ from sozawen.audio_fx import (apply_noise_gate, apply_eq, apply_compressor,
     apply_deesser, apply_normalize, apply_crossfade, apply_time_stretch,
     apply_pitch_shift, apply_stereo_width, apply_declip, apply_reverse,
     apply_bleed_removal, apply_sidechain_compression,
-    measure_loudness, export_mix)
+    apply_noise_reduction, measure_loudness, export_mix)
 from sozawen.music_theory import (get_scale, get_chord, get_diatonic_chords,
     get_progression, get_compatible_keys, SCALES, CHORDS, PROGRESSIONS)
+from sozawen.midi_engine import MidiPattern, detect_chords, audio_to_midi
 from sozawen.knowledge_base import search_knowledge, get_article, get_categories
 @api.post("/api/project/save")
 async def save_project(request: Request):
@@ -436,6 +437,7 @@ async def apply_effect(request: Request):
         "stereo_width": lambda: apply_stereo_width(source_path, **params),
         "de_clip": lambda: apply_declip(source_path, **params),
         "reverse": lambda: apply_reverse(source_path),
+        "noise_reduction": lambda: apply_noise_reduction(source_path, **params),
     }
 
     if effect not in fx_map:
@@ -666,6 +668,77 @@ async def analyze_key(request: Request):
         prog = get_progression(key, name)
         result["progressions"][name] = [f"{c['root']} {c['quality']}" for c in prog]
     return JSONResponse(result)
+
+@api.post("/api/chords/detect")
+async def detect_chords_endpoint(request: Request):
+    """Detect chords from an audio track."""
+    import asyncio
+    data = await request.json()
+    track_id = data.get("track_id")
+
+    track = _engine.tracks.get(track_id)
+    if not track or not track.regions:
+        return JSONResponse({"error": "No audio loaded"}, status_code=400)
+
+    try:
+        chords = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: detect_chords(track.regions[0].source_path))
+        return JSONResponse({"ok": True, "chords": chords})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/audio-to-midi")
+async def audio_to_midi_endpoint(request: Request):
+    """Convert audio to MIDI notes (monophonic pitch detection)."""
+    import asyncio
+    data = await request.json()
+    track_id = data.get("track_id")
+
+    track = _engine.tracks.get(track_id)
+    if not track or not track.regions:
+        return JSONResponse({"error": "No audio loaded"}, status_code=400)
+
+    try:
+        pattern, bpm = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: audio_to_midi(track.regions[0].source_path))
+        return JSONResponse({
+            "ok": True,
+            "pattern": pattern.to_dict(),
+            "bpm": round(bpm, 1),
+            "notes": len(pattern.notes),
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/midi/pattern")
+async def create_midi_pattern(request: Request):
+    """Create or update a MIDI pattern and render to audio."""
+    import asyncio
+    data = await request.json()
+    pattern_data = data.get("pattern", {})
+    bpm = data.get("bpm", 120)
+    synth_params = data.get("synth_params", {})
+    name = data.get("name", "MIDI")
+
+    pattern = MidiPattern.from_dict(pattern_data)
+    if not pattern.notes:
+        return JSONResponse({"error": "Empty pattern"}, status_code=400)
+
+    try:
+        from sozawen.instruments import render_synth_pattern
+        notes = [n.to_dict() for n in pattern.notes]
+        audio = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: render_synth_pattern(notes, sr=44100, bpm=bpm, **synth_params))
+
+        output_path = str(BASE_DIR / "temp" / f"midi_{name}.wav")
+        Path(output_path).parent.mkdir(exist_ok=True)
+        sf.write(output_path, audio, 44100)
+
+        track = _engine.add_track(name=name)
+        track.add_region(output_path, source_type="generated")
+        return JSONResponse({"ok": True, "track_id": track.id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @api.get("/api/instrument/drum-sounds")
 async def list_drum_sounds():

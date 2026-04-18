@@ -582,6 +582,64 @@ def apply_declip(path, sensitivity=50):
 # REVERSE (already pure numpy)
 # ═══════════════════════════════════════════════════════════════════
 
+
+def apply_noise_reduction(path, strength=0.5):
+    """Spectral noise reduction — reduces steady-state noise (hiss, hum, room tone).
+
+    Estimates noise floor from quiet sections, subtracts in frequency domain.
+    Same principle as iZotope RX and Audacity's noise reduction.
+    """
+    data, sr = _load(path)
+    result = data.copy()
+    strength = max(0.0, min(1.0, float(strength)))
+
+    for ch in range(result.shape[1]):
+        signal = result[:, ch].astype(np.float64)
+        n_fft = 2048
+        hop = n_fft // 4
+        window = np.hanning(n_fft)
+
+        n_frames = 1 + (len(signal) - n_fft) // hop
+        if n_frames < 2:
+            continue
+
+        stft = np.zeros((n_fft // 2 + 1, n_frames), dtype=np.complex128)
+        for i in range(n_frames):
+            start = i * hop
+            frame = signal[start:start + n_fft] * window
+            stft[:, i] = np.fft.rfft(frame)
+
+        magnitude = np.abs(stft)
+        phase = np.angle(stft)
+
+        # Noise profile from quietest 10% of frames
+        frame_energy = np.sum(magnitude ** 2, axis=0)
+        threshold_idx = max(1, int(n_frames * 0.1))
+        quiet_indices = np.argsort(frame_energy)[:threshold_idx]
+        noise_profile = np.mean(magnitude[:, quiet_indices], axis=1)
+
+        # Spectral gate
+        for i in range(n_frames):
+            mask = np.maximum(0, 1.0 - strength * (noise_profile / (magnitude[:, i] + 1e-10)))
+            stft[:, i] = magnitude[:, i] * mask * np.exp(1j * phase[:, i])
+
+        # Inverse STFT
+        output = np.zeros(len(signal), dtype=np.float64)
+        window_sum = np.zeros(len(signal), dtype=np.float64)
+        for i in range(n_frames):
+            start = i * hop
+            frame = np.fft.irfft(stft[:, i]) * window
+            end = min(start + n_fft, len(output))
+            output[start:end] += frame[:end - start]
+            window_sum[start:end] += (window[:end - start]) ** 2
+
+        nonzero = window_sum > 1e-10
+        output[nonzero] /= window_sum[nonzero]
+        result[:, ch] = output[:len(result[:, ch])].astype(np.float32)
+
+    return _save(result, sr, path, "denoised")
+
+
 def apply_sidechain_compression(target_path, sidechain_path, threshold_db=-20, ratio=4.0,
                                   attack_ms=5, release_ms=50):
     """Sidechain compression — duck one track based on another's level.
