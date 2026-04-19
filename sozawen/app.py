@@ -1592,6 +1592,21 @@ async def bandmate_chat(request: Request):
 
 You know music theory, production techniques, arrangement, mixing, and mastering. You speak like a musician, not a textbook. Keep responses concise and actionable — 2-4 sentences max unless they ask for more detail.
 
+INSTRUMENTS AVAILABLE IN SOZAWEN (62 total, all physically modeled from math):
+- Guitar: Taylor Dreadnought, Martin D-28, Gibson J-45, Classical Nylon, Fender Stratocaster, Gibson Les Paul, Acoustic Bass
+  Amps: Clean (Fender Twin), Crunch (Marshall JCM800), Overdrive (TS808), High Gain (Mesa/5150), Fuzz (Fuzz Face)
+- Bass: Fender Precision, Jazz Bass, Rickenbacker 4003, Music Man StingRay, Hofner, Upright, Thunderbird
+  Techniques: finger, pick, slap, pop, muted. Amps: Ampeg SVT, Darkglass, Orange, Mesa, Clean DI
+- Piano: Steinway D, Yamaha CFX, Bosendorfer Imperial, Upright, Honky-tonk
+- Keys: Rhodes Mark I/II, Wurlitzer 200A, Clavinet D6, Hammond B3 (12 drawbar presets + Leslie)
+- Strings: Violin, Stradivarius, Viola, Cello, Contrabass (9 articulations including pizzicato)
+- Brass: Trumpet, French Horn, Trombone, Tuba (5 mutes including harmon/wah)
+- Woodwinds: Flute, Clarinet, Oboe, Bassoon, Alto/Tenor/Soprano/Baritone Saxophone
+- Percussion: Timpani, Marimba, Xylophone, Vibraphone, Glockenspiel, Tubular Bells, Triangle, Tambourine
+- Drums: Kick, Snare, Hi-hat (open/closed), Clap, Tom (high/mid/low), Rim, Crash, Ride, Shaker, Cowbell, Double Kick
+
+When suggesting arrangements, reference these specific instruments. Suggest which model would work best for the genre.
+
 Current session:
 """ + "\n".join(session_info) if session_info else "No tracks loaded yet."
 

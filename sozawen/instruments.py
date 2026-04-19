@@ -483,9 +483,31 @@ def drum_cowbell(sr=44100):
     return ((tone1 + tone2) * env * 0.3).astype(np.float32)
 
 
+def drum_double_kick(sr=44100):
+    """Double bass drum hit — alternating left/right foot.
+
+    Each hit is slightly different (human imprecision).
+    The two hits overlap — second beater contacts before first decay.
+    Used in metal, prog, and fusion at high tempos (160-220+ BPM).
+    """
+    # Two kicks with slight timing and velocity variation
+    kick1 = drum_kick(sr, sustain_ms=150, pitch=48, punch=0.5, sub=0.4)
+    kick2 = drum_kick(sr, sustain_ms=140, pitch=50, punch=0.45, sub=0.35)
+
+    # Offset: second kick comes ~60ms after first (typical double bass gap)
+    gap = int(0.06 * sr)
+    total = max(len(kick1), gap + len(kick2))
+    result = np.zeros(total, dtype=np.float32)
+    result[:len(kick1)] += kick1 * 0.9
+    result[gap:gap + len(kick2)] += kick2 * 0.85  # second hit slightly softer
+
+    return result
+
+
 # All available drum sounds
 DRUM_SOUNDS = {
     'kick': drum_kick,
+    'double_kick': drum_double_kick,
     'snare': drum_snare,
     'hihat': drum_hihat_closed,
     'hihat_open': drum_hihat_open,

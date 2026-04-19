@@ -467,31 +467,33 @@ def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
         output = _speaker_cab(output, "1x12", sr)
 
     elif amp_type == "high_gain":
-        # Mesa Mark IIC+ / 5150: FOUR cascaded tube stages
-        # Metallica Master of Puppets: V-shaped EQ scoop
+        # Mesa Mark IIC+ / 5150 / Dual Rectifier
+        # Metallica, Pantera, Meshuggah — the metal sound
         # EMG 81 → four stages → scooped mids → tight cab
 
-        # Stage 1: input gain
+        # Simulate hot EMG pickup input (active pickups are louder/compressed)
+        output = output * 1.5  # hotter input signal
+
+        # Stage 1: preamp gain — already hitting hard
+        output = _tube_stage(output, 4.0 + drive * 8, bias=0.12)
+
+        # EQ BETWEEN stages — V-shaped scoop (Metallica)
+        output = _tone_stack(output, bass=0.8, mid=0.15, treble=0.9, sr=sr)
+
+        # Stage 2: this is where the crunch lives
         output = _tube_stage(output, 3.0 + drive * 6, bias=0.1)
 
-        # EQ BETWEEN stage 1 and 2 — this is where the scoop happens
-        # Metallica: high bass, scooped mids, high treble (V-shape)
-        output = _tone_stack(output, bass=0.7, mid=0.2, treble=0.8, sr=sr)
-
-        # Stage 2: more gain on the shaped signal
-        output = _tube_stage(output, 2.5 + drive * 5, bias=0.08)
-
-        # Presence filter between stages
-        b, a = butter(1, 6000 / (sr / 2), btype='low')
+        # Presence filter
+        b, a = butter(1, 5500 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
 
-        # Stage 3: even more saturation
+        # Stage 3: saturation thickens
+        output = _tube_stage(output, 2.5 + drive * 4, bias=0.08)
+
+        # Stage 4: power amp compression — pushes everything together
         output = _tube_stage(output, 2.0 + drive * 3, bias=0.05)
 
-        # Stage 4: power amp compression
-        output = _tube_stage(output, 1.5 + drive * 2)
-
-        # 4x12 cabinet — tight, focused, no fizz
+        # 4x12 closed-back cabinet — tight, focused, no fizz
         output = _speaker_cab(output, "4x12", sr)
 
     elif amp_type == "fuzz":
