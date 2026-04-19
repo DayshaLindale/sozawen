@@ -181,70 +181,241 @@ def render_synth_pattern(notes, sr=44100, bpm=120, **synth_params):
 # DRUM MACHINE — synthesized drums from math
 # ═══════════════════════════════════════════════════════════════════
 
-def drum_kick(sr=44100):
-    """Synthesize a kick drum — pitch-swept sine with fast decay."""
-    dur = 0.3
-    body = pitch_envelope(150, 40, dur, sr) * 0.9
-    env = adsr(len(body), 0.001, 0.05, 0.3, 0.15, sr)
-    click = noise(0.005, sr) * 0.3
-    result = np.zeros(int(dur * sr), dtype=np.float32)
-    result[:len(body)] += body * env
+def drum_kick(sr=44100, sustain_ms=300, pitch=55, punch=0.5, sub=0.8):
+    """Synthesize a kick drum — 3-component: click + body + sub tail.
+
+    Research: body is pitch-swept sine 150→40-60Hz, click is short noise burst,
+    sub tail extends for 808-style kicks.
+    Source: Credland Audio kick drum theory, ModeAudio drum synth design
+    """
+    dur = max(0.15, sustain_ms / 1000)
+    n = int(dur * sr)
+
+    # Component 1: Click/transient — short noise burst for attack
+    click_dur = 0.003
+    click = noise(click_dur, sr) * punch * 0.8
+    click = highpass(click, 2000, sr)
+
+    # Component 2: Body — pitch-swept sine (150Hz → base pitch)
+    body = pitch_envelope(pitch * 3, pitch, dur, sr)
+    body_env = adsr(len(body), 0.0005, 0.04, 0.2, dur * 0.4, sr)
+    body = body * body_env * 0.8
+
+    # Component 3: Sub tail — sustained low sine for weight (808 style)
+    sub_dur = dur * 0.8
+    sub_tone = sine(pitch, sub_dur, sr)
+    sub_env = adsr(len(sub_tone), 0.01, 0.1, 0.5, sub_dur * 0.3, sr)
+    sub_tone = sub_tone * sub_env * sub * 0.5
+
+    # Mix
+    result = np.zeros(n, dtype=np.float32)
     result[:len(click)] += click
-    return lowpass(result, 200, sr) * 0.9
+    result[:len(body)] += body[:n]
+    result[:len(sub_tone)] += sub_tone[:n]
+
+    return lowpass(result, 250, sr) * 0.85
 
 
-def drum_snare(sr=44100):
-    """Synthesize a snare — sine body + filtered noise."""
-    dur = 0.2
-    body = sine(200, dur, sr) * adsr(int(dur*sr), 0.001, 0.03, 0.1, 0.1, sr) * 0.4
-    nz = noise(dur, sr) * adsr(int(dur*sr), 0.001, 0.05, 0.15, 0.1, sr) * 0.5
-    nz = highpass(nz, 1000, sr)
-    return (body + nz).astype(np.float32)
+def drum_snare(sr=44100, sustain_ms=200, tone_pitch=200, noise_amount=0.6, body_amount=0.4):
+    """Synthesize a snare — sine body + filtered noise for rattle.
+
+    Research: 150-250Hz body sine, noise from 1-5kHz for snare wires,
+    balance between tone and noise defines character (808 vs aggressive).
+    Source: ModeAudio, Sweetwater percussion synthesis
+    """
+    dur = max(0.1, sustain_ms / 1000)
+    n = int(dur * sr)
+
+    # Body — sine/triangle for the drum shell resonance
+    body = sine(tone_pitch, dur, sr)
+    body_env = adsr(n, 0.0005, 0.03, 0.1, dur * 0.3, sr)
+    body = body * body_env * body_amount
+
+    # Snare wires — filtered noise
+    nz = noise(dur, sr)
+    nz_env = adsr(n, 0.001, 0.05, 0.2, dur * 0.4, sr)
+    nz = highpass(nz * nz_env * noise_amount, 1200, sr)
+
+    # Transient click
+    click = noise(0.002, sr) * 0.3
+    click = highpass(click, 3000, sr)
+
+    result = np.zeros(n, dtype=np.float32)
+    result[:len(body)] += body[:n]
+    result[:len(nz)] += nz[:n]
+    result[:len(click)] += click
+
+    return result.astype(np.float32)
 
 
-def drum_hihat_closed(sr=44100):
-    """Synthesize a closed hi-hat — short filtered noise burst."""
-    dur = 0.05
-    nz = noise(dur, sr) * adsr(int(dur*sr), 0.001, 0.01, 0.1, 0.02, sr)
-    return highpass(nz * 0.3, 5000, sr)
+def drum_hihat_closed(sr=44100, decay_ms=50, brightness=0.7):
+    """Synthesize a closed hi-hat — metallic noise with fast decay.
+
+    Research: 808 hi-hat = 6 square wave oscillators into bandpass → highpass.
+    Simplified: filtered noise burst with resonant character.
+    Source: joesul.li/van/synthesizing-hi-hats
+    """
+    dur = max(0.02, decay_ms / 1000)
+    n = int(dur * sr)
+
+    # Metallic component — multiple detuned high-frequency tones
+    t = np.linspace(0, dur, n, dtype=np.float32)
+    metal = np.zeros(n, dtype=np.float32)
+    for freq in [3000, 4350, 5600, 6950, 8250, 9600]:
+        metal += np.sin(2 * np.pi * freq * t) * 0.1
+
+    # Noise component
+    nz = noise(dur, sr) * brightness * 0.4
+
+    # Envelope — very fast decay
+    env = adsr(n, 0.0005, decay_ms / 1000, 0.0, 0.005, sr)
+
+    result = (metal + nz) * env
+    return highpass(result * 0.35, 5000, sr)
 
 
-def drum_hihat_open(sr=44100):
-    """Synthesize an open hi-hat — longer filtered noise."""
-    dur = 0.3
-    nz = noise(dur, sr) * adsr(int(dur*sr), 0.001, 0.05, 0.3, 0.15, sr)
-    return highpass(nz * 0.3, 4000, sr)
+def drum_hihat_open(sr=44100, decay_ms=500, brightness=0.7):
+    """Synthesize an open hi-hat — same metal, longer sustain.
+
+    Research: closed → open = raise decay/release to ~500ms.
+    """
+    dur = max(0.1, decay_ms / 1000)
+    n = int(dur * sr)
+
+    t = np.linspace(0, dur, n, dtype=np.float32)
+    metal = np.zeros(n, dtype=np.float32)
+    for freq in [3000, 4350, 5600, 6950, 8250, 9600]:
+        metal += np.sin(2 * np.pi * freq * t) * 0.1
+
+    nz = noise(dur, sr) * brightness * 0.4
+    env = adsr(n, 0.0005, 0.05, 0.4, dur * 0.4, sr)
+
+    result = (metal + nz) * env
+    return highpass(result * 0.35, 4000, sr)
 
 
-def drum_clap(sr=44100):
-    """Synthesize a clap — layered noise bursts."""
-    dur = 0.15
-    clap = np.zeros(int(dur * sr), dtype=np.float32)
-    # Multiple short noise bursts
-    for offset_ms in [0, 8, 15, 22]:
-        start = int(offset_ms / 1000 * sr)
-        burst = noise(0.01, sr) * 0.4
-        end = min(start + len(burst), len(clap))
-        clap[start:end] += burst[:end-start]
-    env = adsr(len(clap), 0.001, 0.03, 0.2, 0.08, sr)
-    return highpass(clap * env, 800, sr)
+def drum_clap(sr=44100, spread_ms=25, decay_ms=150):
+    """Synthesize a clap — layered noise bursts with room character.
+
+    Research: multiple short noise bursts 5-25ms apart, bandpass filtered,
+    with a reverb tail for room ambience.
+    """
+    dur = max(0.08, (spread_ms + decay_ms) / 1000)
+    n = int(dur * sr)
+    clap = np.zeros(n, dtype=np.float32)
+
+    # Multiple noise bursts — simulates multiple hands
+    num_bursts = 4
+    for i in range(num_bursts):
+        offset = int(i * (spread_ms / num_bursts) / 1000 * sr)
+        burst_dur = 0.008 + i * 0.002  # each burst slightly longer
+        burst = noise(burst_dur, sr) * (0.3 + i * 0.05)
+        burst = highpass(burst, 1000, sr)
+        end = min(offset + len(burst), n)
+        clap[offset:end] += burst[:end - offset]
+
+    # Decay envelope for the tail
+    env = adsr(n, 0.001, 0.03, 0.15, decay_ms / 1000, sr)
+    clap = clap * env
+
+    # Bandpass for body (keep 800-6000Hz)
+    clap = highpass(clap, 800, sr)
+    return lowpass(clap, 8000, sr)
 
 
-def drum_tom(pitch=100, sr=44100):
-    """Synthesize a tom — pitched sine with decay."""
-    dur = 0.25
+def drum_tom(pitch=100, sr=44100, sustain_ms=250, resonance=0.5):
+    """Synthesize a tom — pitched membrane with resonant decay.
+
+    Research: pitch sweep from 1.5x to base, body resonance from shell.
+    """
+    dur = max(0.1, sustain_ms / 1000)
+    n = int(dur * sr)
+
+    # Body — pitch-swept sine
     body = pitch_envelope(pitch * 1.5, pitch, dur, sr)
-    env = adsr(int(dur*sr), 0.001, 0.05, 0.2, 0.12, sr)
-    return (body * env * 0.5).astype(np.float32)
+    body_env = adsr(n, 0.001, 0.04, 0.25, dur * 0.4, sr)
+
+    # Resonance — second harmonic for shell character
+    shell = sine(pitch * 2.2, dur, sr) * resonance * 0.15
+    shell_env = adsr(n, 0.005, 0.08, 0.1, dur * 0.2, sr)
+
+    result = np.zeros(n, dtype=np.float32)
+    result[:len(body)] += body[:n] * body_env * 0.6
+    result[:len(shell)] += shell[:n] * shell_env
+
+    return result.astype(np.float32)
 
 
 def drum_rim(sr=44100):
-    """Synthesize a rim shot — short high click."""
-    dur = 0.03
-    click = sine(800, dur, sr) * 0.6
-    nz = noise(dur, sr) * 0.2
-    env = adsr(int(dur*sr), 0.001, 0.005, 0.1, 0.01, sr)
-    return ((click + nz) * env).astype(np.float32)
+    """Synthesize a rim shot — sharp metallic click with ring."""
+    dur = 0.05
+    n = int(dur * sr)
+    click = sine(900, dur, sr) * 0.5
+    ring = sine(2200, dur, sr) * 0.2  # metallic ring
+    nz = noise(0.003, sr) * 0.3
+    env = adsr(n, 0.0003, 0.008, 0.05, 0.02, sr)
+    result = np.zeros(n, dtype=np.float32)
+    result[:n] += (click + ring) * env
+    result[:len(nz)] += nz
+    return result.astype(np.float32)
+
+
+def drum_crash(sr=44100, decay_ms=1500):
+    """Synthesize a crash cymbal — long metallic wash."""
+    dur = max(0.5, decay_ms / 1000)
+    n = int(dur * sr)
+    t = np.linspace(0, dur, n, dtype=np.float32)
+
+    # Rich metallic harmonics
+    metal = np.zeros(n, dtype=np.float32)
+    for freq in [2800, 4100, 5300, 6800, 8400, 10200, 12500]:
+        metal += np.sin(2 * np.pi * freq * t * (1 + np.random.randn() * 0.01)) * 0.07
+
+    nz = noise(dur, sr) * 0.3
+    env = adsr(n, 0.001, 0.1, 0.3, dur * 0.5, sr)
+
+    result = (metal + nz) * env
+    return highpass(result * 0.3, 3000, sr)
+
+
+def drum_ride(sr=44100, decay_ms=800):
+    """Synthesize a ride cymbal — clear bell with sustain."""
+    dur = max(0.3, decay_ms / 1000)
+    n = int(dur * sr)
+    t = np.linspace(0, dur, n, dtype=np.float32)
+
+    # Bell-like tone + metallic wash
+    bell = np.sin(2 * np.pi * 3200 * t) * 0.2
+    metal = np.zeros(n, dtype=np.float32)
+    for freq in [4500, 6200, 7800, 9400]:
+        metal += np.sin(2 * np.pi * freq * t) * 0.06
+
+    nz = noise(dur, sr) * 0.1
+    env = adsr(n, 0.0005, 0.05, 0.4, dur * 0.3, sr)
+
+    result = (bell + metal + nz) * env
+    return highpass(result * 0.3, 2500, sr)
+
+
+def drum_shaker(sr=44100):
+    """Synthesize a shaker — rhythmic filtered noise."""
+    dur = 0.08
+    n = int(dur * sr)
+    nz = noise(dur, sr) * 0.25
+    env = adsr(n, 0.002, 0.02, 0.2, 0.03, sr)
+    return highpass(nz * env, 6000, sr)
+
+
+def drum_cowbell(sr=44100):
+    """Synthesize a cowbell — two detuned square waves."""
+    dur = 0.15
+    n = int(dur * sr)
+    t = np.linspace(0, dur, n, dtype=np.float32)
+    # Two slightly detuned tones (classic 808 cowbell)
+    tone1 = np.sign(np.sin(2 * np.pi * 560 * t)) * 0.2
+    tone2 = np.sign(np.sin(2 * np.pi * 845 * t)) * 0.2
+    env = adsr(n, 0.0005, 0.02, 0.3, 0.08, sr)
+    return ((tone1 + tone2) * env * 0.3).astype(np.float32)
 
 
 # All available drum sounds
@@ -258,6 +429,10 @@ DRUM_SOUNDS = {
     'tom_mid': lambda sr=44100: drum_tom(100, sr),
     'tom_low': lambda sr=44100: drum_tom(70, sr),
     'rim': drum_rim,
+    'crash': drum_crash,
+    'ride': drum_ride,
+    'shaker': drum_shaker,
+    'cowbell': drum_cowbell,
 }
 
 

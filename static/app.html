@@ -1886,8 +1886,9 @@
                 </div>
 
                 <!-- Interactive staff — renders empty on open -->
-                <div id="scoreStaff" style="background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px; min-height:200px; cursor:crosshair; overflow-x:auto; position:relative;" onclick="onScoreClick(event)">
+                <div id="scoreStaff" style="background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px; min-height:200px; overflow-x:auto; position:relative; cursor: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22><ellipse cx=%228%22 cy=%228%22 rx=%226%22 ry=%224.5%22 fill=%22%232dd4a8%22 fill-opacity=%220.7%22 stroke=%22%232dd4a8%22 stroke-width=%221%22 transform=%22rotate(-10 8 8)%22/></svg>') 8 8, crosshair;" onclick="onScoreClick(event)" onmousemove="onScoreHover(event)">
                 </div>
+                <div id="scorePreview" style="font-size:10px; color:var(--text-muted); padding:4px 8px; min-height:16px;"></div>
 
                 <!-- Tab input/output -->
                 <div style="margin-top:10px;">
@@ -4362,6 +4363,29 @@
         _scoreNotes.sort((a,b) => a.beat - b.beat);
 
         renderScore();
+    }
+
+    function onScoreHover(e) {
+        const staff = document.getElementById('scoreStaff');
+        const svg = staff.querySelector('svg');
+        const preview = document.getElementById('scorePreview');
+        if (!svg || !preview) return;
+
+        const svgRect = svg.getBoundingClientRect();
+        const y = e.clientY - svgRect.top;
+        const staffTop = 60, lineSpacing = 10;
+        const staffPos = (staffTop + 40 - y) / lineSpacing;
+        const naturalNotes = ['C','D','E','F','G','A','B'];
+        const steps = Math.round(staffPos * 2);
+        const totalIdx = 4 + steps;
+        const octaveOffset = Math.floor(totalIdx / 7);
+        const noteIdx = ((totalIdx % 7) + 7) % 7;
+        const note = naturalNotes[noteIdx];
+        const octave = 4 + octaveOffset;
+
+        const durName = {'1':'whole','0.5':'half','0.25':'quarter','0.125':'eighth','0.0625':'sixteenth'};
+        const dur = document.getElementById('scoreDuration')?.value || '0.25';
+        preview.textContent = note + octave + ' (' + (durName[dur] || 'quarter') + ' note)';
     }
 
     function renderScore() {
