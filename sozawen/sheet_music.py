@@ -589,6 +589,144 @@ def render_tab_svg(tab_text, tuning_key="guitar_standard",
 # UTILITY
 # ═══════════════════════════════════════════════════════════════════
 
+def render_orchestral_score(parts, key='C', time_sig='4/4', width=900):
+    """Render a multi-staff orchestral score.
+
+    parts: list of {name, clef, events} where:
+        name: instrument name (e.g. "Violin I")
+        clef: "treble" or "bass"
+        events: list of {notes: [{note, octave}], beat}
+
+    Returns SVG string with all staves stacked vertically,
+    connected by a system bracket on the left.
+    """
+    if not parts:
+        return ""
+
+    staff_height = 50  # 5 lines * 10px spacing
+    staff_gap = 60     # gap between staves
+    line_spacing = 10
+    margin_top = 40
+    margin_left = 100   # room for instrument names + bracket
+
+    total_height = margin_top + len(parts) * (staff_height + staff_gap) + 40
+
+    svg = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{total_height}" '
+        f'viewBox="0 0 {width} {total_height}" style="background:#1a1a2e;">'
+    ]
+
+    # System bracket (vertical line connecting all staves)
+    first_staff_y = margin_top
+    last_staff_y = margin_top + (len(parts) - 1) * (staff_height + staff_gap) + staff_height
+    svg.append(
+        f'<line x1="{margin_left - 15}" y1="{first_staff_y}" '
+        f'x2="{margin_left - 15}" y2="{last_staff_y}" '
+        f'stroke="#888" stroke-width="3"/>'
+    )
+    # Bracket curves
+    svg.append(
+        f'<path d="M{margin_left - 18},{first_staff_y} Q{margin_left - 25},{(first_staff_y + last_staff_y) / 2} {margin_left - 18},{last_staff_y}" '
+        f'fill="none" stroke="#888" stroke-width="2"/>'
+    )
+
+    # Key signature info
+    num_sf = KEY_SIGNATURES.get(key, 0)
+
+    # Render each staff
+    for part_idx, part in enumerate(parts):
+        staff_top = margin_top + part_idx * (staff_height + staff_gap)
+        clef = part.get("clef", "treble")
+        name = part.get("name", f"Part {part_idx + 1}")
+        events = part.get("events", [])
+
+        # Instrument name (left of staff)
+        name_y = staff_top + staff_height // 2 + 4
+        svg.append(
+            f'<text x="{margin_left - 20}" y="{name_y}" '
+            f'font-size="10" fill="#aaa" font-family="sans-serif" '
+            f'text-anchor="end">{name}</text>'
+        )
+
+        # Staff lines
+        for i in range(5):
+            y = staff_top + i * line_spacing
+            svg.append(
+                f'<line x1="{margin_left}" y1="{y}" x2="{width - 20}" y2="{y}" '
+                f'stroke="#555" stroke-width="1"/>'
+            )
+
+        # Clef
+        if clef == 'treble':
+            svg.append(
+                f'<text x="{margin_left + 5}" y="{staff_top + 32}" '
+                f'font-size="38" fill="#aaa" font-family="serif">\U0001D11E</text>'
+            )
+        else:
+            svg.append(
+                f'<text x="{margin_left + 5}" y="{staff_top + 28}" '
+                f'font-size="32" fill="#aaa" font-family="serif">\U0001D122</text>'
+            )
+
+        # Key signature
+        ks_x = margin_left + 40
+
+        # Time signature
+        ts_x = ks_x + abs(num_sf) * 10 + 10
+        beats, beat_type = time_sig.split('/')
+        svg.append(
+            f'<text x="{ts_x}" y="{staff_top + 15}" '
+            f'font-size="16" fill="#ccc" font-weight="bold" font-family="serif">{beats}</text>'
+        )
+        svg.append(
+            f'<text x="{ts_x}" y="{staff_top + 33}" '
+            f'font-size="16" fill="#ccc" font-weight="bold" font-family="serif">{beat_type}</text>'
+        )
+
+        # Notes
+        note_spacing = 35
+        start_x = ts_x + 30
+
+        for i, event in enumerate(events):
+            x = start_x + i * note_spacing
+            if x > width - 30:
+                break
+
+            for note_data in event.get("notes", []):
+                note = note_data.get("note", "C")
+                octave = note_data.get("octave", 4)
+                pos = get_staff_position(note, octave, clef)
+                y = staff_top + (4 - pos) * line_spacing
+
+                # Note head
+                svg.append(
+                    f'<ellipse cx="{x}" cy="{y}" rx="5.5" ry="4" '
+                    f'fill="#2dd4a8" stroke="#2dd4a8" stroke-width="1" '
+                    f'transform="rotate(-10 {x} {y})"/>'
+                )
+
+                # Stem
+                stem_dir = -1 if pos >= 2 else 1
+                stem_y = y + stem_dir * 28
+                svg.append(
+                    f'<line x1="{x + 4.5 * (-stem_dir)}" y1="{y}" '
+                    f'x2="{x + 4.5 * (-stem_dir)}" y2="{stem_y}" '
+                    f'stroke="#2dd4a8" stroke-width="1.5"/>'
+                )
+
+                # Ledger lines
+                lines_below, lines_above = needs_ledger_lines(pos)
+                for l in range(lines_below):
+                    ly = staff_top + (5 + l) * line_spacing
+                    svg.append(
+                        f'<line x1="{x - 8}" y1="{ly}" x2="{x + 8}" y2="{ly}" '
+                        f'stroke="#555" stroke-width="1"/>'
+                    )
+
+    svg.append('</svg>')
+    return '\n'.join(svg)
+
+
 def list_tunings(instrument=None):
     """List available tunings, optionally filtered by instrument."""
     result = []

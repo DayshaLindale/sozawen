@@ -1881,6 +1881,19 @@ async def audio_to_notation(request: Request):
         logger.error(f"Audio to notation error: {e}")
         return JSONResponse({"ok": False, "error": str(e)})
 
+@api.post("/api/sheet/orchestral")
+async def render_orchestral(request: Request):
+    """Render a multi-staff orchestral score."""
+    data = await request.json()
+    parts = data.get("parts", [])
+    key = data.get("key", "C")
+    time_sig = data.get("time_sig", "4/4")
+    width = int(data.get("width", 900))
+
+    from sozawen.sheet_music import render_orchestral_score
+    svg = render_orchestral_score(parts, key=key, time_sig=time_sig, width=width)
+    return JSONResponse({"ok": True, "svg": svg, "parts": len(parts)})
+
 @api.post("/api/sheet/midi-to-notation")
 async def midi_to_notation(request: Request):
     """Convert MIDI data to sheet music + tab."""
