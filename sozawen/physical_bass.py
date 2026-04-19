@@ -340,12 +340,15 @@ def synthesize_bass_note(freq, duration, sr=44100,
 
         # Technique modifiers
         if technique == "pick":
-            brightness = min(1.0, brightness + 0.15)
-            pick_hard = 0.8
+            brightness = min(1.0, brightness + 0.2)
+            pick_hard = 0.85
         elif technique == "muted":
-            decay *= 0.99
-            brightness *= 0.6
-            pick_hard = 0.2
+            # Palm mute: hand rests on strings near bridge
+            # Dramatically reduces sustain and kills high harmonics
+            decay *= 0.985       # much shorter sustain
+            brightness *= 0.25   # very dark (palm absorbs highs)
+            pick_hard = 0.15     # soft attack (dampened)
+            duration = min(duration, 0.3)  # force short note
         else:  # finger
             pick_hard = 0.2
 

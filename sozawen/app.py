@@ -703,9 +703,12 @@ def _render_instrument(family, model, midi_note, duration, velocity, params):
     """Render a single instrument note — shared by preview and play endpoints."""
     if family == "guitar":
         from sozawen.physical_guitar import synthesize_guitar_note
+        amp = params.pop("amp", "")
+        drive = float(params.pop("drive", 0.3))
         return synthesize_guitar_note(
             440 * 2**((midi_note-69)/12), duration, 44100,
-            body_profile=model or "taylor_dreadnought", velocity=velocity, **params)
+            body_profile=model or "taylor_dreadnought", velocity=velocity,
+            amp=amp, drive=drive, **params)
     elif family == "bass":
         from sozawen.physical_bass import synthesize_bass_note
         return synthesize_bass_note(

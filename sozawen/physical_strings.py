@@ -234,17 +234,26 @@ def synthesize_string_note(midi_note, duration, sr=44100, velocity=0.7,
 
     # === ARTICULATION MODIFIERS ===
     if articulation == "pizzicato":
-        # Use Karplus-Strong instead of bow
+        # Plucked — completely different physics. No bow at all.
+        # Short, percussive, dry. Like plucking a guitar but with
+        # the body resonance of the bowed instrument.
         body = STRING_BODIES.get(instrument, STRING_BODIES["violin"])
-        signal = karplus_strong(freq, duration, sr,
-                               decay=0.995, brightness=0.4,
-                               pluck_position=0.3, pick_hardness=0.3)
-        return body_resonance(signal, body, sr)
+        signal = karplus_strong(freq, min(duration, 1.0), sr,
+                               decay=0.993,       # short sustain (pizz dies quickly)
+                               brightness=0.35,    # dark (finger pluck, not pick)
+                               pluck_position=0.25,
+                               pick_hardness=0.2)  # finger, not pick
+        # Pizzicato has a very distinct "pluck" attack
+        click = np.random.randn(int(0.003 * sr)).astype(np.float32) * 0.2
+        signal[:len(click)] += click
+        return body_resonance(signal, body, sr) * velocity
 
     elif articulation == "staccato":
-        duration = min(duration, 0.15)
-        bow_pressure = min(1.0, bow_pressure + 0.2)
-        vibrato_depth = 0  # no vibrato on short notes
+        # Very short, accented — like a jab with the bow
+        duration = min(duration, 0.12)  # shorter than before
+        bow_speed *= 1.3    # faster stroke = louder attack
+        bow_pressure = min(1.0, bow_pressure + 0.3)  # more pressure
+        vibrato_depth = 0
 
     elif articulation == "detache":
         # Slight gap at end

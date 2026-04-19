@@ -301,36 +301,93 @@ STRING_SETS = {
 # FULL GUITAR SYNTHESIZER
 # ═══════════════════════════════════════════════════════════════════
 
+def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
+    """Process guitar through an amp model.
+
+    amp_type: "clean", "crunch", "overdrive", "high_gain", "fuzz"
+    drive: 0-1 gain amount
+    """
+    output = signal.copy()
+
+    if amp_type == "clean":
+        # Fender-style clean: slight compression, sparkle
+        output = np.tanh(output * (1.2 + drive)) / 1.1
+        b, a = butter(2, [100 / (sr / 2), 8000 / (sr / 2)], btype='band')
+        output = lfilter(b, a, output).astype(np.float32)
+
+    elif amp_type == "crunch":
+        # Marshall-style crunch: moderate drive, mid-heavy
+        output = np.tanh(output * (2.0 + drive * 4)) / (1 + drive)
+        b, a = butter(2, [150 / (sr / 2), 6000 / (sr / 2)], btype='band')
+        output = lfilter(b, a, output).astype(np.float32)
+        # Mid boost
+        b, a = butter(2, [400 / (sr / 2), 2000 / (sr / 2)], btype='band')
+        mid = lfilter(b, a, output).astype(np.float32) * 0.4
+        output = output + mid
+
+    elif amp_type == "overdrive":
+        # Tube screamer style: warm overdrive, mid-focused
+        output = np.tanh(output * (3.0 + drive * 6)) / (1 + drive * 0.5)
+        b, a = butter(2, [200 / (sr / 2), 5000 / (sr / 2)], btype='band')
+        output = lfilter(b, a, output).astype(np.float32)
+        # Strong mid hump
+        b, a = butter(2, [600 / (sr / 2), 1500 / (sr / 2)], btype='band')
+        mid = lfilter(b, a, output).astype(np.float32) * 0.5
+        output = output + mid
+
+    elif amp_type == "high_gain":
+        # Mesa/5150 style: heavy distortion, tight low end
+        output = np.tanh(output * (4.0 + drive * 8)) * 0.7
+        b, a = butter(2, 80 / (sr / 2), btype='high')
+        output = lfilter(b, a, output).astype(np.float32)
+        b, a = butter(2, 7000 / (sr / 2), btype='low')
+        output = lfilter(b, a, output).astype(np.float32)
+
+    elif amp_type == "fuzz":
+        # Fuzz face style: square wave clipping, thick
+        output = np.clip(output * (3 + drive * 10), -0.8, 0.8)
+        b, a = butter(1, 4000 / (sr / 2), btype='low')
+        output = lfilter(b, a, output).astype(np.float32)
+
+    peak = np.max(np.abs(output))
+    if peak > 0:
+        output = output / peak * 0.8
+    return output.astype(np.float32)
+
+
+# Electric vs acoustic detection
+ELECTRIC_PROFILES = {"electric_strat", "electric_les_paul"}
+
+
 def synthesize_guitar_note(freq, duration, sr=44100,
                           body_profile="taylor_dreadnought",
                           string_set="light_acoustic",
                           string_index=0,
                           pluck_position=0.5,
                           pick_hardness=0.3,
-                          velocity=0.7):
+                          velocity=0.7,
+                          amp="", drive=0.3):
     """Synthesize a complete guitar note.
 
-    freq: note frequency (Hz)
-    duration: seconds
-    body_profile: which guitar body to use
-    string_set: which strings
-    string_index: which string (0=low E, 5=high E)
-    pluck_position: 0=bridge, 1=neck
-    pick_hardness: 0=finger, 1=pick
-    velocity: how hard the pluck (0-1)
+    For electric guitars (Strat, Les Paul), applies pickup simulation
+    and optional amp processing. For acoustic, uses body resonance.
+
+    amp: "" (default for type), "clean", "crunch", "overdrive", "high_gain", "fuzz"
+    drive: 0-1 amp gain
     """
-    strings = STRING_SETS.get(string_set, STRING_SETS["light_acoustic"])
+    is_electric = body_profile in ELECTRIC_PROFILES
+
+    strings = STRING_SETS.get(string_set,
+                             STRING_SETS["electric_light"] if is_electric
+                             else STRING_SETS["light_acoustic"])
     idx = min(string_index, len(strings["decay"]) - 1)
 
     decay = strings["decay"][idx]
     brightness = strings["brightness"][idx]
 
-    # Velocity affects brightness and decay
-    # Harder pluck = brighter, slightly shorter
     brightness = min(1.0, brightness + velocity * 0.2)
     decay = decay - (1 - velocity) * 0.002
 
-    # Generate string vibration
     string_signal = karplus_strong(
         freq, duration, sr,
         decay=decay,
@@ -339,13 +396,25 @@ def synthesize_guitar_note(freq, duration, sr=44100,
         pick_hardness=pick_hardness,
     )
 
-    # Apply body resonance
-    body = BODY_PROFILES.get(body_profile, BODY_PROFILES["taylor_dreadnought"])
-    output = body_resonance(string_signal, body, sr)
+    if is_electric:
+        # Electric: pickup simulation (body resonance is subtle) + amp
+        body = BODY_PROFILES.get(body_profile, BODY_PROFILES["electric_strat"])
+        output = body_resonance(string_signal, body, sr)
 
-    # Apply velocity to final level
+        # Default amp based on guitar type
+        if not amp:
+            amp = "clean" if body_profile == "electric_strat" else "crunch"
+        output = electric_amp(output, amp, drive, sr)
+    else:
+        # Acoustic: body resonance only, no amp
+        body = BODY_PROFILES.get(body_profile, BODY_PROFILES["taylor_dreadnought"])
+        output = body_resonance(string_signal, body, sr)
+
+        # But allow amp if explicitly requested (acoustic through amp)
+        if amp:
+            output = electric_amp(output, amp, drive, sr)
+
     output *= velocity
-
     return output
 
 

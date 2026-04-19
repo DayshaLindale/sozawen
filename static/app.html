@@ -4759,6 +4759,17 @@
                         <option value="cup">Cup</option><option value="harmon">Harmon</option><option value="plunger">Plunger</option>
                     </select>
                 </div>`;
+        } else if (family === 'guitar') {
+            extra.innerHTML = `
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+                    <label style="font-size:10px;color:var(--text-dim);min-width:30px;">Amp</label>
+                    <select id="instGuitarAmp" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="">Default</option><option value="clean">Clean</option><option value="crunch">Crunch</option>
+                        <option value="overdrive">Overdrive</option><option value="high_gain">High Gain</option><option value="fuzz">Fuzz</option>
+                    </select>
+                    <label style="font-size:10px;color:var(--text-dim);min-width:30px;">Drive</label>
+                    <input type="range" id="instDrive" min="0" max="100" value="30" style="width:60px;">
+                </div>`;
         } else if (family === 'keys') {
             extra.innerHTML = `
                 <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
@@ -4834,11 +4845,15 @@
         const art = document.getElementById('instArticulation')?.value;
         const mute = document.getElementById('instMute')?.value;
         const leslie = document.getElementById('instLeslie')?.value;
+        const gAmp = document.getElementById('instGuitarAmp')?.value;
+        const drive = document.getElementById('instDrive')?.value;
         if (tech) extraParams += `&technique=${tech}`;
         if (amp) extraParams += `&amp=${amp}`;
         if (art) extraParams += `&articulation=${art}`;
         if (mute) extraParams += `&mute=${mute}`;
         if (leslie) extraParams += `&leslie=${leslie}`;
+        if (gAmp) extraParams += `&amp=${gAmp}`;
+        if (drive) extraParams += `&drive=${parseInt(drive)/100}`;
         const url = `/api/instrument/play/${_instFamily}/${_instModel}/${midi}?duration=${dur}&velocity=${vel}${extraParams}`;
         const audio = new Audio(url);
         audio.play().then(() => {
