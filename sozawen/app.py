@@ -192,6 +192,22 @@ async def toggle_track_solo(track_id: int):
         return JSONResponse({"ok": True, "solo": track.solo})
     return JSONResponse({"error": "Track not found"}, status_code=404)
 
+@api.delete("/api/track/{track_id}")
+async def delete_track(track_id: int):
+    """Remove a track completely."""
+    if track_id in _engine.tracks:
+        del _engine.tracks[track_id]
+        return JSONResponse({"ok": True})
+    return JSONResponse({"error": "Track not found"}, status_code=404)
+
+@api.post("/api/track/{track_id}/remove")
+async def remove_track(track_id: int):
+    """Remove a track (POST variant for compatibility)."""
+    if track_id in _engine.tracks:
+        del _engine.tracks[track_id]
+        return JSONResponse({"ok": True})
+    return JSONResponse({"error": "Track not found"}, status_code=404)
+
 @api.post("/api/track/{track_id}/pan")
 async def set_track_pan(track_id: int, request: Request):
     data = await request.json()
@@ -824,12 +840,15 @@ async def render_drums(request: Request):
         Path(output_path).parent.mkdir(exist_ok=True)
         sf.write(output_path, audio, 44100)
 
-        # Replace existing drum track instead of stacking new ones
-        for tid in list(_engine.tracks.keys()):
-            t = _engine.tracks[tid]
-            if t.name in ("Drums", "Beat", "Rock Beat", name) and t.track_type == "audio":
+        # Replace ALL existing drum tracks — never stack
+        drum_names = {"Drums", "Beat", "Rock Beat", "Test Beat", "Test", name}
+        to_remove = [tid for tid, t in _engine.tracks.items()
+                     if t.name in drum_names]
+        for tid in to_remove:
+            try:
                 del _engine.tracks[tid]
-                break
+            except Exception:
+                pass
 
         track = _engine.add_track(name=name)
         track.add_region(output_path, source_type="generated")
