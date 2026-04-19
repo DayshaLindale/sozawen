@@ -424,6 +424,12 @@ class AudioEngine:
             # Advance position
             self.position += frames
 
+            # Loop control
+            if self.looping:
+                loop_end = self.loop_end if self.loop_end > 0 else self.duration_samples
+                if loop_end > 0 and self.position >= loop_end:
+                    self.position = self.loop_start
+
             # Loop handling
             if self.looping and self.position >= self.loop_end:
                 self.position = self.loop_start

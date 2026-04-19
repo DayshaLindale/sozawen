@@ -114,6 +114,31 @@ async def transport_seek(request: Request):
     _engine.seek_seconds(seconds)
     return JSONResponse({"ok": True, "position": _engine.get_position_seconds()})
 
+@api.post("/api/transport/loop")
+async def transport_loop(request: Request):
+    """Set loop points and enable/disable looping.
+
+    loop: true/false — enable/disable
+    start: seconds — loop start point
+    end: seconds — loop end point (0 = end of content)
+    """
+    data = await request.json()
+    _engine.looping = data.get("loop", _engine.looping)
+    if "start" in data:
+        _engine.loop_start = int(data["start"] * _engine.sample_rate)
+    if "end" in data:
+        end_sec = data["end"]
+        if end_sec > 0:
+            _engine.loop_end = int(end_sec * _engine.sample_rate)
+        else:
+            _engine.loop_end = _engine.duration_samples
+    return JSONResponse({
+        "ok": True,
+        "looping": _engine.looping,
+        "loop_start": _engine.loop_start / _engine.sample_rate,
+        "loop_end": _engine.loop_end / _engine.sample_rate,
+    })
+
 @api.get("/api/transport/state")
 async def transport_state():
     return JSONResponse(_engine.get_state())
