@@ -51,21 +51,24 @@ def adsr(length, attack, decay, sustain, release, sr=44100):
     env = np.zeros(length, dtype=np.float32)
     pos = 0
     # Attack: 0 to 1
-    if a > 0:
-        env[pos:pos+a] = np.linspace(0, 1, a)
-        pos += a
+    seg = min(a, length - pos)
+    if seg > 0:
+        env[pos:pos+seg] = np.linspace(0, 1, seg)
+        pos += seg
     # Decay: 1 to sustain
-    if d > 0:
-        env[pos:pos+d] = np.linspace(1, sustain, d)
-        pos += d
+    seg = min(d, length - pos)
+    if seg > 0:
+        env[pos:pos+seg] = np.linspace(1, sustain, seg)
+        pos += seg
     # Sustain
+    s_len = max(0, length - pos - min(r, length - pos))
     if s_len > 0:
         env[pos:pos+s_len] = sustain
         pos += s_len
     # Release: sustain to 0
-    if r > 0 and pos < length:
-        remaining = min(r, length - pos)
-        env[pos:pos+remaining] = np.linspace(sustain, 0, remaining)
+    seg = min(r, length - pos)
+    if seg > 0:
+        env[pos:pos+seg] = np.linspace(sustain, 0, seg)
 
     return env
 

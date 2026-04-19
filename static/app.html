@@ -1219,14 +1219,14 @@
 
             instruments: `<h3>Instruments ${h('62 physically modeled instruments. Pick a family, choose a model, click the keyboard to play. Every sound synthesized from physics — no samples.')}</h3>
                 <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('guitar')" style="font-size:10px;padding:4px 8px;">🎸 Guitar</button>
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('bass')" style="font-size:10px;padding:4px 8px;">🎸 Bass</button>
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('piano')" style="font-size:10px;padding:4px 8px;">🎹 Piano</button>
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('keys')" style="font-size:10px;padding:4px 8px;">🎹 Keys</button>
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('strings')" style="font-size:10px;padding:4px 8px;">🎻 Strings</button>
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('brass')" style="font-size:10px;padding:4px 8px;">🎺 Brass</button>
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('winds')" style="font-size:10px;padding:4px 8px;">🎷 Winds</button>
-                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('percussion')" style="font-size:10px;padding:4px 8px;">🔔 Percussion</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('guitar',event)" style="font-size:10px;padding:4px 8px;">🎸 Guitar</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('bass',event)" style="font-size:10px;padding:4px 8px;">🎸 Bass</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('piano',event)" style="font-size:10px;padding:4px 8px;">🎹 Piano</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('keys',event)" style="font-size:10px;padding:4px 8px;">🎹 Keys</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('strings',event)" style="font-size:10px;padding:4px 8px;">🎻 Strings</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('brass',event)" style="font-size:10px;padding:4px 8px;">🎺 Brass</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('winds',event)" style="font-size:10px;padding:4px 8px;">🎷 Winds</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('percussion',event)" style="font-size:10px;padding:4px 8px;">🔔 Percussion</button>
                 </div>
                 <div style="margin-bottom:8px;">
                     <select id="instModelSelect" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:6px;font-family:inherit;font-size:11px;" onchange="onInstModelChange()">
@@ -4692,10 +4692,10 @@
     let _instAudioCtx = null;
     let _allInstruments = null;
 
-    function selectInstFamily(family) {
+    function selectInstFamily(family, e) {
         _instFamily = family;
         document.querySelectorAll('.inst-fam-btn').forEach(b => b.style.background = '');
-        event.target.style.background = 'var(--violet)';
+        if (e && e.target) e.target.style.background = 'var(--violet)';
 
         // Fetch models for this family
         if (!_allInstruments) {
