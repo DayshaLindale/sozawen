@@ -766,7 +766,7 @@
             marks.appendChild(m);
         }
     }
-    buildRuler(180); // default 3 minutes
+    buildRuler(10); // start compact, auto-expands when tracks are loaded
 
     // ═══ TRACKS ═══
     function addTrack(name, filePath) {
@@ -2349,6 +2349,10 @@
                         }
                     }
                 });
+
+                // Auto-size ruler to content
+                const maxDur = d.duration_seconds || 10;
+                buildRuler(Math.max(5, maxDur + 2));
             }
         });
     }
@@ -2759,14 +2763,14 @@
         _zoomLevel = Math.min(8.0, _zoomLevel * 1.5);
         PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
         reloadAllWaveforms();
-        buildRuler(Math.max(180, getMaxDuration()));
+        buildRuler(Math.max(10, getMaxDuration() + 2));
         document.getElementById('statusText').textContent = `Zoom: ${Math.round(_zoomLevel*100)}%`;
     }
     function zoomOut() {
         _zoomLevel = Math.max(0.25, _zoomLevel / 1.5);
         PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
         reloadAllWaveforms();
-        buildRuler(Math.max(180, getMaxDuration()));
+        buildRuler(Math.max(10, getMaxDuration() + 2));
         document.getElementById('statusText').textContent = `Zoom: ${Math.round(_zoomLevel*100)}%`;
     }
     function zoomToFit() {
