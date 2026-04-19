@@ -451,6 +451,14 @@
     </div>
 
     <script>
+    // Global error handler — shows JS errors visually
+    window.onerror = function(msg, url, line, col, error) {
+        document.title = 'JS ERROR: ' + msg;
+        var errDiv = document.createElement('div');
+        errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;padding:8px;z-index:9999;font-size:12px;';
+        errDiv.textContent = 'JS Error line ' + line + ': ' + msg;
+        document.body.appendChild(errDiv);
+    };
     // ═══ LICENSE CHECK ON STARTUP ═══
     function checkLicense() {
         fetch('/api/license/status').then(r=>r.json()).then(d => {
@@ -759,22 +767,22 @@
         marks.innerHTML = '';
         const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || 120);
         const beatSec = 60 / bpm;
+        const pps = (typeof PIXELS_PER_SECOND !== 'undefined') ? PIXELS_PER_SECOND : 10;
 
         // Mark every beat (at current zoom level)
-        const totalWidth = seconds * PIXELS_PER_SECOND;
-        const beatWidth = beatSec * PIXELS_PER_SECOND;
+        const beatWidth = beatSec * pps;
 
         // Choose mark interval based on zoom
-        let markInterval = beatSec;  // every beat
-        if (beatWidth < 30) markInterval = beatSec * 4;  // every bar if zoomed out
+        let markInterval = beatSec;
+        if (beatWidth < 30) markInterval = beatSec * 4;
         if (beatWidth < 10) markInterval = beatSec * 8;
-        if (beatWidth > 100) markInterval = beatSec * 0.5;  // half beats if zoomed in
+        if (beatWidth > 100) markInterval = beatSec * 0.5;
 
         for (let t = 0; t <= seconds; t += markInterval) {
             const m = document.createElement('div');
             m.className = 'ruler-mark';
-            m.style.minWidth = (markInterval * PIXELS_PER_SECOND) + 'px';
-            m.style.width = (markInterval * PIXELS_PER_SECOND) + 'px';
+            m.style.minWidth = (markInterval * pps) + 'px';
+            m.style.width = (markInterval * pps) + 'px';
 
             // Show beat number or time
             const beatNum = Math.round(t / beatSec) + 1;
