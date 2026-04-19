@@ -235,26 +235,56 @@ class AudioEngine:
         logger.info("AudioEngine: %dHz, buffer %d, %dch", sample_rate, buffer_size, channels)
 
     def start(self):
-        """Start the audio output stream."""
+        """Start the audio output stream in a dedicated thread."""
         if self._stream is not None:
             return
+
+        import threading
 
         self._stream = sd.OutputStream(
             samplerate=self.sample_rate,
             blocksize=self.buffer_size,
             channels=self.channels,
             dtype='float32',
-            callback=self._output_callback,
             latency='low',
         )
         self._stream.start()
-        logger.info("Audio output started")
+        self._audio_thread_running = True
+
+        def audio_thread():
+            """Dedicated thread that feeds audio to the output stream."""
+            logger.info("Audio thread started")
+            while self._audio_thread_running:
+                try:
+                    frames = self.buffer_size
+                    outdata = np.zeros((frames, self.channels), dtype=np.float32)
+                    self._output_callback(outdata, frames, None, None)
+                    if self._stream and self._stream.active:
+                        self._stream.write(outdata)
+                    else:
+                        import time
+                        time.sleep(0.01)
+                except sd.PortAudioError:
+                    import time
+                    time.sleep(0.01)
+                except Exception as e:
+                    logger.error("Audio thread error: %s", e)
+                    import time
+                    time.sleep(0.1)
+
+        self._audio_thread = threading.Thread(target=audio_thread, daemon=True, name="audio_out")
+        self._audio_thread.start()
+        logger.info("Audio output started (threaded)")
 
     def stop(self):
         """Stop audio output."""
+        self._audio_thread_running = False
         if self._stream:
-            self._stream.stop()
-            self._stream.close()
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                pass
             self._stream = None
         self.playing = False
         self.recording = False
@@ -355,7 +385,17 @@ class AudioEngine:
             track.record_armed = False
 
     def _output_callback(self, outdata, frames, time_info, status):
-        """Real-time audio output callback — called by sounddevice."""
+        """Real-time audio output callback."""
+        try:
+            self._output_callback_inner(outdata, frames)
+        except Exception as e:
+            outdata[:] = 0
+            # Log once, not every frame
+            if not hasattr(self, '_last_cb_error') or str(e) != self._last_cb_error:
+                self._last_cb_error = str(e)
+                logger.error("Audio callback error: %s", e)
+
+    def _output_callback_inner(self, outdata, frames):
         if not self.playing:
             outdata[:] = 0
             return
@@ -422,7 +462,7 @@ class AudioEngine:
             outdata[:] = mix[:frames].astype(np.float32)
 
             # Advance position
-            self.position += frames
+            self.position = self.position + frames
 
             # Loop control
             if self.looping:
@@ -433,10 +473,6 @@ class AudioEngine:
                     loop_end = max((t.duration_samples for t in self.tracks.values() if t.track_type == "audio"), default=0)
                 if loop_end > 0 and self.position >= loop_end:
                     self.position = self.loop_start
-
-            # Loop handling
-            if self.looping and self.position >= self.loop_end:
-                self.position = self.loop_start
 
     def _input_callback(self, indata, frames, time_info, status):
         """Record input audio to armed track buffers + monitoring.
