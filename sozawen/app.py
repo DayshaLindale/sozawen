@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger("sozawen")
 
 # Clean shutdown — stop audio when the program closes
-import atexit, signal
+import atexit
 
 def _cleanup():
     try:
@@ -40,13 +40,6 @@ def _cleanup():
         pass
 
 atexit.register(_cleanup)
-
-def _signal_handler(sig, frame):
-    _cleanup()
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, _signal_handler)
-signal.signal(signal.SIGTERM, _signal_handler)
 
 # Settings
 SETTINGS = {}
