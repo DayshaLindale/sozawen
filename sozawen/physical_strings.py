@@ -249,11 +249,13 @@ def synthesize_string_note(midi_note, duration, sr=44100, velocity=0.7,
         return body_resonance(signal, body, sr) * velocity
 
     elif articulation == "staccato":
-        # Very short, accented — like a jab with the bow
-        duration = min(duration, 0.12)  # shorter than before
-        bow_speed *= 1.3    # faster stroke = louder attack
-        bow_pressure = min(1.0, bow_pressure + 0.3)  # more pressure
+        # Very short, hard accent — a sharp jab with the bow
+        # Must be OBVIOUSLY different from sustain
+        duration = 0.08  # force to 80ms regardless of input
+        bow_speed = 0.9  # fast, hard stroke
+        bow_pressure = 0.9  # maximum pressure for bite
         vibrato_depth = 0
+        vibrato_rate = 0
 
     elif articulation == "detache":
         # Slight gap at end

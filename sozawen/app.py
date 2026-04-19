@@ -824,6 +824,13 @@ async def render_drums(request: Request):
         Path(output_path).parent.mkdir(exist_ok=True)
         sf.write(output_path, audio, 44100)
 
+        # Replace existing drum track instead of stacking new ones
+        for tid in list(_engine.tracks.keys()):
+            t = _engine.tracks[tid]
+            if t.name in ("Drums", "Beat", "Rock Beat", name) and t.track_type == "audio":
+                del _engine.tracks[tid]
+                break
+
         track = _engine.add_track(name=name)
         track.add_region(output_path, source_type="generated")
         return JSONResponse({"ok": True, "track_id": track.id})

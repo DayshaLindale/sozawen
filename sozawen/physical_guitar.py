@@ -316,38 +316,62 @@ def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
         output = lfilter(b, a, output).astype(np.float32)
 
     elif amp_type == "crunch":
-        # Marshall-style crunch: moderate drive, mid-heavy
-        output = np.tanh(output * (2.0 + drive * 4)) / (1 + drive)
+        # Marshall-style crunch: two gain stages, mid-heavy
+        # Stage 1: preamp
+        output = np.tanh(output * (2.5 + drive * 5))
+        # Stage 2: power amp breakup
+        output = np.tanh(output * (1.5 + drive * 2)) * 0.85
+        # Marshall tone stack: boosted mids, scooped slightly around 400Hz
         b, a = butter(2, [150 / (sr / 2), 6000 / (sr / 2)], btype='band')
         output = lfilter(b, a, output).astype(np.float32)
-        # Mid boost
-        b, a = butter(2, [400 / (sr / 2), 2000 / (sr / 2)], btype='band')
-        mid = lfilter(b, a, output).astype(np.float32) * 0.4
-        output = output + mid
-
-    elif amp_type == "overdrive":
-        # Tube screamer style: warm overdrive, mid-focused
-        output = np.tanh(output * (3.0 + drive * 6)) / (1 + drive * 0.5)
-        b, a = butter(2, [200 / (sr / 2), 5000 / (sr / 2)], btype='band')
-        output = lfilter(b, a, output).astype(np.float32)
-        # Strong mid hump
-        b, a = butter(2, [600 / (sr / 2), 1500 / (sr / 2)], btype='band')
+        # Classic Marshall mid presence
+        b, a = butter(2, [500 / (sr / 2), 2500 / (sr / 2)], btype='band')
         mid = lfilter(b, a, output).astype(np.float32) * 0.5
         output = output + mid
 
+    elif amp_type == "overdrive":
+        # Tube screamer: asymmetric clipping (diodes clip + and - differently)
+        # This is what gives the TS its character
+        positive = np.clip(output * (3 + drive * 8), 0, 0.7)
+        negative = np.clip(output * (3 + drive * 8), -0.5, 0)
+        output = (positive + negative) * 0.8
+        # Strong mid hump — the TS signature
+        b, a = butter(2, [400 / (sr / 2), 2000 / (sr / 2)], btype='band')
+        output = lfilter(b, a, output).astype(np.float32)
+        b, a = butter(2, [600 / (sr / 2), 1200 / (sr / 2)], btype='band')
+        mid = lfilter(b, a, output).astype(np.float32) * 0.6
+        output = output + mid
+
     elif amp_type == "high_gain":
-        # Mesa/5150 style: heavy distortion, tight low end
-        output = np.tanh(output * (4.0 + drive * 8)) * 0.7
-        b, a = butter(2, 80 / (sr / 2), btype='high')
+        # Mesa/5150 style: HEAVY distortion, cascaded gain stages
+        # Stage 1: preamp — moderate clip
+        output = np.tanh(output * (3.0 + drive * 5))
+        # Stage 2: more gain — harder clip (this is what creates the "wall of sound")
+        output = np.tanh(output * (2.0 + drive * 4))
+        # Stage 3: power amp — final saturation
+        output = np.tanh(output * (1.5 + drive * 2)) * 0.8
+        # Tight low end (high-pass removes flub)
+        b, a = butter(2, 100 / (sr / 2), btype='high')
         output = lfilter(b, a, output).astype(np.float32)
-        b, a = butter(2, 7000 / (sr / 2), btype='low')
+        # Cabinet: remove harsh fizz above 5kHz
+        b, a = butter(2, 5000 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
+        # Presence scoop then boost — the modern metal sound
+        b, a = butter(2, [800 / (sr / 2), 2000 / (sr / 2)], btype='band')
+        mid = lfilter(b, a, output).astype(np.float32) * 0.3
+        output = output + mid
 
     elif amp_type == "fuzz":
-        # Fuzz face style: square wave clipping, thick
-        output = np.clip(output * (3 + drive * 10), -0.8, 0.8)
-        b, a = butter(1, 4000 / (sr / 2), btype='low')
+        # Fuzz face style: HARD square wave clipping, thick and fuzzy
+        # Boost signal hard then hard-clip (not soft tanh)
+        boosted = output * (5 + drive * 15)
+        output = np.clip(boosted, -0.7, 0.7)  # hard clip = square-ish
+        # Heavy lowpass — fuzz is NEVER bright
+        b, a = butter(2, 3000 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
+        # Add some octave-up (rectification artifact of real fuzz)
+        rectified = np.abs(output) * 0.15
+        output = output + rectified
 
     peak = np.max(np.abs(output))
     if peak > 0:
