@@ -311,6 +311,7 @@
             <button class="transport-btn record" id="btnRecord" onclick="toggleRecord()" title="Record">&#9679;</button>
             <button class="transport-btn play" id="btnPlay" onclick="togglePlay()" title="Play / Pause">&#9654;</button>
             <button class="transport-btn" onclick="stopAll()" title="Stop">&#9632;</button>
+            <button class="transport-btn" id="btnLoop" onclick="toggleLoop()" title="Loop" style="font-size:10px;">&#128257;</button>
         </div>
 
         <!-- Time display — the clock -->
@@ -979,17 +980,34 @@
     }
 
     // ═══ TRANSPORT — wired to audio engine ═══
+    let isLooping = true; // default ON — musicians expect loop
+
     function togglePlay() {
         if (isPlaying) {
             fetch('/api/transport/pause', {method:'POST'});
             isPlaying = false;
         } else {
+            // Enable loop if it's on, then play
+            if (isLooping) {
+                fetch('/api/transport/loop', {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({loop: true})});
+            }
             fetch('/api/transport/play', {method:'POST'});
             isPlaying = true;
         }
         document.getElementById('btnPlay').classList.toggle('active', isPlaying);
         document.getElementById('statusText').textContent = isPlaying ? 'Playing' : 'Ready';
     }
+
+    function toggleLoop() {
+        isLooping = !isLooping;
+        fetch('/api/transport/loop', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({loop: isLooping})});
+        document.getElementById('btnLoop').classList.toggle('active', isLooping);
+    }
+
+    // Init loop button state
+    document.getElementById('btnLoop')?.classList.add('active');
     function toggleRecord() {
         isRecording = !isRecording;
         document.getElementById('btnRecord').classList.toggle('active', isRecording);
