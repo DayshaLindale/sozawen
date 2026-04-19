@@ -2518,7 +2518,24 @@
 
     // Poll context every 2 seconds
     setInterval(refreshContext, 2000);
-    refreshContext();
+    try { refreshContext(); } catch(e) { console.error('Context init error:', e); }
+
+    // Fallback: if tools don't load in 3 seconds, show them manually
+    setTimeout(() => {
+        const drawer = document.getElementById('drawerTools');
+        if (drawer && drawer.innerHTML.trim() === '') {
+            drawer.innerHTML = [
+                {id:'instruments',icon:'🎻',label:'Instruments'},
+                {id:'score',icon:'🎼',label:'Score'},
+                {id:'synth',icon:'🎹',label:'Synth'},
+                {id:'drums',icon:'🥁',label:'Drum Machine'},
+                {id:'piano_roll',icon:'🎹',label:'Piano Roll'},
+                {id:'pad',icon:'🎛',label:'Pad'},
+                {id:'bandmate',icon:'💬',label:'Bandmate'},
+                {id:'learn',icon:'📖',label:'Learn'},
+            ].map(t => `<button class="tool-btn" onclick="showPanel('${t.id}',this)" style="opacity:0.7;font-size:11px;"><span class="icon">${t.icon}</span> ${t.label}</button>`).join('');
+        }
+    }, 3000);
 
     // ═══ AUTO-SAVE (every 60 seconds) ═══
     setInterval(() => {
