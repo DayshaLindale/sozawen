@@ -181,39 +181,42 @@ def render_synth_pattern(notes, sr=44100, bpm=120, **synth_params):
 # DRUM MACHINE — synthesized drums from math
 # ═══════════════════════════════════════════════════════════════════
 
-def drum_kick(sr=44100, sustain_ms=300, pitch=55, punch=0.5, sub=0.8):
+def drum_kick(sr=44100, sustain_ms=200, pitch=50, punch=0.5, sub=0.5):
     """Synthesize a kick drum — 3-component: click + body + sub tail.
 
     Research: body is pitch-swept sine 150→40-60Hz, click is short noise burst,
     sub tail extends for 808-style kicks.
     Source: Credland Audio kick drum theory, ModeAudio drum synth design
     """
-    dur = max(0.15, sustain_ms / 1000)
+    dur = max(0.1, sustain_ms / 1000)
     n = int(dur * sr)
 
     # Component 1: Click/transient — short noise burst for attack
-    click_dur = 0.003
-    click = noise(click_dur, sr) * punch * 0.8
-    click = highpass(click, 2000, sr)
+    click_dur = 0.002
+    click = noise(click_dur, sr) * punch * 0.7
+    click = highpass(click, 3000, sr)
 
-    # Component 2: Body — pitch-swept sine (150Hz → base pitch)
-    body = pitch_envelope(pitch * 3, pitch, dur, sr)
-    body_env = adsr(len(body), 0.0005, 0.04, 0.2, dur * 0.4, sr)
-    body = body * body_env * 0.8
+    # Component 2: Body — FAST pitch-swept sine (150Hz → base pitch)
+    # Sweep must be fast enough that you hear a "thump" not a "boop"
+    body_dur = min(dur, 0.12)  # body portion is short
+    body = pitch_envelope(pitch * 3, pitch, body_dur, sr)
+    body_env = adsr(len(body), 0.0003, 0.02, 0.1, body_dur * 0.5, sr)
+    body = body * body_env * 0.9
 
-    # Component 3: Sub tail — sustained low sine for weight (808 style)
-    sub_dur = dur * 0.8
+    # Component 3: Sub tail — short sustained low sine for weight
+    # Shorter than before to avoid "bubbly" sustain
+    sub_dur = dur * 0.5
     sub_tone = sine(pitch, sub_dur, sr)
-    sub_env = adsr(len(sub_tone), 0.01, 0.1, 0.5, sub_dur * 0.3, sr)
-    sub_tone = sub_tone * sub_env * sub * 0.5
+    sub_env = adsr(len(sub_tone), 0.005, 0.05, 0.2, sub_dur * 0.3, sr)
+    sub_tone = sub_tone * sub_env * sub * 0.4
 
     # Mix
     result = np.zeros(n, dtype=np.float32)
     result[:len(click)] += click
-    result[:len(body)] += body[:n]
-    result[:len(sub_tone)] += sub_tone[:n]
+    result[:len(body)] += body[:min(len(body), n)]
+    result[:len(sub_tone)] += sub_tone[:min(len(sub_tone), n)]
 
-    return lowpass(result, 250, sr) * 0.85
+    return lowpass(result, 200, sr) * 0.9
 
 
 def drum_snare(sr=44100, sustain_ms=200, tone_pitch=200, noise_amount=0.6, body_amount=0.4):

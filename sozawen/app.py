@@ -636,6 +636,110 @@ async def render_synth(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@api.post("/api/instrument/preview")
+async def preview_instrument(request: Request):
+    """Preview any physical instrument — play a single note or chord."""
+    import asyncio
+    data = await request.json()
+    family = data.get("family", "guitar")      # guitar, bass, piano, keys, strings, brass, winds, percussion
+    model = data.get("model", "")              # specific model/instrument within family
+    midi_note = data.get("note", 60)
+    duration = min(5.0, max(0.1, data.get("duration", 1.5)))
+    velocity = max(0.1, min(1.0, data.get("velocity", 0.7)))
+    params = data.get("params", {})
+
+    try:
+        if family == "guitar":
+            from sozawen.physical_guitar import synthesize_guitar_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_guitar_note(
+                    440 * 2**((midi_note-69)/12), duration, 44100,
+                    body_profile=model or "taylor_dreadnought",
+                    velocity=velocity, **params))
+        elif family == "bass":
+            from sozawen.physical_bass import synthesize_bass_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_bass_note(
+                    440 * 2**((midi_note-69)/12), duration, 44100,
+                    body_profile=model or "precision",
+                    velocity=velocity, **params))
+        elif family == "piano":
+            from sozawen.physical_piano import synthesize_piano_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_piano_note(
+                    midi_note, duration, 44100, velocity,
+                    piano_model=model or "steinway_d", **params))
+        elif family == "keys":
+            from sozawen.physical_keys import synthesize_keys_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_keys_note(
+                    midi_note, duration, 44100, velocity,
+                    instrument=model or "rhodes_mark1", **params))
+        elif family == "strings":
+            from sozawen.physical_strings import synthesize_string_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_string_note(
+                    midi_note, duration, 44100, velocity,
+                    instrument=model or "violin", **params))
+        elif family == "brass":
+            from sozawen.physical_brass import synthesize_brass_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_brass_note(
+                    midi_note, duration, 44100, velocity,
+                    instrument=model or "trumpet", **params))
+        elif family == "winds":
+            from sozawen.physical_woodwinds import synthesize_wind_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_wind_note(
+                    midi_note, duration, 44100, velocity,
+                    instrument=model or "alto_sax", **params))
+        elif family == "percussion":
+            from sozawen.physical_percussion import synthesize_percussion_note
+            audio = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: synthesize_percussion_note(
+                    model or "timpani", midi_note, duration, 44100, velocity, **params))
+        else:
+            return JSONResponse({"error": f"Unknown family: {family}"}, status_code=400)
+
+        import numpy as np
+        if audio.ndim == 1:
+            audio = np.column_stack([audio, audio])  # mono to stereo
+
+        output_path = str(BASE_DIR / "temp" / f"preview_{family}_{model}.wav")
+        Path(output_path).parent.mkdir(exist_ok=True)
+        sf.write(output_path, audio, 44100)
+
+        track = _engine.add_track(name=f"{family}: {model or 'default'}")
+        track.add_region(output_path, source_type="generated")
+        return JSONResponse({"ok": True, "track_id": track.id, "family": family, "model": model})
+
+    except Exception as e:
+        logger.error(f"Instrument preview error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.get("/api/instrument/all")
+async def list_all_instruments():
+    """List every available physical instrument."""
+    from sozawen.physical_guitar import list_guitar_models
+    from sozawen.physical_bass import list_bass_models, list_bass_amps, list_bass_techniques
+    from sozawen.physical_piano import list_piano_models
+    from sozawen.physical_keys import list_keys_instruments
+    from sozawen.physical_strings import list_string_instruments, list_string_articulations
+    from sozawen.physical_brass import list_brass_instruments, list_mute_types
+    from sozawen.physical_woodwinds import list_wind_instruments
+    from sozawen.physical_percussion import list_percussion_instruments
+
+    return JSONResponse({
+        "guitar": list_guitar_models(),
+        "bass": {"models": list_bass_models(), "amps": list_bass_amps(), "techniques": list_bass_techniques()},
+        "piano": list_piano_models(),
+        "keys": list_keys_instruments(),
+        "strings": {"instruments": list_string_instruments(), "articulations": list_string_articulations()},
+        "brass": {"instruments": list_brass_instruments(), "mutes": list_mute_types()},
+        "winds": list_wind_instruments(),
+        "percussion": list_percussion_instruments(),
+    })
+
 @api.post("/api/instrument/drums")
 async def render_drums(request: Request):
     """Render a drum pattern to a new track."""
