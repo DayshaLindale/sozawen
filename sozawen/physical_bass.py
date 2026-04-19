@@ -169,31 +169,35 @@ def amp_model(signal, model="clean_di", sr=44100, drive=0.3):
     output = signal.copy()
 
     if model == "ampeg_svt":
-        # Ampeg SVT: tube warmth, mid presence, slight compression
-        # Tube saturation: soft clipping
-        if drive > 0.1:
-            output = np.tanh(output * (1 + drive * 3)) / (1 + drive * 2)
-        # Mid boost
+        # Ampeg SVT: tube warmth, mid presence, compression
+        # ALWAYS apply tube saturation — SVT is never truly clean
+        output = np.tanh(output * (1.5 + drive * 4)) / (1.2 + drive)
+        # Strong mid boost — SVT signature
         b, a = butter(2, [300 / (sr / 2), 2000 / (sr / 2)], btype='band')
-        mid = lfilter(b, a, output) * 0.3
-        output = output + mid
-        # Gentle low-end rolloff (tube transformer)
-        b, a = butter(1, 35 / (sr / 2), btype='high')
+        mid = lfilter(b, a, output) * 0.6
+        output = output * 0.7 + mid
+        # Low-end rolloff (tube transformer character)
+        b, a = butter(1, 40 / (sr / 2), btype='high')
         output = lfilter(b, a, output)
+        # High-end rolloff (tube amps are never harsh)
+        b, a = butter(1, 6000 / (sr / 2), btype='low')
+        output = lfilter(b, a, output).astype(np.float32)
 
     elif model == "darkglass":
-        # Darkglass: modern, clean-blend distortion, clarity
-        # Distortion with clean blend
+        # Darkglass: modern aggressive distortion with clean low-end blend
         clean = output.copy()
-        if drive > 0.1:
-            distorted = np.tanh(output * (1 + drive * 5)) * 0.7
-            # High-pass the distortion (keep clean lows)
-            b, a = butter(2, 250 / (sr / 2), btype='high')
-            distorted = lfilter(b, a, distorted)
-            output = clean * (1 - drive * 0.5) + distorted * drive
-        # Presence boost
-        b, a = butter(2, [1500 / (sr / 2), 5000 / (sr / 2)], btype='band')
-        presence = lfilter(b, a, output) * 0.2
+        # ALWAYS distort — Darkglass is never subtle
+        distorted = np.tanh(output * (2.0 + drive * 6)) * 0.8
+        # High-pass the distortion (keep clean lows — the Darkglass signature)
+        b, a = butter(2, 300 / (sr / 2), btype='high')
+        distorted = lfilter(b, a, distorted).astype(np.float32)
+        # Blend: clean low end + distorted highs
+        b, a = butter(2, 300 / (sr / 2), btype='low')
+        clean_lows = lfilter(b, a, clean).astype(np.float32)
+        output = clean_lows * 0.7 + distorted * 0.8
+        # Strong presence boost — modern clarity
+        b, a = butter(2, [2000 / (sr / 2), 6000 / (sr / 2)], btype='band')
+        presence = lfilter(b, a, output).astype(np.float32) * 0.5
         output = output + presence
 
     elif model == "orange":
@@ -232,32 +236,42 @@ def amp_model(signal, model="clean_di", sr=44100, drive=0.3):
 # ═══════════════════════════════════════════════════════════════════
 
 def slap(freq, duration, sr=44100, body_profile="stingray", string_set="stainless"):
-    """Slap bass technique — thumb strike on string.
+    """Slap bass technique — thumb strike on string against fretboard.
 
-    Creates a brighter, more percussive tone than fingerstyle.
-    The thumb hits the string against the fretboard = sharp transient.
+    Dramatically different from fingerstyle: loud percussive transient,
+    much brighter, the string bounces off the fretboard creating buzz.
     """
     strings = BASS_STRINGS.get(string_set, BASS_STRINGS["stainless"])
-    idx = 0  # slap is usually on lower strings
+    idx = 0
 
-    # Slap = hard pluck with very high brightness
+    # Very bright, very hard pluck — nothing like fingerstyle
     note = karplus_strong(
         freq, duration, sr,
-        decay=strings["decay"][idx] * 0.998,
-        brightness=min(1.0, strings["brightness"][idx] + 0.3),
-        pluck_position=0.15,  # near fretboard end
-        pick_hardness=0.9,    # hard impact
+        decay=strings["decay"][idx] * 0.997,
+        brightness=min(1.0, strings["brightness"][idx] + 0.5),  # much brighter
+        pluck_position=0.1,   # near fretboard end
+        pick_hardness=1.0,    # maximum impact
     )
 
-    # Add click transient (thumb hitting string)
-    click_len = int(0.005 * sr)
-    click = np.random.randn(click_len).astype(np.float32) * 0.4
-    b, a = butter(2, 3000 / (sr / 2), btype='high')
-    click = lfilter(b, a, click)
+    # LOUD click transient — the thumb hitting the string against the fret
+    click_len = int(0.008 * sr)
+    click = np.random.randn(click_len).astype(np.float32) * 0.7
+    b, a = butter(2, 2500 / (sr / 2), btype='high')
+    click = lfilter(b, a, click).astype(np.float32)
+    click *= np.exp(-np.linspace(0, 15, click_len))  # fast decay
+
+    # Fret buzz — harmonics from string bouncing on frets
+    buzz_len = int(0.015 * sr)
+    t = np.linspace(0, 0.015, buzz_len, dtype=np.float32)
+    buzz = np.zeros(buzz_len, dtype=np.float32)
+    for h in [2, 3, 4, 5, 6]:
+        buzz += np.sin(2 * np.pi * freq * h * t) * 0.15 / h
+    buzz *= np.exp(-t * 300)
 
     result = np.zeros(len(note), dtype=np.float32)
     result[:len(note)] = note
     result[:click_len] += click
+    result[:buzz_len] += buzz
 
     body = BASS_BODIES.get(body_profile, BASS_BODIES["stingray"])
     return body_resonance(result, body, sr)
