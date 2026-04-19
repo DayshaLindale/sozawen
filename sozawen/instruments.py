@@ -207,35 +207,42 @@ def drum_kick(sr=44100, sustain_ms=200, pitch=50, punch=0.5, sub=0.5):
     click = highpass(click, 2500, sr)
     click *= np.exp(-np.linspace(0, 20, click_n))
 
-    # Component 2: Membrane modes (the drum head)
-    # Mode 1 (fundamental): pitch-swept from ~3x to base
-    # The sweep simulates the head deforming under beater impact
-    sweep = pitch_envelope(pitch * 2.5, pitch, min(dur, 0.08), sr)
-    sweep_env = np.exp(-np.linspace(0, dur, len(sweep)) * (6 / dur))
+    # Component 2: Membrane — VERY fast pitch sweep (under 10ms)
+    # Real kick: beater deforms head, frequency drops instantly
+    # The sweep must be so fast you DON'T hear it as pitch — just "thump"
+    sweep_dur = 0.008  # 8ms — inaudible as a pitch change
+    sweep_n = int(sweep_dur * sr)
+    sweep_t = np.linspace(0, sweep_dur, sweep_n, dtype=np.float32)
+    # Exponential frequency drop: 160Hz → pitch in 8ms
+    sweep_freq = pitch + (160 - pitch) * np.exp(-sweep_t * 600)
+    sweep = np.sin(2 * np.pi * np.cumsum(sweep_freq / sr)) * 0.9
 
-    # Mode 2 (overtone at ~2.3x fundamental — drum membrane mode ratio)
+    # Sustained body at the fundamental — this is the "weight"
+    body = sine(pitch, dur, sr)
+    body_env = np.exp(-t * (5 / dur))  # decay relative to duration
+
+    # Mode 2 (shell overtone)
     mode2_freq = pitch * 2.29
-    mode2 = sine(mode2_freq, dur * 0.3, sr) * 0.15
-    mode2_env = np.exp(-np.linspace(0, dur * 0.3, len(mode2)) * 12)
+    mode2 = sine(mode2_freq, dur * 0.15, sr) * 0.1
+    mode2_n = len(mode2)
+    mode2_env = np.exp(-np.linspace(0, dur * 0.15, mode2_n) * 20)
 
-    # Component 3: Shell/port resonance — deep sustained sine
-    shell = sine(pitch * 0.8, dur * 0.6, sr) * sub * 0.35
-    shell_env = adsr(len(shell), 0.008, 0.05, 0.15, dur * 0.3, sr)
+    # Component 3: Sub weight — just a pure sine at fundamental
+    # No separate "sub tail" — the body IS the sub
 
     # Mix all components
     result = np.zeros(n, dtype=np.float32)
-    result[:click_n] += click[:min(click_n, n)]
+    # Beater click — loud, first thing you hear
+    result[:min(click_n, n)] += click[:min(click_n, n)]
+    # Fast sweep — the initial "thump"
+    result[:min(sweep_n, n)] += sweep[:min(sweep_n, n)]
+    # Body — the sustained weight
+    result[:n] += (body[:n] * body_env) * 0.6
+    # Shell overtone — brief
+    result[:min(mode2_n, n)] += (mode2[:min(mode2_n, n)] * mode2_env[:min(mode2_n, n)])
 
-    sweep_n = min(len(sweep), n)
-    result[:sweep_n] += (sweep[:sweep_n] * sweep_env[:sweep_n]) * 0.8
-
-    mode2_n = min(len(mode2), n)
-    result[:mode2_n] += (mode2[:mode2_n] * mode2_env[:mode2_n])
-
-    shell_n = min(len(shell), n)
-    result[:shell_n] += (shell[:shell_n] * shell_env[:shell_n])
-
-    return lowpass(result, 180, sr) * 0.85
+    # Lowpass — but not too aggressive (let the beater click through)
+    return lowpass(result, 150, sr) * 0.9
 
 
 def drum_snare(sr=44100, sustain_ms=200, tone_pitch=200, noise_amount=0.6, body_amount=0.4):
@@ -294,49 +301,62 @@ def drum_snare(sr=44100, sustain_ms=200, tone_pitch=200, noise_amount=0.6, body_
 
 
 def drum_hihat_closed(sr=44100, decay_ms=50, brightness=0.7):
-    """Synthesize a closed hi-hat — metallic noise with fast decay.
+    """Synthesize a closed hi-hat — mostly noise with metallic character.
 
-    Research: 808 hi-hat = 6 square wave oscillators into bandpass → highpass.
-    Simplified: filtered noise burst with resonant character.
-    Source: joesul.li/van/synthesizing-hi-hats
+    Real hi-hats: two bronze cymbals pressed together. The sound is
+    primarily broadband noise shaped by the metal's resonance.
+    The tonal components are very high (6-12kHz) and quickly masked
+    by the noise. Closed = very short, tight, "chick" sound.
     """
     dur = max(0.02, decay_ms / 1000)
     n = int(dur * sr)
-
-    # Metallic component — multiple detuned high-frequency tones
     t = np.linspace(0, dur, n, dtype=np.float32)
+
+    # PRIMARY: filtered noise — this IS the hi-hat sound
+    nz = noise(dur, sr) * 0.6
+    # Bandpass to hi-hat frequency range (5-12kHz)
+    nz = highpass(nz, 5000, sr)
+    nz = lowpass(nz, 13000, sr)
+
+    # SECONDARY: subtle metallic ring (much quieter than noise)
     metal = np.zeros(n, dtype=np.float32)
-    for freq in [3000, 4350, 5600, 6950, 8250, 9600]:
-        metal += np.sin(2 * np.pi * freq * t) * 0.1
+    for freq in [6500, 8200, 10500]:
+        metal += np.sin(2 * np.pi * freq * t) * 0.04
+    metal *= np.exp(-t * 50)  # metallic ring dies very fast when closed
 
-    # Noise component
-    nz = noise(dur, sr) * brightness * 0.4
+    # Very fast envelope — closed hi-hat is TIGHT
+    env = np.exp(-t * (1000 / max(decay_ms, 10)))
 
-    # Envelope — very fast decay
-    env = adsr(n, 0.0005, decay_ms / 1000, 0.0, 0.005, sr)
-
-    result = (metal + nz) * env
-    return highpass(result * 0.35, 5000, sr)
+    result = (nz + metal) * env * brightness
+    return result.astype(np.float32) * 0.4
 
 
 def drum_hihat_open(sr=44100, decay_ms=500, brightness=0.7):
-    """Synthesize an open hi-hat — same metal, longer sustain.
+    """Synthesize an open hi-hat — same character, longer sustain.
 
-    Research: closed → open = raise decay/release to ~500ms.
+    Open hi-hat: cymbals separated, vibrating freely. Much longer
+    ring, more metallic shimmer audible because the noise sustains.
     """
     dur = max(0.1, decay_ms / 1000)
     n = int(dur * sr)
-
     t = np.linspace(0, dur, n, dtype=np.float32)
+
+    # Noise — longer, with more mid-high content
+    nz = noise(dur, sr) * 0.5
+    nz = highpass(nz, 4000, sr)
+    nz = lowpass(nz, 14000, sr)
+
+    # More metallic shimmer audible when open (longer decay)
     metal = np.zeros(n, dtype=np.float32)
-    for freq in [3000, 4350, 5600, 6950, 8250, 9600]:
-        metal += np.sin(2 * np.pi * freq * t) * 0.1
+    for freq in [6200, 7800, 9500, 11200, 13000]:
+        metal += np.sin(2 * np.pi * freq * t) * 0.05
+    metal *= np.exp(-t * 4)  # ring sustains when open
 
-    nz = noise(dur, sr) * brightness * 0.4
-    env = adsr(n, 0.0005, 0.05, 0.4, dur * 0.4, sr)
+    # Longer envelope with sustain
+    env = np.exp(-t * (3 / max(dur, 0.1)))
 
-    result = (metal + nz) * env
-    return highpass(result * 0.35, 4000, sr)
+    result = (nz + metal) * env * brightness
+    return result.astype(np.float32) * 0.4
 
 
 def drum_clap(sr=44100, spread_ms=25, decay_ms=150):
