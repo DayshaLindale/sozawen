@@ -26,9 +26,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "E:\sozawen\dist\Sozawen\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Sozawen"; Filename: "{app}\Sozawen.exe"; IconFilename: "{app}\static\sozawen.ico"
+Name: "{group}\Sozawen"; Filename: "{app}\Sozawen.exe"; IconFilename: "{app}\_internal\static\sozawen.ico"
 Name: "{group}\Uninstall Sozawen"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Sozawen"; Filename: "{app}\Sozawen.exe"; IconFilename: "{app}\static\sozawen.ico"; Tasks: desktopicon
+Name: "{autodesktop}\Sozawen"; Filename: "{app}\Sozawen.exe"; IconFilename: "{app}\_internal\static\sozawen.ico"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"

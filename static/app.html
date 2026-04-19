@@ -4463,7 +4463,6 @@
 
     function onScoreClick(e) {
         const staff = document.getElementById('scoreStaff');
-        const rect = staff.getBoundingClientRect();
         const svg = staff.querySelector('svg');
         if (!svg) { renderScore(); return; }
 
@@ -4471,48 +4470,22 @@
         const x = e.clientX - svgRect.left;
         const y = e.clientY - svgRect.top;
 
-        // Staff geometry matches render_notation_svg:
-        // staffTop = 60, lineSpacing = 10, 5 lines
-        // Bottom line (E4 treble) = y=60, Top line (F5) = y=60-40=20... wait
-        // Actually: line 0 at staffTop=60, line 4 at staffTop+40=100
-        // Each line is 10px apart
-        // Notes: E4=line0=y60, F4=space=y55, G4=line1=y50, A4=y45, B4=line2=y40
-        //        C5=y35, D5=line3=y30, E5=y25, F5=line4=y20
+        // Use shared multi-staff detection
+        const { partIndex, staffTop, clef } = _compDetectStaff(y);
+        if (partIndex !== _activePartIndex) {
+            _activePartIndex = partIndex;
+            updatePartsList();
+        }
 
-        const staffTop = 60;
-        const lineSpacing = 10;
-
-        // Y position to staff position (0=bottom line E4, each 0.5 = one step)
-        const staffPos = (staffTop + 40 - y) / lineSpacing; // 0 at bottom line, 4 at top
-
-        // Staff position to note: position 0=E4, 0.5=F4, 1=G4, 1.5=A4, 2=B4, 2.5=C5...
-        const naturalNotes = ['C','D','E','F','G','A','B'];
-        // E4 is position 0. E is index 4 in natural notes, octave 4.
-        const baseNoteIdx = 4; // E
-        const baseOctave = 4;
-
-        const steps = Math.round(staffPos * 2); // each half-position = one natural note
-        const totalIdx = baseNoteIdx + steps;
-        const octaveOffset = Math.floor(totalIdx / 7);
-        const noteIdx = ((totalIdx % 7) + 7) % 7;
-
-        const note = naturalNotes[noteIdx];
-        const octave = baseOctave + octaveOffset;
-
-        // Map click X to beat
-        const noteSpacing = 40;
-        const startX = 120; // matches SVG rendering start
-        const beat = Math.max(0, Math.round((x - startX) / noteSpacing));
-
+        const { note, octave } = _compYToNote(y, staffTop, clef);
+        const beat = _compXToBeat(x);
         const duration = parseFloat(document.getElementById('scoreDuration')?.value || '0.25');
 
-        // MIDI number
         const noteMap = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
         const midi = (octave + 1) * 12 + (noteMap[note] || 0);
 
         _scoreParts[_activePartIndex].notes.push({ note, octave, midi, beat, duration });
         _scoreParts[_activePartIndex].notes.sort((a,b) => a.beat - b.beat);
-
         renderScore();
     }
 
@@ -4524,20 +4497,14 @@
 
         const svgRect = svg.getBoundingClientRect();
         const y = e.clientY - svgRect.top;
-        const staffTop = 60, lineSpacing = 10;
-        const staffPos = (staffTop + 40 - y) / lineSpacing;
-        const naturalNotes = ['C','D','E','F','G','A','B'];
-        const steps = Math.round(staffPos * 2);
-        const totalIdx = 4 + steps;
-        const octaveOffset = Math.floor(totalIdx / 7);
-        const noteIdx = ((totalIdx % 7) + 7) % 7;
-        const note = naturalNotes[noteIdx];
-        const octave = 4 + octaveOffset;
+        const { partIndex, staffTop, clef } = _compDetectStaff(y);
+        const { note, octave } = _compYToNote(y, staffTop, clef);
 
         const durName = {'1':'whole','0.5':'half','0.25':'quarter','0.125':'eighth','0.0625':'sixteenth'};
         const dur = document.getElementById('scoreDuration')?.value || '0.25';
-        const partName = _scoreParts[_activePartIndex]?.name || 'Part 1';
-        preview.textContent = partName + ': ' + note + octave + ' (' + (durName[dur] || 'quarter') + ' note)';
+        const partName = _scoreParts[partIndex]?.name || 'Part 1';
+        const clefLabel = clef === 'bass' ? '\u{1D122}' : '\u{1D11E}';
+        preview.textContent = partName + ' ' + clefLabel + ': ' + note + octave + ' (' + (durName[dur] || 'quarter') + ')';
     }
 
     function onScoreRightClick(e) {
@@ -4550,28 +4517,18 @@
         const x = e.clientX - svgRect.left;
         const y = e.clientY - svgRect.top;
 
-        // Find the closest note to remove
-        const staffTop = 60, lineSpacing = 10, noteSpacing = 35, startX = 120;
-        const staffPos = (staffTop + 40 - y) / lineSpacing;
-        const beat = Math.max(0, Math.round((x - startX) / noteSpacing));
+        const { partIndex } = _compDetectStaff(y);
+        if (partIndex !== _activePartIndex) {
+            _activePartIndex = partIndex;
+            updatePartsList();
+        }
 
-        const naturalNotes = ['C','D','E','F','G','A','B'];
-        const steps = Math.round(staffPos * 2);
-        const totalIdx = 4 + steps;
-        const noteIdx = ((totalIdx % 7) + 7) % 7;
-        const note = naturalNotes[noteIdx];
-        const octave = 4 + Math.floor(totalIdx / 7);
-
-        // Find and remove the closest note in the active part
+        const beat = _compXToBeat(x);
         const notes = _scoreParts[_activePartIndex].notes;
-        let closest = -1;
-        let closestDist = Infinity;
+        let closest = -1, closestDist = Infinity;
         for (let i = 0; i < notes.length; i++) {
-            const dist = Math.abs(notes[i].beat - beat) + (notes[i].note === note && notes[i].octave === octave ? 0 : 5);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closest = i;
-            }
+            const dist = Math.abs(notes[i].beat - beat);
+            if (dist < closestDist) { closestDist = dist; closest = i; }
         }
         if (closest >= 0 && closestDist < 3) {
             notes.splice(closest, 1);
@@ -4583,19 +4540,33 @@
         const key = document.getElementById('scoreKey')?.value || 'C';
         const timeSig = document.getElementById('scoreTime')?.value || '4/4';
 
-        // Build parts for orchestral renderer
+        // Build parts with full notation data (durations, rests, dynamics, articulations)
         const parts = _scoreParts.map(part => {
             const beats = {};
             part.notes.forEach(n => {
-                if (!beats[n.beat]) beats[n.beat] = [];
-                beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
+                const b = n.beat;
+                if (!beats[b]) beats[b] = { notes: [], beat: b, duration: n.duration || 0.25 };
+                if (n.type === 'rest') { beats[b].type = 'rest'; beats[b].duration = n.duration || 0.25; }
+                else if (n.type === 'barline') { beats[b].barline = n.barline; }
+                else if (n.type === 'navigation') { beats[b].navigation = n.navigation; }
+                else { beats[b].notes.push({note: n.note, octave: n.octave, midi: n.midi, duration: n.duration || 0.25}); }
+                if (n.dynamic) beats[b].dynamic = n.dynamic;
+                if (n.articulation) beats[b].articulation = n.articulation;
+                if (n.tie) beats[b].tie = true;
+                if (n.dotted) beats[b].dotted = true;
+                if (n.triplet) beats[b].triplet = true;
+                if (n.slur) beats[b].slur = true;
+                if (n.crescendo) beats[b].crescendo = true;
+                if (n.decrescendo) beats[b].decrescendo = true;
+                if (n.grace_note) beats[b].grace_note = true;
+                if (n.pedal) beats[b].pedal = n.pedal;
+                if (n.tempo) beats[b].tempo = n.tempo;
+                if (n.duration) beats[b].duration = n.duration;
             });
             return {
                 name: part.name,
                 clef: part.clef,
-                events: Object.keys(beats).sort((a,b)=>a-b).map(beat => ({
-                    notes: beats[beat], beat: parseInt(beat),
-                })),
+                events: Object.keys(beats).sort((a,b)=>a-b).map(beat => beats[beat]),
             };
         });
 
@@ -4683,32 +4654,173 @@
         });
     }
 
-    function playScore() {
-        _scoreAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || '120');
-        const beatDuration = 60 / bpm;
-        const now = _scoreAudioCtx.currentTime;
-
-        // Play all parts
-        const allNotes = _scoreParts.flatMap(p => p.notes);
-        allNotes.forEach(n => {
-            if (!n.midi || !n.beat && n.beat !== 0) return;
-            const freq = 440 * Math.pow(2, ((n.midi || 60) - 69) / 12);
-            const startTime = now + (n.beat || 0) * beatDuration;
-            const dur = Math.max(0.1, (n.duration || 0.25) * beatDuration * 4);
-            if (!isFinite(startTime) || !isFinite(dur) || !isFinite(freq)) return;
-
-            const osc = _scoreAudioCtx.createOscillator();
-            const gain = _scoreAudioCtx.createGain();
+    function _scheduleNote(n, playTime, dur, vol, part, ctx) {
+        const midi = n.midi || 60;
+        const hasInstrument = part.family && part.model;
+        if (hasInstrument) {
+            const delay = Math.max(0, (playTime - ctx.currentTime) * 1000);
+            setTimeout(() => {
+                const url = `/api/instrument/play/${part.family}/${part.model}/${midi}?duration=${dur}&velocity=${vol}`;
+                const audio = new Audio(url);
+                audio.volume = Math.min(1.0, vol * 2);
+                audio.play().catch(() => {});
+            }, delay);
+        } else {
+            const freq = 440 * Math.pow(2, (midi - 69) / 12);
+            if (!isFinite(freq)) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
             osc.type = 'triangle';
             osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0.3, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+            gain.gain.setValueAtTime(vol, playTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, playTime + dur);
             osc.connect(gain);
-            gain.connect(_scoreAudioCtx.destination);
-            osc.start(startTime);
-            osc.stop(startTime + dur);
+            gain.connect(ctx.destination);
+            osc.start(playTime);
+            osc.stop(playTime + dur);
+        }
+    }
+
+    function playScore() {
+        if (_scoreAudioCtx) { try { _scoreAudioCtx.close(); } catch(e) {} }
+        _scoreAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        const rawBpm = parseFloat(document.getElementById('bpmDisplay')?.textContent);
+        const bpm = isFinite(rawBpm) && rawBpm > 0 ? rawBpm : 120;
+        const beatDuration = 60 / bpm;
+        const now = _scoreAudioCtx.currentTime;
+        const dynMap = {ppp:0.08,pp:0.12,p:0.18,mp:0.25,mf:0.3,f:0.4,ff:0.5,fff:0.6};
+
+        _scoreParts.forEach(part => {
+            // Sort all events by beat
+            const sorted = [...part.notes].sort((a, b) => a.beat - b.beat);
+
+            // Build playback sequence respecting repeats
+            // repeat_start marks beginning of section, repeat_end marks where to loop back
+            const playSequence = [];
+            let repeatStartBeat = 0;  // default: repeat from beginning
+            let i = 0;
+
+            while (i < sorted.length) {
+                const n = sorted[i];
+
+                if (n.type === 'barline' && n.barline === 'repeat_start') {
+                    repeatStartBeat = n.beat;
+                    i++;
+                    continue;
+                }
+
+                if (n.type === 'barline' && n.barline === 'repeat_end') {
+                    // Collect all playable notes between repeatStartBeat and this beat
+                    const repeatNotes = sorted.filter(
+                        nn => nn.beat >= repeatStartBeat && nn.beat < n.beat &&
+                              nn.type !== 'rest' && nn.type !== 'barline' && nn.midi
+                    );
+                    // These notes were already added in the first pass.
+                    // Now add them again (the repeat) with a time offset.
+                    const repeatLength = n.beat - repeatStartBeat;
+                    repeatNotes.forEach(rn => {
+                        playSequence.push({
+                            ...rn,
+                            _playBeat: rn.beat + repeatLength
+                        });
+                    });
+                    // Shift all subsequent notes forward by the repeat length
+                    // We track this with a cumulative offset
+                    i++;
+                    continue;
+                }
+
+                if (n.type === 'rest' || n.type === 'barline') { i++; continue; }
+                if (!n.midi || (!n.beat && n.beat !== 0)) { i++; continue; }
+
+                playSequence.push({ ...n, _playBeat: n.beat });
+                i++;
+            }
+
+            // Now calculate time offsets for repeated sections
+            // Re-sort by _playBeat and assign correct offsets
+            // For simplicity: find repeat regions and shift beats
+            const finalNotes = [];
+            let timeOffset = 0;
+            let lastRepeatEnd = -1;
+
+            // Simpler approach: walk sorted notes, track repeat markers, duplicate on repeat_end
+            timeOffset = 0;
+            repeatStartBeat = 0;
+            let inRepeat = false;
+            const repeatBuffer = [];
+
+            for (const n of sorted) {
+                if (n.type === 'barline' && n.barline === 'repeat_start') {
+                    repeatStartBeat = n.beat;
+                    repeatBuffer.length = 0;
+                    continue;
+                }
+                if (n.type === 'barline' && n.barline === 'repeat_end') {
+                    // Play the repeated section again
+                    const repeatLen = n.beat - repeatStartBeat;
+                    repeatBuffer.forEach(rn => {
+                        finalNotes.push({ ...rn, _offset: timeOffset + repeatLen });
+                    });
+                    timeOffset += repeatLen;
+                    repeatStartBeat = n.beat;
+                    continue;
+                }
+                if (n.type === 'rest' || n.type === 'barline' || n.type === 'navigation' || n.type === 'expression') continue;
+                if (!n.midi || (!n.beat && n.beat !== 0)) continue;
+
+                finalNotes.push({ ...n, _offset: timeOffset });
+                repeatBuffer.push(n);
+            }
+
+            // Schedule all notes with full notation awareness
+            let currentBpm = bpm;
+            let currentBeatDuration = beatDuration;
+
+            finalNotes.forEach((n, idx) => {
+                // Tempo changes update BPM mid-piece
+                if (n.tempo) {
+                    const tempoMap = {Largo:50,Adagio:66,Andante:76,Moderato:108,Allegretto:112,Allegro:132,Vivace:160,Presto:184};
+                    if (tempoMap[n.tempo]) { currentBpm = tempoMap[n.tempo]; currentBeatDuration = 60 / currentBpm; }
+                    if (n.tempo === 'rit.') { currentBpm *= 0.8; currentBeatDuration = 60 / currentBpm; }
+                    if (n.tempo === 'accel.') { currentBpm *= 1.2; currentBeatDuration = 60 / currentBpm; }
+                    if (n.tempo === 'a tempo') { currentBpm = bpm; currentBeatDuration = beatDuration; }
+                }
+
+                const playBeat = (n.beat || 0) + (n._offset || 0);
+                const startTime = now + playBeat * currentBeatDuration;
+                let dur = Math.max(0.05, (n.duration || 0.25) * currentBeatDuration * 4);
+                if (!isFinite(startTime) || !isFinite(dur)) return;
+
+                let vol = dynMap[n.dynamic] || 0.3;
+                let midi = n.midi;
+
+                // Ottava: transpose up/down an octave
+                if (n.ottava === '8va') midi += 12;
+                if (n.ottava === '8vb') midi -= 12;
+
+                // Articulation effects on duration and volume
+                if (n.articulation === 'staccato') dur *= 0.3;    // very short
+                if (n.articulation === 'accent') vol = Math.min(0.7, vol * 1.5);  // louder
+                if (n.articulation === 'marcato') { vol = Math.min(0.7, vol * 1.6); dur *= 0.7; }
+                if (n.articulation === 'tenuto') dur *= 1.1;      // held slightly longer
+
+                // Grace note: play a quick note 80ms before
+                if (n.grace_note) {
+                    const graceNote = { ...n, midi: midi - 2 };  // step below
+                    _scheduleNote(graceNote, Math.max(now, startTime - 0.08), 0.06, vol * 0.6, part, _scoreAudioCtx);
+                }
+
+                // Crescendo: ramp volume up over this note's duration
+                if (n.crescendo) vol *= 0.6;  // start quieter, next note will be louder
+
+                // Decrescendo: this note is louder, next will be quieter
+                if (n.decrescendo) vol *= 1.3;
+
+                const playNote = { ...n, midi };
+                _scheduleNote(playNote, startTime, dur, Math.min(0.8, vol), part, _scoreAudioCtx);
+            });
         });
     }
 
@@ -4722,6 +4834,7 @@
     function clearScore() {
         _scoreParts = [{ clef: 'treble', name: 'Part 1', notes: [] }];
         _activePartIndex = 0;
+        _compCursorBeat = 0;
         updatePartsList();
         renderScore();
         const tabInput = document.getElementById('scoreTabInput');
@@ -4729,11 +4842,15 @@
     }
 
     function addScoreInstrument() {
-        const clef = document.getElementById('scoreClef').value;
-        const name = document.getElementById('scorePartName')?.value.trim() || ('Part ' + (_scoreParts.length + 1));
-        _scoreParts.push({ clef, name, notes: [] });
+        const clef = document.getElementById('compClef')?.value || document.getElementById('scoreClef')?.value || 'treble';
+        const nameEl = document.getElementById('compPartName') || document.getElementById('scorePartName');
+        const instEl = document.getElementById('compPartInst');
+        const name = nameEl?.value.trim() || ('Part ' + (_scoreParts.length + 1));
+        const instVal = instEl?.value || '';
+        const [family, model] = instVal ? instVal.split('/') : ['', ''];
+        _scoreParts.push({ clef, name, notes: [], family: family || '', model: model || '' });
         _activePartIndex = _scoreParts.length - 1;
-        document.getElementById('scorePartName').value = '';
+        if (nameEl) nameEl.value = '';
         updatePartsList();
         renderScore();
     }
@@ -4761,7 +4878,7 @@
     }
 
     function renderScoreToTrack() {
-        const allNotes = _scoreParts.flatMap(p => p.notes);
+        const allNotes = _scoreParts.flatMap(p => p.notes).filter(n => n.type !== 'rest' && n.type !== 'barline');
         if (!allNotes.length) return;
         const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || '120');
         const events = allNotes.map(n => ({
@@ -4776,6 +4893,15 @@
         });
     }
 
+    // ═══ COMPOSITION EDITOR STATE ═══
+    let _compTool = 'note';        // 'note', 'rest', 'dynamic', 'articulation', 'barline'
+    let _compDynamic = '';          // current dynamic to place (empty = none)
+    let _compArticulation = '';    // current articulation to place
+    let _compBarline = 'single';   // barline style
+    let _compCursorBeat = 0;       // auto-advancing beat cursor
+    let _compDotted = false;       // dotted note toggle
+    let _compTriplet = false;      // triplet toggle
+
     function popOutScore() {
         let overlay = document.getElementById('scoreOverlay');
         if (overlay) { overlay.style.display = 'flex'; renderScoreOverlay(); return; }
@@ -4784,84 +4910,1023 @@
         overlay.id = 'scoreOverlay';
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.98);z-index:300;display:flex;flex-direction:column;padding:16px;overflow:auto;';
 
+        const tbtn = 'display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#8080a8;border-radius:4px;cursor:pointer;font-size:12px;min-width:32px;height:32px;transition:all 0.15s;';
+        const tact = 'background:#2a2a44;color:#2dd4a8;border-color:#2dd4a8;';
+
         overlay.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <div style="font-size:20px;font-weight:200;letter-spacing:6px;color:var(--teal);">SCORE</div>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <select id="scoreOverlayKey" onchange="renderScoreOverlay()" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
-                        ${['C','G','D','A','E','B','F','Bb','Eb','Ab'].map(k=>'<option value="'+k+'">'+k+'</option>').join('')}
-                    </select>
-                    <select id="scoreOverlayTime" onchange="renderScoreOverlay()" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
-                        <option>4/4</option><option>3/4</option><option>6/8</option><option>2/4</option>
-                    </select>
-                    <select id="scoreOverlayDuration" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
-                        <option value="1">Whole</option><option value="0.5">Half</option><option value="0.25" selected>Quarter</option><option value="0.125">8th</option><option value="0.0625">16th</option>
-                    </select>
-                    <button onclick="playScore()" style="padding:4px 12px;background:#181828;border:1px solid #2a2a44;color:#2dd4a8;border-radius:4px;cursor:pointer;font-size:12px;">&#9654; Play</button>
-                    <button onclick="clearScore();renderScoreOverlay()" style="padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:4px;cursor:pointer;font-size:10px;">Clear</button>
-                    <button onclick="document.getElementById('scoreOverlay').style.display='none'" style="background:none;border:none;color:#7878a0;font-size:24px;cursor:pointer;margin-left:8px;">&times;</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:20px;font-weight:200;letter-spacing:6px;color:var(--teal);">COMPOSE</div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <button onclick="playScore()" style="${tbtn}color:#2dd4a8;font-size:14px;" title="Play">&#9654;</button>
+                    <button onclick="stopScore()" style="${tbtn}" title="Stop">&#9632;</button>
+                    <button onclick="compUndo()" style="${tbtn}" title="Undo (Ctrl+Z)">&#8617;</button>
+                    <button onclick="clearScore();renderScoreOverlay()" style="${tbtn}" title="Clear all">Clear</button>
+                    <button onclick="renderScoreToTrack();document.getElementById('scoreOverlay').style.display='none';var _g=document.getElementById('compGhostNote');if(_g)_g.style.display='none'" style="${tbtn}background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;padding:4px 16px;">To Track</button>
+                    <button onclick="document.getElementById('scoreOverlay').style.display='none';var _g=document.getElementById('compGhostNote');if(_g)_g.style.display='none'" style="background:none;border:none;color:#7878a0;font-size:24px;cursor:pointer;margin-left:4px;">&times;</button>
                 </div>
             </div>
-            <div id="scoreOverlayStaff" style="flex:1;overflow:auto;border:1px solid #2a2a44;border-radius:8px;background:#0a0a14;padding:16px;cursor: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2212%22><ellipse cx=%227%22 cy=%226%22 rx=%226%22 ry=%225%22 fill=%22%232dd4a8%22 fill-opacity=%220.8%22 stroke=%22%232dd4a8%22 stroke-width=%221%22 transform=%22rotate(-10 7 6)%22/></svg>') 7 6, crosshair;" onclick="onScoreOverlayClick(event)">
+
+            <!-- Toolbar Row 1: Key, Time, Parts -->
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
+                <select id="compKey" onchange="renderScoreOverlay()" style="padding:4px 8px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                    ${['C','G','D','A','E','B','F','Bb','Eb','Ab','Db'].map(k=>'<option value="'+k+'">'+k+' Major</option>').join('')}
+                </select>
+                <select id="compTime" onchange="renderScoreOverlay()" style="padding:4px 8px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                    <option>4/4</option><option>3/4</option><option>6/8</option><option>2/4</option><option>5/4</option><option>7/8</option>
+                </select>
+                <span style="color:#555;">|</span>
+                <button style="${tbtn}font-size:10px;padding:4px 8px;" onclick="addScoreInstrument();updateCompParts();renderScoreOverlay()">+ Part</button>
+                <select id="compClef" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:10px;">
+                    <option value="treble">Treble</option><option value="bass">Bass</option>
+                </select>
+                <input type="text" id="compPartName" placeholder="Name" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:10px;width:80px;">
+                <select id="compPartInst" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:10px;">
+                    <option value="">(no instrument)</option>
+                    <option value="piano/steinway_d">Piano - Steinway</option>
+                    <option value="piano/yamaha_cfx">Piano - Yamaha CFX</option>
+                    <option value="piano/bosendorfer">Piano - Bosendorfer</option>
+                    <option value="guitar/taylor_814ce">Guitar - Taylor</option>
+                    <option value="guitar/martin_d28">Guitar - Martin D-28</option>
+                    <option value="guitar/stratocaster">Guitar - Stratocaster</option>
+                    <option value="guitar/les_paul">Guitar - Les Paul</option>
+                    <option value="bass/precision">Bass - Precision</option>
+                    <option value="bass/jazz">Bass - Jazz</option>
+                    <option value="strings/violin">Strings - Violin</option>
+                    <option value="strings/viola">Strings - Viola</option>
+                    <option value="strings/cello">Strings - Cello</option>
+                    <option value="strings/contrabass">Strings - Contrabass</option>
+                    <option value="brass/trumpet">Brass - Trumpet</option>
+                    <option value="brass/french_horn">Brass - French Horn</option>
+                    <option value="brass/trombone">Brass - Trombone</option>
+                    <option value="brass/tuba">Brass - Tuba</option>
+                    <option value="winds/flute">Woodwinds - Flute</option>
+                    <option value="winds/clarinet">Woodwinds - Clarinet</option>
+                    <option value="winds/oboe">Woodwinds - Oboe</option>
+                    <option value="winds/alto_sax">Woodwinds - Alto Sax</option>
+                    <option value="winds/tenor_sax">Woodwinds - Tenor Sax</option>
+                    <option value="keys/rhodes_mark1">Keys - Rhodes</option>
+                    <option value="keys/wurlitzer_200a">Keys - Wurlitzer</option>
+                    <option value="keys/hammond_b3">Keys - Hammond B3</option>
+                    <option value="percussion/marimba">Percussion - Marimba</option>
+                    <option value="percussion/vibraphone">Percussion - Vibraphone</option>
+                </select>
+                <div id="compPartsList" style="display:flex;gap:4px;font-size:10px;"></div>
             </div>
-            <div style="display:flex;gap:8px;margin-top:12px;">
-                <button onclick="renderScoreToTrack();document.getElementById('scoreOverlay').style.display='none'" style="padding:10px 24px;background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;">Render to Track</button>
-                <button onclick="scoreToTab()" style="padding:10px 24px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:20px;cursor:pointer;font-size:13px;">Export Tab</button>
-                <button onclick="document.getElementById('scoreOverlay').style.display='none'" style="padding:10px 24px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:20px;cursor:pointer;font-size:13px;">Close</button>
+
+            <!-- Toolbar Row 2: Note Durations -->
+            <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Duration</span>
+                <button class="comp-dur-btn" data-dur="1" onclick="setCompDuration(1,this)" style="${tbtn}" title="Whole note">
+                    <svg width="18" height="14"><ellipse cx="9" cy="7" rx="7" ry="5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                </button>
+                <button class="comp-dur-btn" data-dur="0.5" onclick="setCompDuration(0.5,this)" style="${tbtn}" title="Half note">
+                    <svg width="18" height="22"><ellipse cx="9" cy="15" rx="6" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="15" y1="15" x2="15" y2="2" stroke="currentColor" stroke-width="1.3"/></svg>
+                </button>
+                <button class="comp-dur-btn" data-dur="0.25" onclick="setCompDuration(0.25,this)" style="${tbtn}${tact}" title="Quarter note">
+                    <svg width="18" height="22"><ellipse cx="9" cy="15" rx="5.5" ry="4" fill="currentColor"/><line x1="14.5" y1="15" x2="14.5" y2="2" stroke="currentColor" stroke-width="1.3"/></svg>
+                </button>
+                <button class="comp-dur-btn" data-dur="0.125" onclick="setCompDuration(0.125,this)" style="${tbtn}" title="Eighth note">
+                    <svg width="20" height="22"><ellipse cx="8" cy="15" rx="5.5" ry="4" fill="currentColor"/><line x1="13.5" y1="15" x2="13.5" y2="2" stroke="currentColor" stroke-width="1.3"/><path d="M13.5,2 C17,5 18,9 14,13" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+                </button>
+                <button class="comp-dur-btn" data-dur="0.0625" onclick="setCompDuration(0.0625,this)" style="${tbtn}" title="Sixteenth note">
+                    <svg width="20" height="22"><ellipse cx="8" cy="15" rx="5.5" ry="4" fill="currentColor"/><line x1="13.5" y1="15" x2="13.5" y2="2" stroke="currentColor" stroke-width="1.3"/><path d="M13.5,2 C17,5 18,9 14,13" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M13.5,7 C17,10 18,14 14,18" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+                </button>
+
+                <span style="color:#333;margin:0 2px;">|</span>
+                <button id="compDotBtn" onclick="toggleCompDot(this)" style="${tbtn}" title="Dotted note (adds 50% duration)">
+                    <svg width="16" height="14"><ellipse cx="6" cy="7" rx="5" ry="4" fill="currentColor"/><circle cx="14" cy="7" r="1.8" fill="currentColor"/></svg>
+                </button>
+                <button id="compTripletBtn" onclick="toggleCompTriplet(this)" style="${tbtn}" title="Triplet (3 in the time of 2)">3</button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Tool</span>
+                <button class="comp-tool-btn" data-tool="note" onclick="setCompTool('note',this)" style="${tbtn}${tact}" title="Note">&#9835;</button>
+                <button class="comp-tool-btn" data-tool="rest" onclick="setCompTool('rest',this)" style="${tbtn}" title="Rest">
+                    <svg width="12" height="18"><path d="M6,2 L3,7 L9,12 L5,17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Dynamics</span>
+                ${['pp','p','mp','mf','f','ff'].map(d => '<button class="comp-dyn-btn" data-dyn="'+d+'" onclick="setCompDynamic(\''+d+'\',this)" style="'+tbtn+'font-family:serif;font-style:italic;font-size:11px;" title="'+d+'">'+d+'</button>').join('')}
+            </div>
+
+            <!-- Toolbar Row 3: Articulations + Barlines -->
+            <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Articulation</span>
+                <button class="comp-art-btn" data-art="" onclick="setCompArticulation('',this)" style="${tbtn}${tact}" title="None">&#8212;</button>
+                <button class="comp-art-btn" data-art="staccato" onclick="setCompArticulation('staccato',this)" style="${tbtn}" title="Staccato">&#8226;</button>
+                <button class="comp-art-btn" data-art="accent" onclick="setCompArticulation('accent',this)" style="${tbtn}" title="Accent">></button>
+                <button class="comp-art-btn" data-art="tenuto" onclick="setCompArticulation('tenuto',this)" style="${tbtn}" title="Tenuto">&ndash;</button>
+                <button class="comp-art-btn" data-art="fermata" onclick="setCompArticulation('fermata',this)" style="${tbtn}" title="Fermata">
+                    <svg width="16" height="14"><circle cx="8" cy="9" r="1.5" fill="currentColor"/><path d="M2,12 Q8,1 14,12" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+                </button>
+                <button class="comp-art-btn" data-art="marcato" onclick="setCompArticulation('marcato',this)" style="${tbtn}" title="Marcato">^</button>
+                <button class="comp-art-btn" data-art="trill" onclick="setCompArticulation('trill',this)" style="${tbtn}font-family:serif;font-style:italic;" title="Trill">tr</button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <button class="comp-tool-btn" data-tool="tie" onclick="setCompTool('tie',this)" style="${tbtn}" title="Tie (connect notes)">
+                    <svg width="20" height="12"><path d="M2,8 Q10,0 18,8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                </button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Barlines</span>
+                <button onclick="insertBarline('repeat_start')" style="${tbtn}" title="Repeat Start">|:</button>
+                <button onclick="insertBarline('repeat_end')" style="${tbtn}" title="Repeat End">:|</button>
+                <button onclick="insertBarline('double')" style="${tbtn}" title="Double Barline">||</button>
+            </div>
+
+            <!-- Toolbar Row 4: Expression + Navigation -->
+            <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Expression</span>
+                <button class="comp-tool-btn" data-tool="slur" onclick="setCompTool('slur',this)" style="${tbtn}" title="Slur (legato arc)">
+                    <svg width="20" height="10"><path d="M2,8 Q10,1 18,8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                </button>
+                <button class="comp-tool-btn" data-tool="crescendo" onclick="setCompTool('crescendo',this)" style="${tbtn}" title="Crescendo">
+                    <svg width="20" height="10"><path d="M2,5 L18,1 M2,5 L18,9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                </button>
+                <button class="comp-tool-btn" data-tool="decrescendo" onclick="setCompTool('decrescendo',this)" style="${tbtn}" title="Decrescendo">
+                    <svg width="20" height="10"><path d="M2,1 L18,5 M2,9 L18,5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                </button>
+                <button class="comp-tool-btn" data-tool="grace" onclick="setCompTool('grace',this)" style="${tbtn}font-size:9px;" title="Grace note">
+                    <svg width="14" height="16"><ellipse cx="5" cy="11" rx="3.5" ry="2.5" fill="currentColor"/><line x1="8" y1="11" x2="8" y2="2" stroke="currentColor" stroke-width="0.8"/><line x1="5" y1="6" x2="11" y2="2" stroke="currentColor" stroke-width="0.7"/></svg>
+                </button>
+                <button class="comp-tool-btn" data-tool="pedal_down" onclick="setCompTool('pedal_down',this)" style="${tbtn}font-size:9px;font-family:serif;font-style:italic;" title="Pedal down">Ped</button>
+                <button class="comp-tool-btn" data-tool="pedal_up" onclick="setCompTool('pedal_up',this)" style="${tbtn}" title="Pedal up">*</button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Navigation</span>
+                <button onclick="insertNavigation('segno')" style="${tbtn}" title="Segno">&#x1D10B;</button>
+                <button onclick="insertNavigation('coda')" style="${tbtn}" title="Coda">&#x1D10C;</button>
+                <button onclick="insertNavigation('dc')" style="${tbtn}font-size:9px;font-family:serif;font-style:italic;" title="Da Capo">D.C.</button>
+                <button onclick="insertNavigation('ds')" style="${tbtn}font-size:9px;font-family:serif;font-style:italic;" title="Dal Segno">D.S.</button>
+                <button onclick="insertNavigation('fine')" style="${tbtn}font-size:9px;font-family:serif;font-style:italic;" title="Fine">Fine</button>
+                <button onclick="insertNavigation('dc_al_fine')" style="${tbtn}font-size:8px;font-family:serif;font-style:italic;" title="D.C. al Fine">D.C.F</button>
+                <button onclick="insertNavigation('ds_al_coda')" style="${tbtn}font-size:8px;font-family:serif;font-style:italic;" title="D.S. al Coda">D.S.C</button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Endings</span>
+                <button class="comp-tool-btn" data-tool="volta1" onclick="setCompTool('volta1',this)" style="${tbtn}font-size:9px;" title="1st ending">1.</button>
+                <button class="comp-tool-btn" data-tool="volta2" onclick="setCompTool('volta2',this)" style="${tbtn}font-size:9px;" title="2nd ending">2.</button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Octave</span>
+                <button class="comp-tool-btn" data-tool="8va" onclick="setCompTool('8va',this)" style="${tbtn}font-size:9px;font-family:serif;font-style:italic;" title="Ottava up">8va</button>
+                <button class="comp-tool-btn" data-tool="8vb" onclick="setCompTool('8vb',this)" style="${tbtn}font-size:9px;font-family:serif;font-style:italic;" title="Ottava down">8vb</button>
+                <button class="comp-tool-btn" data-tool="ottava_end" onclick="setCompTool('ottava_end',this)" style="${tbtn}font-size:9px;" title="End ottava">&#x2517;</button>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Multi-rest</span>
+                <select id="compMultiRest" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:10px;width:50px;">
+                    <option value="">-</option>
+                    ${[2,4,8,16,32].map(n => '<option value="'+n+'">'+n+'</option>').join('')}
+                </select>
+
+                <span style="color:#333;margin:0 4px;">|</span>
+                <span style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Tempo</span>
+                <select id="compTempo" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:10px;">
+                    <option value="">(none)</option>
+                    <option value="Largo">Largo</option>
+                    <option value="Adagio">Adagio</option>
+                    <option value="Andante">Andante</option>
+                    <option value="Moderato">Moderato</option>
+                    <option value="Allegretto">Allegretto</option>
+                    <option value="Allegro">Allegro</option>
+                    <option value="Vivace">Vivace</option>
+                    <option value="Presto">Presto</option>
+                    <option value="rit.">rit.</option>
+                    <option value="accel.">accel.</option>
+                    <option value="a tempo">a tempo</option>
+                </select>
+            </div>
+
+            <!-- Staff area -->
+            <div id="compStaff" style="flex:1;overflow:auto;border:1px solid #2a2a44;border-radius:8px;background:#0a0a14;padding:16px;cursor: none;position:relative;" onclick="onCompClick(event)" oncontextmenu="onCompRightClick(event)" onmousemove="onCompHover(event)" onmouseleave="var _gh=document.getElementById('compGhostNote');if(_gh)_gh.style.display='none';">
+            </div>
+            <div id="compPreview" style="font-size:10px;color:#5a5a80;padding:4px 8px;min-height:16px;"></div>
+
+            <!-- Bottom bar -->
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+                <button onclick="scoreToTab()" style="${tbtn}padding:4px 16px;">Export Tab</button>
+                <button onclick="transcribeAudioToScore();renderScoreOverlay()" style="${tbtn}padding:4px 16px;">Audio &rarr; Score</button>
+                <div style="flex:1;"></div>
+                <span id="compStatus" style="font-size:10px;color:#555;">Click staff to place notes. Right-click to remove.</span>
             </div>
         `;
         document.body.appendChild(overlay);
+
+        // Wire up clef/part selectors to the composition overlay
+        document.getElementById('compClef').value = document.getElementById('scoreClef')?.value || 'treble';
+        document.getElementById('compKey').value = document.getElementById('scoreKey')?.value || 'C';
+        document.getElementById('compTime').value = document.getElementById('scoreTime')?.value || '4/4';
+
+        // Keyboard shortcut
+        overlay.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'z') { compUndo(); e.preventDefault(); }
+            if (e.key === 'Escape') setCompTool('note');
+            if (e.key === '1') setCompDuration(1);
+            if (e.key === '2') setCompDuration(0.5);
+            if (e.key === '3') setCompDuration(0.25);
+            if (e.key === '4') setCompDuration(0.125);
+            if (e.key === '5') setCompDuration(0.0625);
+            if (e.key === 'r' || e.key === 'R') setCompTool(_compTool === 'rest' ? 'note' : 'rest');
+            if (e.key === 's' || e.key === 'S') setCompTool(_compTool === 'slur' ? 'note' : 'slur');
+            if (e.key === 't' || e.key === 'T') setCompTool(_compTool === 'tie' ? 'note' : 'tie');
+            if (e.key === 'g' || e.key === 'G') setCompTool(_compTool === 'grace' ? 'note' : 'grace');
+            if (e.key === '.' ) { toggleCompDot(document.getElementById('compDotBtn')); }
+        });
+        overlay.tabIndex = 0;
+        overlay.focus();
+
+        updateCompParts();
         renderScoreOverlay();
+    }
+
+    function setCompDuration(dur, btn) {
+        // Update the main score duration selector too
+        const mainDur = document.getElementById('scoreDuration');
+        if (mainDur) mainDur.value = String(dur);
+        // Highlight active button
+        document.querySelectorAll('.comp-dur-btn').forEach(b => {
+            b.style.background = '#181828'; b.style.color = '#8080a8'; b.style.borderColor = '#2a2a44';
+        });
+        const active = btn || document.querySelector(`.comp-dur-btn[data-dur="${dur}"]`);
+        if (active) { active.style.background = '#2a2a44'; active.style.color = '#2dd4a8'; active.style.borderColor = '#2dd4a8'; }
+    }
+
+    function setCompTool(tool, btn) {
+        _compTool = tool;
+        document.querySelectorAll('.comp-tool-btn').forEach(b => {
+            b.style.background = '#181828'; b.style.color = '#8080a8'; b.style.borderColor = '#2a2a44';
+        });
+        const active = btn || document.querySelector(`.comp-tool-btn[data-tool="${tool}"]`);
+        if (active) { active.style.background = '#2a2a44'; active.style.color = '#2dd4a8'; active.style.borderColor = '#2dd4a8'; }
+        const statusMsg = {
+            note:'Click staff to place notes. Right-click to remove.',
+            rest:'Click to place rests.',
+            tie:'Click a note to tie to the next note.',
+            slur:'Click a note to add a slur (legato arc).',
+            crescendo:'Click a note to add crescendo hairpin.',
+            decrescendo:'Click a note to add decrescendo hairpin.',
+            grace:'Click a note to add a grace note.',
+            pedal_down:'Click to mark pedal down (Ped.)',
+            pedal_up:'Click to mark pedal up (*)',
+            volta1:'Click a note to mark 1st ending start.',
+            volta2:'Click a note to mark 2nd ending start.',
+            '8va':'Click a note to start 8va (play octave higher).',
+            '8vb':'Click a note to start 8vb (play octave lower).',
+            ottava_end:'Click a note to end the ottava bracket.',
+        };
+        document.getElementById('compStatus').textContent = statusMsg[tool] || statusMsg.note;
+    }
+
+    function setCompDynamic(dyn, btn) {
+        if (_compDynamic === dyn) {
+            _compDynamic = '';
+            if (btn) { btn.style.background = '#181828'; btn.style.color = '#8080a8'; btn.style.borderColor = '#2a2a44'; }
+            return;
+        }
+        _compDynamic = dyn;
+        document.querySelectorAll('.comp-dyn-btn').forEach(b => {
+            b.style.background = '#181828'; b.style.color = '#8080a8'; b.style.borderColor = '#2a2a44';
+        });
+        if (btn) { btn.style.background = '#2a2a44'; btn.style.color = '#c48dff'; btn.style.borderColor = '#c48dff'; }
+        // Also set to expression placement mode so dynamics can be placed standalone
+        _compTool = 'dynamic_place';
+        document.querySelectorAll('.comp-tool-btn').forEach(b => {
+            b.style.background = '#181828'; b.style.color = '#8080a8'; b.style.borderColor = '#2a2a44';
+        });
+        document.getElementById('compStatus').textContent = 'Click staff to place ' + dyn + ' marking. Click note tool or Escape to go back.';
+    }
+
+    function setCompArticulation(art, btn) {
+        _compArticulation = art;
+        document.querySelectorAll('.comp-art-btn').forEach(b => {
+            b.style.background = '#181828'; b.style.color = '#8080a8'; b.style.borderColor = '#2a2a44';
+        });
+        const active = btn || document.querySelector(`.comp-art-btn[data-art="${art}"]`);
+        if (active) { active.style.background = '#2a2a44'; active.style.color = '#2dd4a8'; active.style.borderColor = '#2dd4a8'; }
+    }
+
+    function toggleCompDot(btn) {
+        _compDotted = !_compDotted;
+        if (btn) {
+            btn.style.background = _compDotted ? '#2a2a44' : '#181828';
+            btn.style.color = _compDotted ? '#2dd4a8' : '#8080a8';
+            btn.style.borderColor = _compDotted ? '#2dd4a8' : '#2a2a44';
+        }
+    }
+
+    function toggleCompTriplet(btn) {
+        _compTriplet = !_compTriplet;
+        if (btn) {
+            btn.style.background = _compTriplet ? '#2a2a44' : '#181828';
+            btn.style.color = _compTriplet ? '#2dd4a8' : '#8080a8';
+            btn.style.borderColor = _compTriplet ? '#2dd4a8' : '#2a2a44';
+        }
+    }
+
+    let _compUndoStack = [];
+
+    function compUndo() {
+        const notes = _scoreParts[_activePartIndex].notes;
+        if (notes.length === 0) return;
+        _compUndoStack.push(notes.pop());
+        renderScoreOverlay();
+    }
+
+    function insertNavigation(mark) {
+        // One-shot: next click places the navigation mark
+        _compTool = 'navigation';
+        _compNavMark = mark;
+        document.querySelectorAll('.comp-tool-btn').forEach(b => {
+            b.style.background = '#181828'; b.style.color = '#8080a8'; b.style.borderColor = '#2a2a44';
+        });
+        document.getElementById('compStatus').textContent = 'Click to place ' + mark + ' mark.';
+    }
+    let _compNavMark = '';
+
+    function insertBarline(style) {
+        _compTool = 'barline';
+        _compBarline = style;
+        document.querySelectorAll('.comp-tool-btn').forEach(b => {
+            b.style.background = '#181828'; b.style.color = '#8080a8'; b.style.borderColor = '#2a2a44';
+        });
+        document.getElementById('compStatus').textContent = 'Click on the staff to place the ' + style.replace('_', ' ') + ' barline.';
+    }
+
+    function updateCompParts() {
+        const el = document.getElementById('compPartsList');
+        if (!el) return;
+        el.innerHTML = _scoreParts.map((p, i) => {
+            const instLabel = p.model ? (' \u266A ' + p.model.replace(/_/g,' ')) : '';
+            const active = i === _activePartIndex;
+            const deleteAction = _scoreParts.length > 1
+                ? `removePart(${i});updateCompParts();renderScoreOverlay()`
+                : `_scoreParts[0].notes=[];renderScoreOverlay()`;
+            return `<span onclick="selectPart(${i});updateCompParts()" style="cursor:pointer;padding:2px 8px;border-radius:10px;${active ? 'background:#2dd4a8;color:#000;font-weight:600;' : 'background:#1e1e32;color:#8080a8;'}">${p.name} (${p.clef === 'treble' ? '\u{1D11E}' : '\u{1D122}'})${instLabel}</span>` +
+            `<span onclick="${deleteAction}" style="cursor:pointer;color:#e05a6f;font-size:9px;margin-right:6px;" title="${_scoreParts.length > 1 ? 'Delete part' : 'Clear notes'}">\u00d7</span>`;
+        }).join('');
     }
 
     function renderScoreOverlay() {
-        const key = document.getElementById('scoreOverlayKey')?.value || 'C';
-        const timeSig = document.getElementById('scoreOverlayTime')?.value || '4/4';
-        const beats = {};
-        _scoreNotes.forEach(n => {
-            if (!beats[n.beat]) beats[n.beat] = [];
-            beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
+        const key = document.getElementById('compKey')?.value || document.getElementById('scoreKey')?.value || 'C';
+        const timeSig = document.getElementById('compTime')?.value || document.getElementById('scoreTime')?.value || '4/4';
+
+        // Build parts with full notation data
+        const parts = _scoreParts.map(part => {
+            const beats = {};
+            part.notes.forEach(n => {
+                const b = n.beat;
+                if (!beats[b]) beats[b] = { notes: [], beat: b, duration: n.duration || 0.25 };
+                if (n.type === 'rest') { beats[b].type = 'rest'; beats[b].duration = n.duration || 0.25; }
+                else if (n.type === 'barline') { beats[b].barline = n.barline; }
+                else if (n.type === 'navigation') { beats[b].navigation = n.navigation; }
+                else if (n.type === 'expression') { /* expression-only, no note */ }
+                else { beats[b].notes.push({ note: n.note, octave: n.octave, midi: n.midi, duration: n.duration || 0.25 }); }
+                if (n.dynamic) beats[b].dynamic = n.dynamic;
+                if (n.articulation) beats[b].articulation = n.articulation;
+                if (n.tie) beats[b].tie = true;
+                if (n.dotted) beats[b].dotted = true;
+                if (n.triplet) beats[b].triplet = true;
+                if (n.slur) beats[b].slur = true;
+                if (n.crescendo) beats[b].crescendo = true;
+                if (n.decrescendo) beats[b].decrescendo = true;
+                if (n.grace_note) beats[b].grace_note = true;
+                if (n.pedal) beats[b].pedal = n.pedal;
+                if (n.tempo) beats[b].tempo = n.tempo;
+                if (n.volta) beats[b].volta = n.volta;
+                if (n.ottava) beats[b].ottava = n.ottava;
+                if (n.ottava_end) beats[b].ottava_end = true;
+                if (n.multi_rest) beats[b].multi_rest = n.multi_rest;
+                if (!beats[b].duration || beats[b].duration === 0.25) beats[b].duration = n.duration || 0.25;
+            });
+            return {
+                name: part.name,
+                clef: part.clef,
+                events: Object.keys(beats).sort((a, b) => a - b).map(beat => beats[beat]),
+            };
         });
-        const events = Object.keys(beats).sort((a,b)=>a-b).map(beat => ({
-            notes: beats[beat], beat: parseInt(beat),
-        }));
-        fetch('/api/sheet/render', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ events, key, time_sig: timeSig, width: Math.max(800, window.innerWidth - 80) }),
-        }).then(r=>r.json()).then(d => {
-            if (d.ok) document.getElementById('scoreOverlayStaff').innerHTML = d.svg;
-        });
+
+        const w = Math.max(800, window.innerWidth - 80);
+
+        if (parts.length > 1) {
+            fetch('/api/sheet/orchestral', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ parts, key, time_sig: timeSig, width: w }),
+            }).then(r => r.json()).then(d => {
+                if (d && d.ok) document.getElementById('compStaff').innerHTML = d.svg;
+            });
+        } else {
+            fetch('/api/sheet/render', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ events: parts[0]?.events || [], key, time_sig: timeSig, width: w }),
+            }).then(r => r.json()).then(d => {
+                if (d && d.ok) document.getElementById('compStaff').innerHTML = d.svg;
+            });
+        }
     }
 
-    function onScoreOverlayClick(e) {
-        // Use the overlay's duration selector
-        const origDur = document.getElementById('scoreDuration');
-        const overlayDur = document.getElementById('scoreOverlayDuration');
-        if (origDur && overlayDur) origDur.value = overlayDur.value;
-        // Delegate to the main click handler but target the overlay staff
-        const staff = document.getElementById('scoreOverlayStaff');
+    // ═══ MULTI-STAFF GEOMETRY ═══
+    // Must match the Python renderer exactly:
+    //   Single staff:  staff_top=60, line_spacing=10
+    //   Orchestral:    margin_top=40, staff_height=50, staff_gap=60, line_spacing=10
+    //                  staff N top = 40 + N * 110
+    //   Treble clef:   bottom line = E4 (position 0), base note index = 4 (E in CDEFGAB)
+    //   Bass clef:     bottom line = G2 (position 0), base note index = 4 (G in CDEFGAB... wait)
+    //                  G is index 4 in CDEFGAB, base octave = 2
+
+    function _identifyChord(midiNotes) {
+        // Client-side chord identification from MIDI note numbers
+        if (midiNotes.length < 2) return null;
+        const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+        const pcs = [...new Set(midiNotes.map(n => n % 12))].sort((a,b) => a-b);
+        if (pcs.length < 2) return null;
+
+        const chords = {
+            major:[0,4,7], minor:[0,3,7], dim:[0,3,6], aug:[0,4,8],
+            sus2:[0,2,7], sus4:[0,5,7], Maj7:[0,4,7,11], m7:[0,3,7,10],
+            '7':[0,4,7,10], dim7:[0,3,6,9], 'm7b5':[0,3,6,10],
+            '5':[0,7], '6':[0,4,7,9], m6:[0,3,7,9],
+            add9:[0,4,7,14], Maj9:[0,4,7,11,14], m9:[0,3,7,10,14],
+        };
+
+        const lowestPc = Math.min(...midiNotes) % 12;
+        let best = null;
+        for (const rootPc of pcs) {
+            const intervals = pcs.map(pc => (pc - rootPc + 12) % 12).sort((a,b) => a-b);
+            for (const [name, ci] of Object.entries(chords)) {
+                const normalized = ci.map(i => i % 12).sort((a,b) => a-b);
+                if (JSON.stringify(intervals) === JSON.stringify(normalized)) {
+                    const rootName = noteNames[rootPc];
+                    const sep = name[0] === name[0].toUpperCase() && name !== 'm7' && name !== 'm6' && name !== 'm9' && name !== 'm7b5' ? ' ' : '';
+                    const label = rootName + sep + name;
+                    if (rootPc === lowestPc) return label;
+                    if (!best) best = label;
+                }
+            }
+        }
+        return best;
+    }
+
+    function _compDetectStaff(yInSvg) {
+        // Returns { partIndex, staffTop, clef } for the staff closest to this Y position
+        const lineSpacing = 10;
+
+        if (_scoreParts.length <= 1) {
+            // Single staff renderer uses staff_top = 60
+            return { partIndex: 0, staffTop: 60, clef: _scoreParts[0]?.clef || 'treble' };
+        }
+
+        // Multi-staff: margin_top=40, each staff takes 110px (50 staff + 60 gap)
+        const marginTop = 40;
+        const staffHeight = 50;
+        const staffGap = 60;
+        const staffStride = staffHeight + staffGap; // 110
+
+        let bestPart = 0;
+        let bestDist = Infinity;
+        let bestTop = marginTop;
+
+        for (let i = 0; i < _scoreParts.length; i++) {
+            const top = marginTop + i * staffStride;
+            const center = top + staffHeight / 2;
+            const dist = Math.abs(yInSvg - center);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestPart = i;
+                bestTop = top;
+            }
+        }
+
+        return { partIndex: bestPart, staffTop: bestTop, clef: _scoreParts[bestPart]?.clef || 'treble' };
+    }
+
+    function _compYToNote(yInSvg, staffTop, clef) {
+        // Convert Y coordinate to note name + octave, accounting for clef
+        const lineSpacing = 10;
+        // staffPos: 0 = bottom line, 4 = top line
+        const staffPos = (staffTop + 40 - yInSvg) / lineSpacing;
+
+        const naturalNotes = ['C','D','E','F','G','A','B'];
+        const steps = Math.round(staffPos * 2);
+
+        if (clef === 'bass') {
+            // Bass clef bottom line = G2. G is index 4 in CDEFGAB, octave 2.
+            const baseNoteIdx = 4; // G
+            const baseOctave = 2;
+            const totalIdx = baseNoteIdx + steps;
+            const octaveOffset = Math.floor(totalIdx / 7);
+            const noteIdx = ((totalIdx % 7) + 7) % 7;
+            return { note: naturalNotes[noteIdx], octave: baseOctave + octaveOffset };
+        } else {
+            // Treble clef bottom line = E4. E is index 4 in CDEFGAB, octave 4.
+            const baseNoteIdx = 4; // E
+            const baseOctave = 4;
+            const totalIdx = baseNoteIdx + steps;
+            const octaveOffset = Math.floor(totalIdx / 7);
+            const noteIdx = ((totalIdx % 7) + 7) % 7;
+            return { note: naturalNotes[noteIdx], octave: baseOctave + octaveOffset };
+        }
+    }
+
+    function _compGetSpacing() {
+        // Must match the Python renderer exactly:
+        //   Single: margin_left=80, ks offset, ts offset → start_x = ~150 for C major
+        //   Orchestral: margin_left=100 → start_x = ~180 for C major
+        // Key signature shifts start_x by abs(num_sharps_flats) * 10
+        const keyEl = document.getElementById('compKey') || document.getElementById('scoreKey');
+        const key = keyEl?.value || 'C';
+        const sfMap = {C:0,G:1,D:2,A:3,E:4,B:5,'F#':6,F:-1,Bb:-2,Eb:-3,Ab:-4,Db:-5,
+            Am:0,Em:1,Bm:2,'F#m':3,Dm:-1,Gm:-2,Cm:-3,Fm:-4};
+        const numSf = Math.abs(sfMap[key] || 0);
+
+        if (_scoreParts.length <= 1) {
+            const startX = 80 + 30 + numSf * 10 + 10 + 30; // matches render_notation_svg
+            return { noteSpacing: 40, startX };
+        } else {
+            const startX = 100 + 40 + numSf * 10 + 10 + 30; // matches render_orchestral_score
+            return { noteSpacing: 35, startX };
+        }
+    }
+
+    function _compXToBeat(xInSvg) {
+        const { noteSpacing, startX } = _compGetSpacing();
+        return Math.max(0, Math.round((xInSvg - startX) / noteSpacing));
+    }
+
+    function _compBeatToX(beat) {
+        const { noteSpacing, startX } = _compGetSpacing();
+        return startX + beat * noteSpacing;
+    }
+
+    function onCompClick(e) {
+        const staff = document.getElementById('compStaff');
         const svg = staff.querySelector('svg');
-        if (!svg) return;
+        if (!svg) { renderScoreOverlay(); return; }
+
         const svgRect = svg.getBoundingClientRect();
         const x = e.clientX - svgRect.left;
         const y = e.clientY - svgRect.top;
-        const staffTop = 60, lineSpacing = 10;
-        const staffPos = (staffTop + 40 - y) / lineSpacing;
-        const naturalNotes = ['C','D','E','F','G','A','B'];
-        const steps = Math.round(staffPos * 2);
-        const totalIdx = 4 + steps;
-        const octaveOffset = Math.floor(totalIdx / 7);
-        const noteIdx = ((totalIdx % 7) + 7) % 7;
-        const note = naturalNotes[noteIdx];
-        const octave = 4 + octaveOffset;
+
+        // Detect which staff was clicked
+        const { partIndex, staffTop, clef } = _compDetectStaff(y);
+
+        // Auto-switch to that part
+        if (partIndex !== _activePartIndex) {
+            _activePartIndex = partIndex;
+            updateCompParts();
+        }
+
+        // Snap Y to nearest note position — matches the ghost note exactly
+        const snappedY = _snapToStaffY(y, staffTop);
+        const { note, octave } = _compYToNote(snappedY, staffTop, clef);
         const noteMap = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
         const midi = (octave + 1) * 12 + (noteMap[note] || 0);
-        const noteSpacing = 40, startX = 120;
-        const beat = Math.max(0, Math.round((x - startX) / noteSpacing));
-        const duration = parseFloat(overlayDur?.value || '0.25');
-        _scoreNotes.push({ note, octave, midi, beat, duration });
-        _scoreNotes.sort((a,b) => a.beat - b.beat);
+
+        const clickedBeat = _compXToBeat(x);
+        let duration = parseFloat(document.getElementById('scoreDuration')?.value || '0.25');
+
+        // Apply dotted: adds 50% duration
+        if (_compDotted) duration *= 1.5;
+        // Apply triplet: 2/3 of normal duration
+        if (_compTriplet) duration *= (2/3);
+
+        // Duration in beats: whole=4, half=2, quarter=1, eighth=0.5, sixteenth=0.25
+        const durationBeats = duration * 4;
+
+        // Smart beat selection:
+        // If clicking near an existing note, use that beat (for chords/stacking)
+        // If clicking in empty space at/beyond cursor, use cursor position (for sequential writing)
+        const existingBeats = _scoreParts[_activePartIndex].notes.map(n => n.beat);
+        const nearExisting = existingBeats.some(b => Math.abs(b - clickedBeat) < 1);
+        let beat;
+        if (nearExisting) {
+            beat = clickedBeat;  // chord/stack on existing beat
+        } else if (clickedBeat >= _compCursorBeat - 1) {
+            beat = Math.round(_compCursorBeat);  // use auto-advancing cursor
+        } else {
+            beat = clickedBeat;  // clicked way back, honor it
+        }
+
+        const entry = { note, octave, midi, beat, duration };
+        if (_compDotted) entry.dotted = true;
+        if (_compTriplet) entry.triplet = true;
+
+        if (_compTool === 'dynamic_place') {
+            const notes = _scoreParts[_activePartIndex].notes;
+            // Apply to existing note if nearby, otherwise place standalone
+            let closest = -1, closestDist = Infinity;
+            for (let j = 0; j < notes.length; j++) {
+                if (notes[j].type === 'barline' || notes[j].type === 'navigation') continue;
+                const dist = Math.abs(notes[j].beat - beat);
+                if (dist < closestDist) { closestDist = dist; closest = j; }
+            }
+            if (closest >= 0 && closestDist < 2) {
+                notes[closest].dynamic = _compDynamic;
+            } else {
+                notes.push({ type: 'expression', beat, note: 'C', octave: 4, midi: 60, duration: 0.25, dynamic: _compDynamic });
+                notes.sort((a, b) => a.beat - b.beat);
+            }
+            renderScoreOverlay();
+            return;
+        }
+
+        if (_compTool === 'barline') {
+            const notes = _scoreParts[_activePartIndex].notes;
+            notes.push({ type: 'barline', barline: _compBarline, beat, note: 'C', octave: 4, midi: 60, duration: 0 });
+            notes.sort((a, b) => a.beat - b.beat);
+            setCompTool('note');
+            renderScoreOverlay();
+            return;
+        }
+
+        if (_compTool === 'navigation') {
+            const notes = _scoreParts[_activePartIndex].notes;
+            notes.push({ type: 'navigation', navigation: _compNavMark, beat, note: 'C', octave: 4, midi: 60, duration: 0 });
+            notes.sort((a, b) => a.beat - b.beat);
+            setCompTool('note');
+            renderScoreOverlay();
+            return;
+        }
+
+        // Volta brackets
+        if (_compTool === 'volta1' || _compTool === 'volta2') {
+            const notes = _scoreParts[_activePartIndex].notes;
+            let closest = -1, closestDist = Infinity;
+            for (let j = 0; j < notes.length; j++) {
+                const dist = Math.abs(notes[j].beat - beat);
+                if (dist < closestDist) { closestDist = dist; closest = j; }
+            }
+            if (closest >= 0 && closestDist < 3) {
+                notes[closest].volta = _compTool === 'volta1' ? 1 : 2;
+            }
+            setCompTool('note');
+            renderScoreOverlay();
+            return;
+        }
+
+        // Ottava markings
+        if (_compTool === '8va' || _compTool === '8vb') {
+            const notes = _scoreParts[_activePartIndex].notes;
+            let closest = -1, closestDist = Infinity;
+            for (let j = 0; j < notes.length; j++) {
+                const dist = Math.abs(notes[j].beat - beat);
+                if (dist < closestDist) { closestDist = dist; closest = j; }
+            }
+            if (closest >= 0 && closestDist < 3) {
+                notes[closest].ottava = _compTool;
+            }
+            setCompTool('note');
+            renderScoreOverlay();
+            return;
+        }
+        if (_compTool === 'ottava_end') {
+            const notes = _scoreParts[_activePartIndex].notes;
+            let closest = -1, closestDist = Infinity;
+            for (let j = 0; j < notes.length; j++) {
+                const dist = Math.abs(notes[j].beat - beat);
+                if (dist < closestDist) { closestDist = dist; closest = j; }
+            }
+            if (closest >= 0 && closestDist < 3) {
+                notes[closest].ottava_end = true;
+            }
+            setCompTool('note');
+            renderScoreOverlay();
+            return;
+        }
+
+        // Expression tools: apply to existing note if nearby, otherwise place standalone
+        if (['slur','crescendo','decrescendo','grace','pedal_down','pedal_up'].includes(_compTool)) {
+            const notes = _scoreParts[_activePartIndex].notes;
+            let closest = -1, closestDist = Infinity;
+            for (let j = 0; j < notes.length; j++) {
+                if (notes[j].type === 'rest' || notes[j].type === 'barline' || notes[j].type === 'navigation') continue;
+                const dist = Math.abs(notes[j].beat - beat);
+                if (dist < closestDist) { closestDist = dist; closest = j; }
+            }
+            if (closest >= 0 && closestDist < 2) {
+                // Apply to existing note
+                if (_compTool === 'slur') notes[closest].slur = !notes[closest].slur;
+                if (_compTool === 'crescendo') { notes[closest].crescendo = !notes[closest].crescendo; notes[closest].decrescendo = false; }
+                if (_compTool === 'decrescendo') { notes[closest].decrescendo = !notes[closest].decrescendo; notes[closest].crescendo = false; }
+                if (_compTool === 'grace') notes[closest].grace_note = !notes[closest].grace_note;
+                if (_compTool === 'pedal_down') notes[closest].pedal = notes[closest].pedal === 'down' ? '' : 'down';
+                if (_compTool === 'pedal_up') notes[closest].pedal = notes[closest].pedal === 'up' ? '' : 'up';
+            } else {
+                // Place standalone expression at this beat
+                const expr = { beat, note: 'C', octave: 4, midi: 60, duration: 0.25 };
+                if (_compTool === 'crescendo') expr.crescendo = true;
+                if (_compTool === 'decrescendo') expr.decrescendo = true;
+                if (_compTool === 'pedal_down') expr.pedal = 'down';
+                if (_compTool === 'pedal_up') expr.pedal = 'up';
+                if (_compTool === 'slur') expr.slur = true;
+                if (_compTool === 'grace') expr.grace_note = true;
+                // Mark as expression-only (no audible note)
+                expr.type = 'expression';
+                notes.push(expr);
+                notes.sort((a, b) => a.beat - b.beat);
+            }
+            renderScoreOverlay();
+            return;
+        }
+
+        if (_compTool === 'tie') {
+            const notes = _scoreParts[_activePartIndex].notes;
+            let closest = -1, closestDist = Infinity;
+            for (let i = 0; i < notes.length; i++) {
+                if (notes[i].type === 'rest' || notes[i].type === 'barline') continue;
+                const dist = Math.abs(notes[i].beat - beat);
+                if (dist < closestDist) { closestDist = dist; closest = i; }
+            }
+            if (closest >= 0 && closestDist < 3) {
+                notes[closest].tie = !notes[closest].tie;
+            }
+            setCompTool('note');
+            renderScoreOverlay();
+            return;
+        }
+
+        if (_compTool === 'rest') {
+            entry.type = 'rest';
+        }
+        if (_compDynamic) {
+            entry.dynamic = _compDynamic;
+        }
+        if (_compArticulation) {
+            entry.articulation = _compArticulation;
+        }
+        // Tempo marking from dropdown (attaches to next note placed)
+        const tempoVal = document.getElementById('compTempo')?.value;
+        if (tempoVal) {
+            entry.tempo = tempoVal;
+            document.getElementById('compTempo').value = '';
+        }
+        // Multi-measure rest from dropdown
+        const multiRestVal = document.getElementById('compMultiRest')?.value;
+        if (multiRestVal && _compTool === 'rest') {
+            entry.multi_rest = parseInt(multiRestVal);
+            document.getElementById('compMultiRest').value = '';
+        }
+
+        _scoreParts[_activePartIndex].notes.push(entry);
+        _scoreParts[_activePartIndex].notes.sort((a, b) => a.beat - b.beat);
+
+        // Advance cursor past this note's duration
+        _compCursorBeat = beat + durationBeats;
+
         renderScoreOverlay();
+    }
+
+    function onCompRightClick(e) {
+        e.preventDefault();
+        const staff = document.getElementById('compStaff');
+        const svg = staff.querySelector('svg');
+        if (!svg) return;
+
+        const svgRect = svg.getBoundingClientRect();
+        const x = e.clientX - svgRect.left;
+        const y = e.clientY - svgRect.top;
+
+        // Detect which staff was clicked — auto-switch and delete from THAT part
+        const { partIndex } = _compDetectStaff(y);
+        if (partIndex !== _activePartIndex) {
+            _activePartIndex = partIndex;
+            updateCompParts();
+        }
+
+        const beat = _compXToBeat(x);
+        const notes = _scoreParts[_activePartIndex].notes;
+        let closest = -1, closestDist = Infinity;
+        for (let i = 0; i < notes.length; i++) {
+            const dist = Math.abs(notes[i].beat - beat);
+            if (dist < closestDist) { closestDist = dist; closest = i; }
+        }
+        if (closest >= 0 && closestDist < 3) {
+            notes.splice(closest, 1);
+            renderScoreOverlay();
+        }
+    }
+
+    function _ensureGhostNote() {
+        let ghost = document.getElementById('compGhostNote');
+        if (!ghost) {
+            ghost = document.createElement('div');
+            ghost.id = 'compGhostNote';
+            ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:350;';
+            ghost.innerHTML = `<svg id="ghostSvg" width="120" height="50" style="overflow:visible;"></svg>`;
+            document.body.appendChild(ghost);
+        }
+        return ghost;
+    }
+
+    function _buildGhostSvg(tool, dur, note, octave, isChord, chordName, beat) {
+        // Build the exact visual of what will be placed
+        const opacity = '0.55';
+        const noteColor = '#2dd4a8';
+        const exprColor = '#c48dff';
+        let sym = '';
+        const d = parseFloat(dur);
+
+        // Beat guide line
+        sym += `<line x1="14" y1="-40" x2="14" y2="60" stroke="${noteColor}" stroke-width="0.5" stroke-opacity="0.2" stroke-dasharray="3,3"/>`;
+
+        if (tool === 'note') {
+            // Draw the actual note shape
+            if (d >= 1) {
+                // Whole note — open oval, no stem
+                sym += `<ellipse cx="14" cy="20" rx="7" ry="5" fill="none" stroke="${noteColor}" stroke-width="1.8" opacity="${opacity}" transform="rotate(-10 14 20)"/>`;
+                sym += `<ellipse cx="14" cy="20" rx="3" ry="4" fill="none" stroke="${noteColor}" stroke-width="0.8" opacity="${opacity}" transform="rotate(-10 14 20)"/>`;
+            } else if (d >= 0.5) {
+                // Half note — open oval + stem
+                sym += `<ellipse cx="14" cy="20" rx="6.5" ry="4.5" fill="none" stroke="${noteColor}" stroke-width="1.8" opacity="${opacity}" transform="rotate(-10 14 20)"/>`;
+                sym += `<line x1="20" y1="20" x2="20" y2="0" stroke="${noteColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+            } else if (d >= 0.25) {
+                // Quarter note — filled + stem
+                sym += `<ellipse cx="14" cy="20" rx="5.5" ry="4" fill="${noteColor}" opacity="${opacity}" transform="rotate(-10 14 20)"/>`;
+                sym += `<line x1="19" y1="20" x2="19" y2="0" stroke="${noteColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+            } else if (d >= 0.125) {
+                // Eighth — filled + stem + flag
+                sym += `<ellipse cx="14" cy="20" rx="5.5" ry="4" fill="${noteColor}" opacity="${opacity}" transform="rotate(-10 14 20)"/>`;
+                sym += `<line x1="19" y1="20" x2="19" y2="2" stroke="${noteColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+                sym += `<path d="M19,2 C23,5 24,9 20,13" fill="none" stroke="${noteColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+            } else {
+                // Sixteenth — filled + stem + 2 flags
+                sym += `<ellipse cx="14" cy="20" rx="5.5" ry="4" fill="${noteColor}" opacity="${opacity}" transform="rotate(-10 14 20)"/>`;
+                sym += `<line x1="19" y1="20" x2="19" y2="2" stroke="${noteColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+                sym += `<path d="M19,2 C23,5 24,9 20,13" fill="none" stroke="${noteColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+                sym += `<path d="M19,7 C23,10 24,14 20,18" fill="none" stroke="${noteColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+            }
+            // Note name
+            sym += `<text x="30" y="16" font-size="11" fill="${noteColor}" opacity="0.9" font-family="Inter,sans-serif" font-weight="600">${note}${octave}</text>`;
+
+        } else if (tool === 'rest') {
+            // Draw the rest symbol
+            if (d >= 1) {
+                // Whole rest — hanging rectangle
+                sym += `<rect x="8" y="15" width="12" height="5" fill="${noteColor}" opacity="${opacity}"/>`;
+            } else if (d >= 0.5) {
+                // Half rest — sitting rectangle
+                sym += `<rect x="8" y="18" width="12" height="5" fill="${noteColor}" opacity="${opacity}"/>`;
+            } else if (d >= 0.25) {
+                // Quarter rest — squiggle
+                sym += `<path d="M16,8 L11,14 L17,20 L12,26 L18,32" fill="none" stroke="${noteColor}" stroke-width="2" stroke-linecap="round" opacity="${opacity}"/>`;
+            } else if (d >= 0.125) {
+                // Eighth rest
+                sym += `<circle cx="16" cy="16" r="1.8" fill="${noteColor}" opacity="${opacity}"/>`;
+                sym += `<path d="M16,16 L12,28" fill="none" stroke="${noteColor}" stroke-width="1.5" opacity="${opacity}"/>`;
+            } else {
+                // Sixteenth rest
+                sym += `<circle cx="16" cy="13" r="1.8" fill="${noteColor}" opacity="${opacity}"/>`;
+                sym += `<circle cx="16" cy="19" r="1.8" fill="${noteColor}" opacity="${opacity}"/>`;
+                sym += `<path d="M16,13 L12,28" fill="none" stroke="${noteColor}" stroke-width="1.5" opacity="${opacity}"/>`;
+            }
+            sym += `<text x="30" y="24" font-size="10" fill="${noteColor}" opacity="0.8" font-family="Inter,sans-serif">rest</text>`;
+
+        } else if (tool === 'crescendo') {
+            sym += `<path d="M4,16 L26,10 M4,16 L26,22" fill="none" stroke="${exprColor}" stroke-width="1.5" opacity="${opacity}"/>`;
+            sym += `<text x="30" y="20" font-size="9" fill="${exprColor}" opacity="0.8" font-family="Inter,sans-serif">cresc.</text>`;
+
+        } else if (tool === 'decrescendo') {
+            sym += `<path d="M4,10 L26,16 M4,22 L26,16" fill="none" stroke="${exprColor}" stroke-width="1.5" opacity="${opacity}"/>`;
+            sym += `<text x="30" y="20" font-size="9" fill="${exprColor}" opacity="0.8" font-family="Inter,sans-serif">decresc.</text>`;
+
+        } else if (tool === 'slur') {
+            sym += `<path d="M4,22 Q14,8 24,22" fill="none" stroke="${exprColor}" stroke-width="1.8" opacity="${opacity}"/>`;
+
+        } else if (tool === 'tie') {
+            sym += `<path d="M4,22 Q14,12 24,22" fill="none" stroke="${noteColor}" stroke-width="1.5" opacity="${opacity}"/>`;
+
+        } else if (tool === 'grace') {
+            sym += `<ellipse cx="10" cy="20" rx="3.5" ry="2.5" fill="${noteColor}" opacity="${opacity}" transform="rotate(-10 10 20)"/>`;
+            sym += `<line x1="13" y1="20" x2="13" y2="8" stroke="${noteColor}" stroke-width="0.8" opacity="${opacity}"/>`;
+            sym += `<line x1="9" y1="14" x2="17" y2="8" stroke="${noteColor}" stroke-width="0.7" opacity="${opacity}"/>`;
+            sym += `<text x="22" y="24" font-size="9" fill="${exprColor}" opacity="0.8" font-family="Inter,sans-serif">grace</text>`;
+
+        } else if (tool === 'dynamic_place') {
+            sym += `<text x="14" y="26" font-size="18" fill="${exprColor}" opacity="${opacity}" font-family="serif" font-style="italic" text-anchor="middle" font-weight="bold">${_compDynamic}</text>`;
+
+        } else if (tool === 'pedal_down') {
+            sym += `<text x="4" y="24" font-size="13" fill="${exprColor}" opacity="${opacity}" font-family="serif" font-style="italic">Ped.</text>`;
+
+        } else if (tool === 'pedal_up') {
+            sym += `<text x="10" y="26" font-size="18" fill="${exprColor}" opacity="${opacity}" font-family="serif">*</text>`;
+
+        } else if (tool === 'barline') {
+            const label = _compBarline === 'repeat_start' ? '|:' : _compBarline === 'repeat_end' ? ':|' : '||';
+            sym += `<line x1="14" y1="5" x2="14" y2="35" stroke="${exprColor}" stroke-width="2" opacity="${opacity}"/>`;
+            sym += `<text x="20" y="24" font-size="10" fill="${exprColor}" opacity="0.8" font-family="Inter,sans-serif">${label}</text>`;
+
+        } else if (tool === 'navigation') {
+            sym += `<text x="14" y="24" font-size="12" fill="${exprColor}" opacity="${opacity}" font-family="serif" font-style="italic" text-anchor="middle">${_compNavMark || ''}</text>`;
+
+        } else if (tool === 'volta1' || tool === 'volta2') {
+            const num = tool === 'volta1' ? '1.' : '2.';
+            sym += `<path d="M4,12 L4,6 L24,6" fill="none" stroke="${exprColor}" stroke-width="1.3" opacity="${opacity}"/>`;
+            sym += `<text x="7" y="18" font-size="10" fill="${exprColor}" opacity="0.8" font-family="sans-serif">${num}</text>`;
+
+        } else if (tool === '8va' || tool === '8vb') {
+            sym += `<text x="4" y="18" font-size="11" fill="${exprColor}" opacity="${opacity}" font-family="serif" font-style="italic">${tool}</text>`;
+            sym += `<line x1="22" y1="14" x2="40" y2="14" stroke="${exprColor}" stroke-width="0.8" stroke-dasharray="3,2" opacity="${opacity}"/>`;
+
+        } else {
+            // Fallback
+            sym += `<ellipse cx="14" cy="20" rx="5.5" ry="4" fill="${noteColor}" opacity="${opacity}" transform="rotate(-10 14 20)"/>`;
+        }
+
+        // Beat indicator
+        const cursorInfo = (tool === 'note' && !isChord) ? ` (next: ${Math.round(_compCursorBeat)+1})` : '';
+        const beatText = isChord && tool === 'note'
+            ? (chordName ? `beat ${beat+1} \u2192 ${chordName}` : `beat ${beat+1} (chord)`)
+            : `beat ${beat+1}${cursorInfo}`;
+        const beatColor = isChord && tool === 'note' ? '#d4a84d' : (tool !== 'note' && tool !== 'rest' ? exprColor : '#8080a8');
+        sym += `<text x="30" y="38" font-size="9" fill="${beatColor}" opacity="0.8" font-family="Inter,sans-serif">${beatText}</text>`;
+
+        return sym;
+    }
+
+    function _snapToStaffY(yInSvg, staffTop) {
+        // Snap Y to nearest half-line-spacing (each note position)
+        const lineSpacing = 10;
+        const relY = yInSvg - staffTop;
+        const snapped = Math.round(relY / (lineSpacing / 2)) * (lineSpacing / 2);
+        return staffTop + snapped;
+    }
+
+    function onCompHover(e) {
+        const staffEl = document.getElementById('compStaff');
+        const svg = staffEl.querySelector('svg');
+        const preview = document.getElementById('compPreview');
+        if (!svg || !preview) return;
+
+        const svgRect = svg.getBoundingClientRect();
+        const xInSvg = e.clientX - svgRect.left;
+        const yInSvg = e.clientY - svgRect.top;
+
+        // Detect which staff the cursor is over
+        const { partIndex, staffTop, clef } = _compDetectStaff(yInSvg);
+        const snappedY = _snapToStaffY(yInSvg, staffTop);
+        const { note, octave } = _compYToNote(snappedY, staffTop, clef);
+
+        // Snap X to beat position
+        const beat = _compXToBeat(xInSvg);
+        const snappedX = _compBeatToX(beat);
+
+        // Position ghost note on screen (fixed positioning = screen coords)
+        const ghost = _ensureGhostNote();
+        const ghostScreenX = svgRect.left + snappedX - 14;
+        const ghostScreenY = svgRect.top + snappedY - 20;
+        ghost.style.left = ghostScreenX + 'px';
+        ghost.style.top = ghostScreenY + 'px';
+        ghost.style.display = 'block';
+
+        // Check if this beat already has notes (would create a chord)
+        const existingAtBeat = _scoreParts[partIndex].notes.filter(
+            n => n.beat === beat && n.type !== 'rest' && n.type !== 'barline'
+        );
+        const isChord = existingAtBeat.length > 0;
+
+        // Update ghost labels
+        const durName = {1:'whole',0.5:'half',0.25:'quarter',0.125:'eighth',0.0625:'sixteenth'};
+        const dur = document.getElementById('scoreDuration')?.value || '0.25';
+        const ghostLabel = document.getElementById('ghostLabel');
+        const ghostBeatLabel = document.getElementById('ghostBeatLabel');
+        const ghostHead = document.getElementById('ghostHead');
+
+        // Build chord info for note mode
+        let chordName = null;
+        if (isChord && _compTool === 'note') {
+            const noteMap2 = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+            const newMidi = (octave + 1) * 12 + (noteMap2[note] || 0);
+            const allMidis = existingAtBeat.map(n => n.midi).concat([newMidi]);
+            chordName = _identifyChord(allMidis);
+        }
+
+        // Rebuild ghost SVG to match exactly what will be placed
+        const ghostSvg = document.getElementById('ghostSvg');
+        if (ghostSvg) {
+            ghostSvg.innerHTML = _buildGhostSvg(_compTool, dur, note, octave, isChord, chordName, beat);
+        }
+
+        // Text preview
+        const partName = _scoreParts[partIndex]?.name || 'Part ' + (partIndex + 1);
+        const clefLabel = clef === 'bass' ? '\u{1D122}' : '\u{1D11E}';
+
+        let info = partName + ' ' + clefLabel + '  |  beat ' + (beat + 1);
+        if (isChord && _compTool === 'note') {
+            const noteMap3 = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+            const newMidi2 = (octave + 1) * 12 + (noteMap3[note] || 0);
+            const allM = existingAtBeat.map(n => n.midi).concat([newMidi2]);
+            const cn = _identifyChord(allM);
+            info += cn ? ' \u2192 ' + cn : ' (CHORD)';
+        }
+        info += '  |  ';
+        if (_compTool === 'rest') info += (durName[dur] || 'quarter') + ' rest';
+        else if (_compTool === 'tie') info += 'click note to tie';
+        else info += note + octave + ' (' + (durName[dur] || 'quarter') + ')';
+        if (_compArticulation) info += ' [' + _compArticulation + ']';
+        if (_compDynamic) info += ' ' + _compDynamic;
+        if (partIndex !== _activePartIndex) info += '  (click to switch)';
+        preview.textContent = info;
     }
 
     // ═══ INSTRUMENT PANEL ═══

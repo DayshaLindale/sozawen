@@ -14,8 +14,12 @@ import threading
 import soundfile as sf
 from pathlib import Path
 
-# App paths
-BASE_DIR = Path(__file__).parent.parent
+# App paths — handle both dev and PyInstaller frozen builds
+import sys
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys._MEIPASS)
+else:
+    BASE_DIR = Path(__file__).parent.parent
 STATIC_DIR = BASE_DIR / "static"
 ASSETS_DIR = BASE_DIR / "assets"
 SETTINGS_PATH = BASE_DIR / "settings.json"

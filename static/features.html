@@ -90,7 +90,7 @@
 
 <div class="page-title">
     <h1>FEATURES</h1>
-    <p>Everything you need. Nothing you don't. Every control teaches the real thing.</p>
+    <p>62 instruments from pure physics. Full composition editor. Every control teaches the real thing.</p>
 </div>
 
 <div class="wave"></div>
@@ -106,10 +106,11 @@
             <div class="carousel-dot" onclick="showSlide(0)" style="width:8px; height:8px; border-radius:50%; background:#9b59b6; cursor:pointer; transition:background 0.3s;"></div>
             <div class="carousel-dot" onclick="showSlide(1)" style="width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.3); cursor:pointer; transition:background 0.3s;"></div>
             <div class="carousel-dot" onclick="showSlide(2)" style="width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.3); cursor:pointer; transition:background 0.3s;"></div>
+            <div class="carousel-dot" onclick="showSlide(3)" style="width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.3); cursor:pointer; transition:background 0.3s;"></div>
         </div>
     </div>
     <script>
-        const _slides = ['screenshot.png', 'screenshot2.png', 'screenshot3.png'];
+        const _slides = ['screenshot.png', 'screenshot2.png', 'screenshot3.png', 'staff.png'];
         let _carouselIdx = 0;
         function showSlide(idx) {
             const img = document.getElementById('carouselImg');
@@ -122,14 +123,14 @@
         setInterval(() => { showSlide((_carouselIdx + 1) % _slides.length); }, 5000);
     </script>
     <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; text-align:center; max-width:800px; margin:0 auto;">
-        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🎹</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">SYNTH</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">4 waveforms, filter, ADSR</div></div>
-        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🥁</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">DRUMS</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">9 sounds, step sequencer</div></div>
+        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🎸</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">62 INSTRUMENTS</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Physics-modeled, brand-accurate</div></div>
+        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🎼</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">COMPOSER</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Full notation editor</div></div>
+        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🥁</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">DRUMS</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">14 modal-synthesis sounds</div></div>
+        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">💬</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">BANDMATE</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">AI that knows all 62 instruments</div></div>
         <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">✂</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">AI SPLIT</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Stems from any song</div></div>
-        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">💬</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">BANDMATE</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">AI that listens and suggests</div></div>
-        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🔕</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">BLEED REMOVAL</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Adaptive cancellation</div></div>
         <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">≋</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">18 EFFECTS</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Hardware-modeled DSP</div></div>
-        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">📖</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">27 GUIDES</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Theory to mastering</div></div>
-        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🎵</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">TUNER</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Chromatic with cents</div></div>
+        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">🎹</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">SYNTH + KEYS</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Rhodes, Wurli, Hammond, Clav</div></div>
+        <div style="padding:12px 8px;"><div style="font-size:20px; margin-bottom:6px;">📝</div><div style="font-size:10px; color:var(--violet-glow); font-weight:500; letter-spacing:1px;">TAB + NOTATION</div><div style="font-size:9px; color:var(--text-muted); margin-top:3px; line-height:1.4;">17 tunings, auto-convert</div></div>
     </div>
 </section>
 
@@ -137,18 +138,40 @@
 
 <section class="section-wide">
     <ul class="feature-flow">
+        <li><span class="f-name">62 Instruments</span><span class="f-desc">Every instrument physically modeled from math — no samples, no copyright, no licensing fees. Brand-specific tonal character indistinguishable from real recordings. 8 families: guitars, bass, piano, keys, strings, brass, woodwinds, percussion.</span></li>
+        <li style="padding:0 0 28px 184px; border-bottom: 1px solid rgba(255,255,255,.04); display:block; font-size:13px; color:var(--text-muted); line-height:2;">
+            <strong style="color:var(--teal);">Guitar</strong> Taylor, Martin, Gibson, Strat, Les Paul + 5 amp models<br>
+            <strong style="color:var(--teal);">Bass</strong> Precision, Jazz, Rickenbacker, StingRay, Hofner + 5 amps + 5 techniques<br>
+            <strong style="color:var(--teal);">Piano</strong> Steinway D, Yamaha CFX, Bosendorfer, Upright, Honky-tonk<br>
+            <strong style="color:var(--teal);">Keys</strong> Rhodes Mark I/II, Wurlitzer, Clavinet, Hammond B3 with Leslie<br>
+            <strong style="color:var(--teal);">Strings</strong> Violin, Stradivarius, Viola, Cello, Contrabass — 9 articulations<br>
+            <strong style="color:var(--teal);">Brass</strong> Trumpet, French Horn, Trombone, Tuba — 5 mute types<br>
+            <strong style="color:var(--teal);">Woodwinds</strong> Flute, Clarinet, Oboe, Bassoon, Alto/Tenor/Soprano/Bari Sax<br>
+            <strong style="color:var(--teal);">Percussion</strong> Timpani, Marimba, Xylophone, Vibraphone, Glockenspiel, Tubular Bells
+        </li>
+        <li><span class="f-name">Composition Editor</span><span class="f-desc">Full-page sheet music composer with every standard notation symbol. Write for full orchestra, assign instruments to parts, hear it played back through the physics engine. Ghost cursor shows exactly what you're placing. Real-time chord identification. Multi-staff scoring with unlimited parts.</span></li>
+        <li style="padding:0 0 28px 184px; border-bottom: 1px solid rgba(255,255,255,.04); display:block; font-size:13px; color:var(--text-muted); line-height:2;">
+            <strong style="color:var(--violet-glow);">Notes</strong> whole, half, quarter, eighth, sixteenth + dotted + triplets<br>
+            <strong style="color:var(--violet-glow);">Symbols</strong> rests, ties, slurs, beaming, grace notes, ledger lines<br>
+            <strong style="color:var(--violet-glow);">Dynamics</strong> ppp through fff + crescendo/decrescendo hairpins<br>
+            <strong style="color:var(--violet-glow);">Articulations</strong> staccato, accent, tenuto, fermata, marcato, trill<br>
+            <strong style="color:var(--violet-glow);">Structure</strong> bar lines, repeats, volta brackets, tempo markings, pedal marks<br>
+            <strong style="color:var(--violet-glow);">Navigation</strong> segno, coda, D.C., D.S., Fine, ottava (8va/8vb)
+        </li>
+        <li><span class="f-name">Sheet Music + Tab</span><span class="f-desc">Bidirectional tab-to-notation translation for guitar, bass, ukulele, banjo, mandolin — 17 tunings. Write in tab, see it as sheet music. Write notation, export as tab. SVG rendering with proper key signatures, time signatures, clefs, accidentals, ledger lines.</span></li>
+        <li><span class="f-name">Electric Amps</span><span class="f-desc">5 guitar amp models (Marshall JCM800, Fender Twin, Mesa Boogie, Vox AC30, Orange) and 5 bass amp models (Ampeg SVT, Darkglass, Orange, Mesa, Clean DI). Real tube stages with asymmetric clipping, inter-stage EQ, diode clipping (silicon and germanium), speaker cabinet simulation. From clean jazz to Hendrix to metal.</span></li>
         <li><span class="f-name">Record</span><span class="f-desc">Multi-track recording with click track, count-in, and input monitoring. Multi-channel interfaces supported — guitar on input 1, vocals on input 2, each to its own track. Low-latency ASIO.</span></li>
         <li><span class="f-name">AI Stem Split</span><span class="f-desc">Drop any song. Get back vocals, drums, bass, guitar, piano, and more — each on its own track. Learn from the greats by hearing what they did.</span></li>
         <li><span class="f-name">Bleed Removal</span><span class="f-desc">Recording guitar DI and vocals at the same time? The mic picks up guitar bleed. Sozawen uses the clean DI signal to mathematically subtract the bleed. Same tech as noise-cancelling headphones.</span></li>
         <li><span class="f-name">Lyrics</span><span class="f-desc">Hit transcribe and it writes the words as the song plays. Timestamps and all. Export as LRC, SRT, or plain text.</span></li>
-        <li><span class="f-name">The Bandmate</span><span class="f-desc">An AI collaborator that sees your session — key, BPM, tracks, effects — and suggests chords, arrangement ideas, production techniques. Like having a musician friend who listens without judging.</span></li>
+        <li><span class="f-name">The Bandmate</span><span class="f-desc">An AI collaborator that sees your session — key, BPM, tracks, effects, all 62 instruments — and suggests chords, arrangement ideas, production techniques, instrument pairings. Like having a musician friend who knows every instrument in the orchestra and listens without judging.</span></li>
         <li><span class="f-name">Mix & Master</span><span class="f-desc">Full parametric EQ (HPF + 4 bands + LPF), compressor with sidechain, Schroeder reverb, delay with BPM sync, brick-wall limiter. LUFS metering for streaming platforms. Hardware-depth controls.</span></li>
         <li><span class="f-name">18 Effects</span><span class="f-desc">EQ, compressor, reverb, delay, limiter, noise gate, de-esser, hum removal, normalize, crossfade, time stretch, pitch shift, stereo width, de-clip, reverse, bleed removal, sidechain compression, and spectral noise reduction. All modeled after real hardware. All GPL-free.</span></li>
         <li><span class="f-name">Edit by Feel</span><span class="f-desc">Split, trim, stretch, pitch shift, crossfade. Click-drag to select ranges. Every tool has plain-English tooltips that teach the hardware equivalent.</span></li>
         <li><span class="f-name">Adaptive UI</span><span class="f-desc">The program reads the room. Recording? Recording tools appear. Mixing? EQ and compressor come forward. No modes. No menus. It just knows.</span></li>
         <li><span class="f-name">Key & BPM</span><span class="f-desc">Load a track and instantly know the key, tempo, loudness, and duration. Match tempos between tracks. Build from what's already there.</span></li>
-        <li><span class="f-name">Synth & Pad</span><span class="f-desc">Subtractive synth with 4 waveforms, filter, ADSR. MPC-style pad grid mapped to your scale — tap to play, hold multiple for chords. Generate patterns by feel.</span></li>
-        <li><span class="f-name">Drum Machine</span><span class="f-desc">Step sequencer with 9 synthesized sounds — kick, snare, hi-hat, clap, toms, rim. 9 genre presets. Pop-out full-screen grid. No samples needed.</span></li>
+        <li><span class="f-name">Synth & Pad</span><span class="f-desc">Subtractive synth with 4 waveforms, filter, ADSR. MPC-style pad grid mapped to your scale — tap to play, hold multiple for chords. Plus 16 keyboard instruments (Rhodes Mark I/II, Wurlitzer, Clavinet, Hammond B3 with 9 drawbars, key click, percussion, and Leslie speaker simulation).</span></li>
+        <li><span class="f-name">Drum Machine</span><span class="f-desc">14 modal-synthesis drum sounds built from real membrane physics — kick (8ms pitch sweep, membrane modes, shell resonance), snare (buzz wires), hi-hats (open/closed/pedal), toms, claps, rides, crashes, double kick. Step sequencer with genre presets. No samples.</span></li>
         <li><span class="f-name">Sidechain</span><span class="f-desc">Duck one track based on another's level. Classic kick-ducking-bass. Select trigger and target, set threshold and ratio.</span></li>
         <li><span class="f-name">Snap & Markers</span><span class="f-desc">Snap-to-grid (bar to 1/16). Named markers on the timeline. Jump between sections with [ ] keys.</span></li>
         <li><span class="f-name">Automation</span><span class="f-desc">Draw volume and pan curves on the waveform. Click to add points. Visual SVG overlay. Per-track, per-parameter.</span></li>
@@ -171,30 +194,47 @@
     <div class="changelog-title">What's New</div>
     <div class="log-entry">
         <div class="log-line"></div>
+        <div class="log-date">April 19, 2026</div>
+        <div class="log-ver">The Full Orchestra</div>
+        <div class="log-body">62 physically modeled instruments and a complete composition editor. Every instrument from math. Every notation symbol implemented.
+            <ul>
+                <li>8 instrument families: guitar (7 models + 5 amps), bass (7 models + 5 amps + 5 techniques), piano (5 brand profiles), keys (16 models including Hammond with Leslie), strings (5 bowed instruments + 9 articulations), brass (4 instruments + 5 mutes), woodwinds (8 instruments), percussion (10 modal-synthesis instruments)</li>
+                <li>Full composition editor with every standard notation: notes (whole-sixteenth), rests, dynamics, articulations, ties, slurs, crescendo/decrescendo, grace notes, beaming, triplets, dotted notes, tempo markings, pedal marks, repeat signs, volta brackets, segno/coda/D.C./D.S., ottava, multi-measure rests</li>
+                <li>Ghost cursor shows exact symbol being placed with beat position and chord identification</li>
+                <li>Assign instruments to parts — playback uses real physics engine</li>
+                <li>Multi-staff orchestral scoring with unlimited parts</li>
+                <li>Tab-to-notation translation for 17 tunings across guitar/bass/uke/banjo/mandolin</li>
+                <li>Electric amp chains: tube stages, diode clipping, inter-stage EQ, speaker cabinet sim</li>
+                <li>Drum sounds rebuilt with modal membrane physics (14 sounds)</li>
+                <li>Polyphonic voice support — whole note sustained while quarters play beneath</li>
+                <li>Smart beat cursor auto-advances by note duration value</li>
+                <li>Playback respects all notation: dynamics, articulations, tempo changes, repeats, grace notes, ottava transposition</li>
+            </ul>
+        </div>
+    </div>
+    <div class="log-entry">
+        <div class="log-line"></div>
         <div class="log-date">April 17, 2026</div>
         <div class="log-ver">The First Light</div>
         <div class="log-body">Everything at once. Built in one session. Nothing held back.
             <ul>
-                <li>19 audio effects — EQ, compressor, reverb, delay, limiter, gate, de-esser, hum removal, normalize, crossfade, time stretch, pitch shift, stereo width, de-clip, reverse, bleed removal, sidechain, noise reduction, click removal</li>
-                <li>Subtractive synth, drum machine (9 sounds, 9 genre presets), MPC-style pad with chord support</li>
+                <li>19 audio effects — hardware-modeled DSP</li>
+                <li>Subtractive synth, drum machine, MPC-style pad with chord support</li>
                 <li>Piano roll editor and MIDI controller input</li>
                 <li>AI stem separation, lyric transcription, chord detection, audio-to-MIDI</li>
-                <li>The Bandmate — AI collaborator that sees your session and suggests what's next</li>
-                <li>Multi-channel recording with auto-mapping, input monitoring, live level meters</li>
-                <li>Continuous metronome, tap tempo, chromatic tuner, count-in</li>
-                <li>Snap-to-grid, named markers, automation curves, waveform selection, loop playback</li>
-                <li>Sample browser, phase invert, track colors, remappable channels</li>
-                <li>27 knowledge base articles — theory, recording, mixing, mastering, instruments</li>
-                <li>20 scales, 18 chords, circle of fifths, 10 progressions, modulation guide</li>
-                <li>76 tooltips teaching real hardware equivalents on every control</li>
-                <li>LUFS metering, reference A/B, key/BPM detection, export to 5 formats</li>
+                <li>The Bandmate — AI collaborator that sees your session</li>
+                <li>Multi-channel recording, metronome, tuner, count-in</li>
+                <li>Snap-to-grid, markers, automation, loop playback</li>
+                <li>27 knowledge base articles, 20 scales, 18 chords, circle of fifths</li>
+                <li>76 tooltips teaching real hardware equivalents</li>
+                <li>LUFS metering, export to 5 formats</li>
             </ul>
         </div>
     </div>
     <div class="log-entry">
         <div class="log-date">Coming Soon</div>
         <div class="log-ver">The Deep End</div>
-        <div class="log-body">VST3 plugin hosting — load any third-party synth or effect. Custom stem separation model going beyond 6 stems. Spectrogram view. Vocal pitch correction. Audio-to-MIDI improvements. And whatever the community asks for on Discord.</div>
+        <div class="log-body">VST3 plugin hosting. PDF score export with pagination. Custom stem separation model. Spectrogram view. Vocal pitch correction. MIDI file import/export. And whatever the community asks for on Discord.</div>
     </div>
 </section>
 
@@ -202,7 +242,7 @@
 
 <section class="cta">
     <a href="https://discord.gg/WhzuhTeVsU" target="_blank" class="btn-glow">Join the Discord — Launching Soon</a>
-    <p style="font-size: 11px; color: var(--text-muted); margin-top: 20px;">Windows 10/11 &middot; ~500MB &middot; No admin required &middot; No account &middot; 30-day money-back guarantee</p>
+    <p style="font-size: 11px; color: var(--text-muted); margin-top: 20px;">Windows 10/11 &middot; ~272MB &middot; No admin required &middot; No account &middot; 30-day money-back guarantee</p>
 </section>
 
 <footer class="footer">

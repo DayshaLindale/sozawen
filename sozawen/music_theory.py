@@ -100,6 +100,50 @@ CHORDS = {
     'minor6':       [0, 3, 7, 9],
 }
 
+def identify_chord(midi_notes):
+    """Identify a chord from a list of MIDI note numbers.
+
+    Returns chord name string like 'C Major', 'Am7', or None if unrecognized.
+    """
+    if len(midi_notes) < 2:
+        return None
+
+    # Normalize to pitch classes (0-11) and sort
+    pcs = sorted(set(n % 12 for n in midi_notes))
+    if len(pcs) < 2:
+        return None
+
+    # Try every pitch class as potential root
+    best = None
+    for root_pc in pcs:
+        intervals = sorted((pc - root_pc) % 12 for pc in pcs)
+        root_name = NOTE_NAMES[root_pc]
+
+        # Match against known chord types
+        for chord_name, chord_intervals in CHORDS.items():
+            # Normalize chord intervals to pitch classes
+            ci = sorted(i % 12 for i in chord_intervals)
+            if intervals == ci:
+                # Format nice name
+                display = {
+                    'major': 'Major', 'minor': 'Minor', 'diminished': 'Dim',
+                    'augmented': 'Aug', 'sus2': 'sus2', 'sus4': 'sus4',
+                    'major7': 'Maj7', 'minor7': 'm7', 'dominant7': '7',
+                    'diminished7': 'dim7', 'half_dim7': 'm7b5',
+                    'add9': 'add9', 'minor_add9': 'madd9',
+                    'major9': 'Maj9', 'minor9': 'm9',
+                    'power': '5', '6': '6', 'minor6': 'm6',
+                }
+                label = display.get(chord_name, chord_name)
+                best = root_name + ' ' + label if label[0].isupper() else root_name + label
+                # Prefer root = lowest note
+                lowest_pc = min(midi_notes) % 12
+                if root_pc == lowest_pc:
+                    return best
+
+    return best
+
+
 def get_chord(root_note, chord_type='major', octave=4):
     """Get MIDI notes for a chord.
     root_note: note name
