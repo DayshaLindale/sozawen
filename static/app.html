@@ -757,16 +757,35 @@
     function buildRuler(seconds) {
         const marks = document.getElementById('rulerMarks');
         marks.innerHTML = '';
-        for(let i=0; i<=seconds; i+=5) {
+        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || 120);
+        const beatSec = 60 / bpm;
+
+        // Mark every beat (at current zoom level)
+        const totalWidth = seconds * PIXELS_PER_SECOND;
+        const beatWidth = beatSec * PIXELS_PER_SECOND;
+
+        // Choose mark interval based on zoom
+        let markInterval = beatSec;  // every beat
+        if (beatWidth < 30) markInterval = beatSec * 4;  // every bar if zoomed out
+        if (beatWidth < 10) markInterval = beatSec * 8;
+        if (beatWidth > 100) markInterval = beatSec * 0.5;  // half beats if zoomed in
+
+        for (let t = 0; t <= seconds; t += markInterval) {
             const m = document.createElement('div');
             m.className = 'ruler-mark';
-            const min = Math.floor(i/60);
-            const sec = i%60;
-            m.textContent = `${min}:${String(sec).padStart(2,'0')}`;
+            m.style.minWidth = (markInterval * PIXELS_PER_SECOND) + 'px';
+            m.style.width = (markInterval * PIXELS_PER_SECOND) + 'px';
+
+            // Show beat number or time
+            const beatNum = Math.round(t / beatSec) + 1;
+            const barNum = Math.floor((beatNum - 1) / 4) + 1;
+            const beatInBar = ((beatNum - 1) % 4) + 1;
+            m.textContent = `${barNum}.${beatInBar}`;
+
             marks.appendChild(m);
         }
     }
-    buildRuler(10); // start compact, auto-expands when tracks are loaded
+    buildRuler(10);
 
     // ═══ TRACKS ═══
     function addTrack(name, filePath) {
