@@ -306,12 +306,12 @@
     <!-- TRANSPORT -->
     <div class="transport">
         <!-- Transport controls — grouped like a hardware unit -->
-        <div class="transport-group">
-            <button class="transport-btn" onclick="rewind()" title="Return to start">&#9664;&#9664;</button>
+        <div class="transport-group" style="gap:2px;">
+            <button class="transport-btn" onclick="rewind()" title="Return to start" style="font-size:11px;">&#9198;</button>
             <button class="transport-btn record" id="btnRecord" onclick="toggleRecord()" title="Record">&#9679;</button>
             <button class="transport-btn play" id="btnPlay" onclick="togglePlay()" title="Play / Pause">&#9654;</button>
             <button class="transport-btn" onclick="stopAll()" title="Stop">&#9632;</button>
-            <button class="transport-btn" id="btnLoop" onclick="toggleLoop()" title="Loop" style="font-size:10px;">&#128257;</button>
+            <button class="transport-btn" id="btnLoop" onclick="toggleLoop()" title="Loop">&#8634;</button>
         </div>
 
         <!-- Time display — the clock -->
@@ -1023,13 +1023,18 @@
         document.getElementById('timeDisplay').textContent = '00:00.00';
     }
     function rewind() {
-        fetch('/api/transport/stop', {method:'POST'}).then(() => {
-            fetch('/api/transport/seek', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({seconds:0})});
-        });
-        isPlaying = false;
-        document.getElementById('btnPlay').classList.remove('active');
-        document.getElementById('timeDisplay').textContent = '00:00.00';
-        document.getElementById('statusText').textContent = 'Ready';
+        // Stop, reset position, update UI — all sequentially
+        fetch('/api/transport/stop', {method:'POST'})
+            .then(() => fetch('/api/transport/seek', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({seconds:0})}))
+            .then(() => {
+                isPlaying = false;
+                document.getElementById('btnPlay').classList.remove('active');
+                document.getElementById('timeDisplay').textContent = '00:00.00';
+                document.getElementById('statusText').textContent = 'Ready';
+                // Reset the playhead position visually
+                const playhead = document.getElementById('playhead');
+                if (playhead) playhead.style.left = '0px';
+            });
     }
 
     // ═══ STATE POLLING — meters, playhead, time display ═══

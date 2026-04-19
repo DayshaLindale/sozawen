@@ -301,76 +301,109 @@ STRING_SETS = {
 # FULL GUITAR SYNTHESIZER
 # ═══════════════════════════════════════════════════════════════════
 
-def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
-    """Process guitar through an amp model.
+def _tube_stage(signal, gain=1.0):
+    """Single 12AX7 tube gain stage — ASYMMETRIC soft clipping.
 
-    amp_type: "clean", "crunch", "overdrive", "high_gain", "fuzz"
-    drive: 0-1 gain amount
+    Real tube transfer function:
+    - Positive clip at ~+0.7 (grid current limiting)
+    - Negative clip at ~-0.33 (cutoff)
+    - This asymmetry generates EVEN harmonics (2nd, 4th) = "warmth"
+    Source: ampbooks.com/dsp/preamp, robrobinette.com
+    """
+    x = signal * gain
+    # Asymmetric soft clip: positive clips higher than negative
+    pos = np.where(x > 0, np.tanh(x * 1.5) * 0.7, 0)
+    neg = np.where(x < 0, np.tanh(x * 3.0) * 0.33, 0)
+    return (pos + neg).astype(np.float32)
+
+
+def _diode_clip(signal, gain=1.0, vf=0.6):
+    """Diode clipping — TS808 style.
+
+    Silicon diodes: Vf ≈ 0.6V, sharp knee
+    Germanium diodes: Vf ≈ 0.3V, softer knee
+
+    Real TS808 has a 51pF cap across the diodes that softens
+    the clipping corners — simulated by gentle lowpass after clip.
+    Source: electrosmash.com/tube-screamer-analysis
+    """
+    x = signal * gain
+    # Hard clip at forward voltage thresholds
+    clipped = np.clip(x, -vf, vf)
+    return clipped.astype(np.float32)
+
+
+def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
+    """Process guitar through a physically modeled amp.
+
+    Each amp type uses the actual clipping circuit behavior:
+    - Tubes: asymmetric soft clip with even harmonics
+    - Diodes: hard clip at forward voltage threshold
+    - Cascaded stages multiply the harmonic content
     """
     output = signal.copy()
 
     if amp_type == "clean":
-        # Fender-style clean: slight compression, sparkle
-        output = np.tanh(output * (1.2 + drive)) / 1.1
-        b, a = butter(2, [100 / (sr / 2), 8000 / (sr / 2)], btype='band')
+        # Fender Twin style: single tube stage, barely breaking up
+        output = _tube_stage(output, 1.0 + drive * 2)
+        b, a = butter(2, [80 / (sr / 2), 8000 / (sr / 2)], btype='band')
         output = lfilter(b, a, output).astype(np.float32)
 
     elif amp_type == "crunch":
-        # Marshall-style crunch: two gain stages, mid-heavy
-        # Stage 1: preamp
-        output = np.tanh(output * (2.5 + drive * 5))
-        # Stage 2: power amp breakup
-        output = np.tanh(output * (1.5 + drive * 2)) * 0.85
-        # Marshall tone stack: boosted mids, scooped slightly around 400Hz
-        b, a = butter(2, [150 / (sr / 2), 6000 / (sr / 2)], btype='band')
+        # Marshall JCM800: two cascaded tube stages
+        output = _tube_stage(output, 2.0 + drive * 4)   # preamp V1
+        # Tone stack between stages (mid-boosted EQ)
+        b, a = butter(2, [200 / (sr / 2), 5000 / (sr / 2)], btype='band')
         output = lfilter(b, a, output).astype(np.float32)
-        # Classic Marshall mid presence
+        output = _tube_stage(output, 1.5 + drive * 2)   # preamp V2
+        # Marshall mid presence
         b, a = butter(2, [500 / (sr / 2), 2500 / (sr / 2)], btype='band')
-        mid = lfilter(b, a, output).astype(np.float32) * 0.5
+        mid = lfilter(b, a, output).astype(np.float32) * 0.4
         output = output + mid
 
     elif amp_type == "overdrive":
-        # Tube screamer: asymmetric clipping (diodes clip + and - differently)
-        # This is what gives the TS its character
-        positive = np.clip(output * (3 + drive * 8), 0, 0.7)
-        negative = np.clip(output * (3 + drive * 8), -0.5, 0)
-        output = (positive + negative) * 0.8
-        # Strong mid hump — the TS signature
-        b, a = butter(2, [400 / (sr / 2), 2000 / (sr / 2)], btype='band')
+        # TS808: op-amp gain stage → diode clipping → tone filter
+        # Pre-gain with mid hump (input filter)
+        b, a = butter(2, [300 / (sr / 2), 3000 / (sr / 2)], btype='band')
         output = lfilter(b, a, output).astype(np.float32)
-        b, a = butter(2, [600 / (sr / 2), 1200 / (sr / 2)], btype='band')
-        mid = lfilter(b, a, output).astype(np.float32) * 0.6
+        # Op-amp gain
+        output = output * (3 + drive * 10)
+        # Diode clipping (silicon, Vf=0.6V)
+        output = _diode_clip(output, 1.0, 0.6)
+        # 51pF corner softening — gentle lowpass on the clipped signal
+        b, a = butter(1, 4000 / (sr / 2), btype='low')
+        output = lfilter(b, a, output).astype(np.float32)
+        # TS mid hump output filter
+        b, a = butter(2, [500 / (sr / 2), 2000 / (sr / 2)], btype='band')
+        mid = lfilter(b, a, output).astype(np.float32) * 0.5
         output = output + mid
 
     elif amp_type == "high_gain":
-        # Mesa/5150 style: HEAVY distortion, cascaded gain stages
-        # Stage 1: preamp — moderate clip
-        output = np.tanh(output * (3.0 + drive * 5))
-        # Stage 2: more gain — harder clip (this is what creates the "wall of sound")
-        output = np.tanh(output * (2.0 + drive * 4))
-        # Stage 3: power amp — final saturation
-        output = np.tanh(output * (1.5 + drive * 2)) * 0.8
-        # Tight low end (high-pass removes flub)
-        b, a = butter(2, 100 / (sr / 2), btype='high')
+        # Mesa/5150: FOUR cascaded tube stages
+        output = _tube_stage(output, 3.0 + drive * 5)   # V1
+        b, a = butter(1, 6000 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
-        # Cabinet: remove harsh fizz above 5kHz
-        b, a = butter(2, 5000 / (sr / 2), btype='low')
+        output = _tube_stage(output, 2.5 + drive * 4)   # V2
+        b, a = butter(2, [150 / (sr / 2), 5000 / (sr / 2)], btype='band')
         output = lfilter(b, a, output).astype(np.float32)
-        # Presence scoop then boost — the modern metal sound
-        b, a = butter(2, [800 / (sr / 2), 2000 / (sr / 2)], btype='band')
-        mid = lfilter(b, a, output).astype(np.float32) * 0.3
-        output = output + mid
+        output = _tube_stage(output, 2.0 + drive * 3)   # V3
+        output = _tube_stage(output, 1.5 + drive * 2)   # V4 (power amp)
+        # Cabinet simulation — removes fizz, shapes the sound
+        b, a = butter(2, 100 / (sr / 2), btype='high')  # tight bottom
+        output = lfilter(b, a, output).astype(np.float32)
+        b, a = butter(3, 4500 / (sr / 2), btype='low')  # no fizz above 4.5k
+        output = lfilter(b, a, output).astype(np.float32)
 
     elif amp_type == "fuzz":
-        # Fuzz face style: HARD square wave clipping, thick and fuzzy
-        # Boost signal hard then hard-clip (not soft tanh)
-        boosted = output * (5 + drive * 15)
-        output = np.clip(boosted, -0.7, 0.7)  # hard clip = square-ish
-        # Heavy lowpass — fuzz is NEVER bright
-        b, a = butter(2, 3000 / (sr / 2), btype='low')
+        # Fuzz Face: germanium transistor clipping + octave-up
+        # Germanium clips at ~0.3V (softer, warmer than silicon)
+        output = output * (4 + drive * 12)
+        output = _diode_clip(output, 1.0, 0.3)  # germanium
+        # Fuzz is DARK — heavy lowpass
+        b, a = butter(2, 2500 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
-        # Add some octave-up (rectification artifact of real fuzz)
-        rectified = np.abs(output) * 0.15
+        # Octave-up artifact from full-wave rectification in real fuzz circuits
+        rectified = np.abs(output) * 0.2
         output = output + rectified
 
     peak = np.max(np.abs(output))
