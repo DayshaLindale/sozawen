@@ -4625,8 +4625,7 @@
     }
 
     function playScore() {
-        if (!_scoreAudioCtx) _scoreAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        stopScore();
+        _scoreAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || '120');
         const beatDuration = 60 / bpm;
@@ -4652,7 +4651,7 @@
 
     function stopScore() {
         if (_scoreAudioCtx) {
-            _scoreAudioCtx.close();
+            try { _scoreAudioCtx.close(); } catch(e) {}
             _scoreAudioCtx = null;
         }
     }
