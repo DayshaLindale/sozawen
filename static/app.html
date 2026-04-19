@@ -2350,9 +2350,16 @@
                     }
                 });
 
-                // Auto-size ruler to content
+                // Auto-zoom to fit content in visible area
                 const maxDur = d.duration_seconds || 10;
-                buildRuler(Math.max(5, maxDur + 2));
+                const wavePanel = document.getElementById('wavePanel');
+                if (wavePanel && maxDur > 0) {
+                    const visibleWidth = wavePanel.clientWidth - 40;
+                    const idealPPS = visibleWidth / Math.max(maxDur + 1, 2);
+                    _zoomLevel = Math.max(1, idealPPS / PIXELS_PER_SECOND_BASE);
+                    PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
+                }
+                buildRuler(Math.max(3, maxDur + 1));
             }
         });
     }
