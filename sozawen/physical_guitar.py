@@ -301,19 +301,28 @@ STRING_SETS = {
 # FULL GUITAR SYNTHESIZER
 # ═══════════════════════════════════════════════════════════════════
 
-def _tube_stage(signal, gain=1.0):
+def _tube_stage(signal, gain=1.0, bias=0.0):
     """Single 12AX7 tube gain stage — ASYMMETRIC soft clipping.
 
-    Real tube transfer function:
+    Real tube transfer function (from ampbooks.com/dsp/preamp):
     - Positive clip at ~+0.7 (grid current limiting)
     - Negative clip at ~-0.33 (cutoff)
-    - This asymmetry generates EVEN harmonics (2nd, 4th) = "warmth"
-    Source: ampbooks.com/dsp/preamp, robrobinette.com
+    - Asymmetry generates EVEN harmonics (2nd, 4th) = "warmth"
+    - Bias shifts the operating point — affects which harmonics dominate
+
+    The key insight from SRV/Hendrix research: the tube responds to
+    INPUT LEVEL. Louder input = more clipping = more harmonics.
+    This is "edge of breakup" — the amp is responsive to touch.
     """
-    x = signal * gain
+    x = signal * gain + bias
     # Asymmetric soft clip: positive clips higher than negative
-    pos = np.where(x > 0, np.tanh(x * 1.5) * 0.7, 0)
-    neg = np.where(x < 0, np.tanh(x * 3.0) * 0.33, 0)
+    # The exponential gives a gradual onset (not sudden like tanh)
+    pos = np.where(x > 0,
+                   x / (1 + np.abs(x * 1.4)) * 0.7,   # soft positive limit
+                   0)
+    neg = np.where(x < 0,
+                   x / (1 + np.abs(x * 3.0)) * 0.33,   # harder negative limit
+                   0)
     return (pos + neg).astype(np.float32)
 
 
@@ -333,78 +342,179 @@ def _diode_clip(signal, gain=1.0, vf=0.6):
     return clipped.astype(np.float32)
 
 
-def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
-    """Process guitar through a physically modeled amp.
+def _tone_stack(signal, bass=0.5, mid=0.5, treble=0.5, sr=44100):
+    """Interactive 3-band tone stack — like a real amp's bass/mid/treble.
 
-    Each amp type uses the actual clipping circuit behavior:
-    - Tubes: asymmetric soft clip with even harmonics
-    - Diodes: hard clip at forward voltage threshold
-    - Cascaded stages multiply the harmonic content
+    In real amps, the tone controls are PASSIVE and INTERACTIVE —
+    changing one affects the others. This simplified version captures
+    the key behavior: the EQ shapes WHAT gets distorted in the next stage.
+    """
+    output = np.zeros_like(signal)
+
+    # Bass (below 300Hz)
+    b, a = butter(2, 300 / (sr / 2), btype='low')
+    low = lfilter(b, a, signal).astype(np.float32) * (0.2 + bass * 1.0)
+
+    # Mid (300-3000Hz)
+    b, a = butter(2, [300 / (sr / 2), 3000 / (sr / 2)], btype='band')
+    mids = lfilter(b, a, signal).astype(np.float32) * (0.2 + mid * 1.0)
+
+    # Treble (above 3000Hz)
+    b, a = butter(2, 3000 / (sr / 2), btype='high')
+    high = lfilter(b, a, signal).astype(np.float32) * (0.2 + treble * 1.0)
+
+    return (low + mids + high).astype(np.float32)
+
+
+def _speaker_cab(signal, cab_type="4x12", sr=44100):
+    """Speaker cabinet simulation — the final tone shaping.
+
+    Without a cab, distorted guitar sounds fizzy and thin.
+    The cab is a lowpass + resonance that removes harsh highs
+    and adds body. Different cabs sound different.
+    """
+    if cab_type == "4x12":
+        # Marshall 4x12: mid-focused, tight, rock standard
+        b, a = butter(3, 5000 / (sr / 2), btype='low')
+        output = lfilter(b, a, signal).astype(np.float32)
+        b, a = butter(1, 80 / (sr / 2), btype='high')
+        output = lfilter(b, a, output).astype(np.float32)
+        # Cabinet resonance around 2kHz
+        b, a = butter(2, [1500 / (sr / 2), 3000 / (sr / 2)], btype='band')
+        res = lfilter(b, a, output).astype(np.float32) * 0.3
+        return output + res
+
+    elif cab_type == "1x12":
+        # Fender combo: more open, brighter, less low end
+        b, a = butter(2, 6000 / (sr / 2), btype='low')
+        output = lfilter(b, a, signal).astype(np.float32)
+        b, a = butter(1, 100 / (sr / 2), btype='high')
+        return lfilter(b, a, output).astype(np.float32)
+
+    elif cab_type == "2x12":
+        # Vox/Mesa 2x12: balanced, open back character
+        b, a = butter(2, 5500 / (sr / 2), btype='low')
+        output = lfilter(b, a, signal).astype(np.float32)
+        b, a = butter(1, 90 / (sr / 2), btype='high')
+        return lfilter(b, a, output).astype(np.float32)
+
+    return signal
+
+
+def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
+    """Process guitar through a physically modeled amp chain.
+
+    Based on how famous tones actually work:
+    - Hendrix: Fuzz Face → barely-breaking-up Marshall Plexi
+    - SRV: TS808 as boost (low gain, high output) → edge-of-breakup Fender
+    - Metallica: EMG → Mesa IIC+ four stages → V-shaped EQ scoop
+
+    Key insight: EQ sits BETWEEN gain stages. The EQ shapes what
+    gets distorted, not just what you hear after. This is why turning
+    up the mids on a Marshall changes the DISTORTION CHARACTER, not
+    just the overall tone.
     """
     output = signal.copy()
 
     if amp_type == "clean":
-        # Fender Twin style: single tube stage, barely breaking up
-        output = _tube_stage(output, 1.0 + drive * 2)
-        b, a = butter(2, [80 / (sr / 2), 8000 / (sr / 2)], btype='band')
-        output = lfilter(b, a, output).astype(np.float32)
+        # Fender Twin Reverb: single tube stage, clean headroom
+        # The amp barely clips — sparkly, glassy, responsive to touch
+        # SRV's foundation: this amp on the edge, TS808 pushes it over
+        output = _tube_stage(output, 1.0 + drive * 2.5, bias=0.05)
+        output = _tone_stack(output, bass=0.4, mid=0.3, treble=0.7, sr=sr)
+        output = _speaker_cab(output, "1x12", sr)
 
     elif amp_type == "crunch":
-        # Marshall JCM800: two cascaded tube stages
-        output = _tube_stage(output, 2.0 + drive * 4)   # preamp V1
-        # Tone stack between stages (mid-boosted EQ)
-        b, a = butter(2, [200 / (sr / 2), 5000 / (sr / 2)], btype='band')
-        output = lfilter(b, a, output).astype(np.float32)
-        output = _tube_stage(output, 1.5 + drive * 2)   # preamp V2
-        # Marshall mid presence
-        b, a = butter(2, [500 / (sr / 2), 2500 / (sr / 2)], btype='band')
-        mid = lfilter(b, a, output).astype(np.float32) * 0.4
-        output = output + mid
+        # Marshall JCM800 / Plexi: THE rock amp
+        # Two tube stages with tone stack BETWEEN them
+        # Hendrix ran this just past breakup with fuzz in front
+        output = _tube_stage(output, 2.0 + drive * 5, bias=0.08)  # V1 preamp
+
+        # TONE STACK BETWEEN STAGES — shapes what V2 distorts
+        output = _tone_stack(output, bass=0.4, mid=0.7, treble=0.5, sr=sr)
+
+        output = _tube_stage(output, 1.5 + drive * 3, bias=0.05)  # V2 preamp
+
+        # Power amp — adds compression and body
+        output = _tube_stage(output, 1.2 + drive * 1.5)  # power tubes
+
+        output = _speaker_cab(output, "4x12", sr)
 
     elif amp_type == "overdrive":
-        # TS808: op-amp gain stage → diode clipping → tone filter
-        # Pre-gain with mid hump (input filter)
-        b, a = butter(2, [300 / (sr / 2), 3000 / (sr / 2)], btype='band')
+        # TS808 Tube Screamer: the SRV/blues sound
+        # Op-amp gain → diode clip → tone filter → into amp
+        # SRV settings: drive 3, volume 9 (boost, not distortion)
+
+        # Input filter — the TS808's mid hump BEFORE clipping
+        b, a = butter(2, [250 / (sr / 2), 4000 / (sr / 2)], btype='band')
         output = lfilter(b, a, output).astype(np.float32)
-        # Op-amp gain
-        output = output * (3 + drive * 10)
-        # Diode clipping (silicon, Vf=0.6V)
+
+        # Op-amp gain stage
+        output = output * (2.5 + drive * 8)
+
+        # Diode clipping (back-to-back 1N914 silicon, Vf=0.6V)
         output = _diode_clip(output, 1.0, 0.6)
-        # 51pF corner softening — gentle lowpass on the clipped signal
-        b, a = butter(1, 4000 / (sr / 2), btype='low')
+
+        # 51pF capacitor across diodes — softens clipping corners
+        b, a = butter(1, 4500 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
-        # TS mid hump output filter
-        b, a = butter(2, [500 / (sr / 2), 2000 / (sr / 2)], btype='band')
-        mid = lfilter(b, a, output).astype(np.float32) * 0.5
-        output = output + mid
+
+        # Output tone control — the TS808's output filter
+        output = _tone_stack(output, bass=0.3, mid=0.8, treble=0.4, sr=sr)
+
+        # Into a clean amp (like SRV: TS → Fender at edge of breakup)
+        output = _tube_stage(output, 1.3 + drive * 1.5, bias=0.03)
+        output = _speaker_cab(output, "1x12", sr)
 
     elif amp_type == "high_gain":
-        # Mesa/5150: FOUR cascaded tube stages
-        output = _tube_stage(output, 3.0 + drive * 5)   # V1
+        # Mesa Mark IIC+ / 5150: FOUR cascaded tube stages
+        # Metallica Master of Puppets: V-shaped EQ scoop
+        # EMG 81 → four stages → scooped mids → tight cab
+
+        # Stage 1: input gain
+        output = _tube_stage(output, 3.0 + drive * 6, bias=0.1)
+
+        # EQ BETWEEN stage 1 and 2 — this is where the scoop happens
+        # Metallica: high bass, scooped mids, high treble (V-shape)
+        output = _tone_stack(output, bass=0.7, mid=0.2, treble=0.8, sr=sr)
+
+        # Stage 2: more gain on the shaped signal
+        output = _tube_stage(output, 2.5 + drive * 5, bias=0.08)
+
+        # Presence filter between stages
         b, a = butter(1, 6000 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
-        output = _tube_stage(output, 2.5 + drive * 4)   # V2
-        b, a = butter(2, [150 / (sr / 2), 5000 / (sr / 2)], btype='band')
-        output = lfilter(b, a, output).astype(np.float32)
-        output = _tube_stage(output, 2.0 + drive * 3)   # V3
-        output = _tube_stage(output, 1.5 + drive * 2)   # V4 (power amp)
-        # Cabinet simulation — removes fizz, shapes the sound
-        b, a = butter(2, 100 / (sr / 2), btype='high')  # tight bottom
-        output = lfilter(b, a, output).astype(np.float32)
-        b, a = butter(3, 4500 / (sr / 2), btype='low')  # no fizz above 4.5k
-        output = lfilter(b, a, output).astype(np.float32)
+
+        # Stage 3: even more saturation
+        output = _tube_stage(output, 2.0 + drive * 3, bias=0.05)
+
+        # Stage 4: power amp compression
+        output = _tube_stage(output, 1.5 + drive * 2)
+
+        # 4x12 cabinet — tight, focused, no fizz
+        output = _speaker_cab(output, "4x12", sr)
 
     elif amp_type == "fuzz":
-        # Fuzz Face: germanium transistor clipping + octave-up
-        # Germanium clips at ~0.3V (softer, warmer than silicon)
-        output = output * (4 + drive * 12)
-        output = _diode_clip(output, 1.0, 0.3)  # germanium
-        # Fuzz is DARK — heavy lowpass
-        b, a = butter(2, 2500 / (sr / 2), btype='low')
+        # Fuzz Face: Hendrix, Gilmour
+        # Germanium transistors clip at ~0.3V
+        # The fuzz goes INTO a slightly dirty amp — not alone
+
+        # Germanium fuzz circuit
+        output = output * (4 + drive * 15)
+        output = _diode_clip(output, 1.0, 0.3)  # germanium Vf
+
+        # Fuzz tone knob — typically rolled off
+        b, a = butter(2, 2000 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
-        # Octave-up artifact from full-wave rectification in real fuzz circuits
-        rectified = np.abs(output) * 0.2
+
+        # Octave-up artifact (full-wave rectification in real circuits)
+        rectified = np.abs(output) * 0.15
         output = output + rectified
+
+        # Into a Marshall on the edge of breakup (Hendrix approach)
+        output = _tube_stage(output, 1.3 + drive * 1.5, bias=0.05)
+        output = _tone_stack(output, bass=0.4, mid=0.6, treble=0.5, sr=sr)
+        output = _speaker_cab(output, "4x12", sr)
 
     peak = np.max(np.abs(output))
     if peak > 0:
