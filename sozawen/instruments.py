@@ -185,71 +185,110 @@ def render_synth_pattern(notes, sr=44100, bpm=120, **synth_params):
 # ═══════════════════════════════════════════════════════════════════
 
 def drum_kick(sr=44100, sustain_ms=200, pitch=50, punch=0.5, sub=0.5):
-    """Synthesize a kick drum — 3-component: click + body + sub tail.
+    """Synthesize a kick drum using modal membrane physics.
 
-    Research: body is pitch-swept sine 150→40-60Hz, click is short noise burst,
-    sub tail extends for 808-style kicks.
-    Source: Credland Audio kick drum theory, ModeAudio drum synth design
+    A kick drum is a circular membrane (head) coupled to a cylindrical
+    shell and an air cavity (the port). The fundamental mode of the
+    membrane dominates, with the shell adding resonance character.
+
+    Three components based on real drum physics:
+    1. Beater impact: transient noise from stick/beater hitting head
+    2. Membrane modes: the drum head's vibration (pitch-swept because
+       the head deforms under impact then relaxes)
+    3. Shell/port resonance: the body adds low-end weight
     """
     dur = max(0.1, sustain_ms / 1000)
     n = int(dur * sr)
+    t = np.linspace(0, dur, n, dtype=np.float32)
 
-    # Component 1: Click/transient — short noise burst for attack
-    click_dur = 0.002
-    click = noise(click_dur, sr) * punch * 0.7
-    click = highpass(click, 3000, sr)
+    # Component 1: Beater impact transient
+    click_n = int(0.003 * sr)
+    click = noise(0.003, sr) * punch * 0.5
+    click = highpass(click, 2500, sr)
+    click *= np.exp(-np.linspace(0, 20, click_n))
 
-    # Component 2: Body — FAST pitch-swept sine (150Hz → base pitch)
-    # Sweep must be fast enough that you hear a "thump" not a "boop"
-    body_dur = min(dur, 0.12)  # body portion is short
-    body = pitch_envelope(pitch * 3, pitch, body_dur, sr)
-    body_env = adsr(len(body), 0.0003, 0.02, 0.1, body_dur * 0.5, sr)
-    body = body * body_env * 0.9
+    # Component 2: Membrane modes (the drum head)
+    # Mode 1 (fundamental): pitch-swept from ~3x to base
+    # The sweep simulates the head deforming under beater impact
+    sweep = pitch_envelope(pitch * 2.5, pitch, min(dur, 0.08), sr)
+    sweep_env = np.exp(-np.linspace(0, dur, len(sweep)) * (6 / dur))
 
-    # Component 3: Sub tail — short sustained low sine for weight
-    # Shorter than before to avoid "bubbly" sustain
-    sub_dur = dur * 0.5
-    sub_tone = sine(pitch, sub_dur, sr)
-    sub_env = adsr(len(sub_tone), 0.005, 0.05, 0.2, sub_dur * 0.3, sr)
-    sub_tone = sub_tone * sub_env * sub * 0.4
+    # Mode 2 (overtone at ~2.3x fundamental — drum membrane mode ratio)
+    mode2_freq = pitch * 2.29
+    mode2 = sine(mode2_freq, dur * 0.3, sr) * 0.15
+    mode2_env = np.exp(-np.linspace(0, dur * 0.3, len(mode2)) * 12)
 
-    # Mix
+    # Component 3: Shell/port resonance — deep sustained sine
+    shell = sine(pitch * 0.8, dur * 0.6, sr) * sub * 0.35
+    shell_env = adsr(len(shell), 0.008, 0.05, 0.15, dur * 0.3, sr)
+
+    # Mix all components
     result = np.zeros(n, dtype=np.float32)
-    result[:len(click)] += click
-    result[:len(body)] += body[:min(len(body), n)]
-    result[:len(sub_tone)] += sub_tone[:min(len(sub_tone), n)]
+    result[:click_n] += click[:min(click_n, n)]
 
-    return lowpass(result, 200, sr) * 0.9
+    sweep_n = min(len(sweep), n)
+    result[:sweep_n] += (sweep[:sweep_n] * sweep_env[:sweep_n]) * 0.8
+
+    mode2_n = min(len(mode2), n)
+    result[:mode2_n] += (mode2[:mode2_n] * mode2_env[:mode2_n])
+
+    shell_n = min(len(shell), n)
+    result[:shell_n] += (shell[:shell_n] * shell_env[:shell_n])
+
+    return lowpass(result, 180, sr) * 0.85
 
 
 def drum_snare(sr=44100, sustain_ms=200, tone_pitch=200, noise_amount=0.6, body_amount=0.4):
-    """Synthesize a snare — sine body + filtered noise for rattle.
+    """Synthesize a snare drum using modal physics + snare wire model.
 
-    Research: 150-250Hz body sine, noise from 1-5kHz for snare wires,
-    balance between tone and noise defines character (808 vs aggressive).
-    Source: ModeAudio, Sweetwater percussion synthesis
+    A snare has TWO heads (batter + resonant) with snare wires
+    stretched across the resonant head. The wires buzz sympathetically
+    when the batter head is struck, creating the characteristic rattle.
+
+    Components:
+    1. Stick impact: sharp transient
+    2. Batter head modes: membrane vibration (~180-250Hz fundamental)
+    3. Snare wire buzz: filtered noise excited by the head vibration
+    4. Shell resonance: adds body character
     """
     dur = max(0.1, sustain_ms / 1000)
     n = int(dur * sr)
+    t = np.linspace(0, dur, n, dtype=np.float32)
 
-    # Body — sine/triangle for the drum shell resonance
-    body = sine(tone_pitch, dur, sr)
-    body_env = adsr(n, 0.0005, 0.03, 0.1, dur * 0.3, sr)
-    body = body * body_env * body_amount
+    # Component 1: Stick impact
+    click_n = int(0.002 * sr)
+    click = noise(0.002, sr) * 0.4
+    click = highpass(click, 3500, sr)
+    click *= np.exp(-np.linspace(0, 25, click_n))
 
-    # Snare wires — filtered noise
-    nz = noise(dur, sr)
-    nz_env = adsr(n, 0.001, 0.05, 0.2, dur * 0.4, sr)
-    nz = highpass(nz * nz_env * noise_amount, 1200, sr)
+    # Component 2: Batter head — membrane modes
+    # Fundamental + mode at ~1.59x + mode at ~2.14x (drum membrane ratios)
+    head = sine(tone_pitch, dur, sr) * body_amount * 0.5
+    head *= np.exp(-t * 8)
+    head2 = sine(tone_pitch * 1.59, dur, sr) * body_amount * 0.2
+    head2 *= np.exp(-t * 12)
+    head3 = sine(tone_pitch * 2.14, dur, sr) * body_amount * 0.1
+    head3 *= np.exp(-t * 16)
 
-    # Transient click
-    click = noise(0.002, sr) * 0.3
-    click = highpass(click, 3000, sr)
+    # Component 3: Snare wires — the rattling buzz
+    # Broadband noise filtered to snare wire frequency range (2-8kHz)
+    wire_noise = noise(dur, sr) * noise_amount * 0.45
+    wire_env = np.exp(-t * 6)  # wires ring longer than the head
+    wire_noise *= wire_env
+    wire_noise = highpass(wire_noise, 2000, sr)
+    wire_noise = lowpass(wire_noise, 9000, sr)
 
+    # Component 4: Shell body — adds mid-range character
+    shell = sine(tone_pitch * 0.75, dur * 0.5, sr) * 0.15
+    shell_n = len(shell)
+    shell *= np.exp(-np.linspace(0, 10, shell_n))
+
+    # Mix
     result = np.zeros(n, dtype=np.float32)
-    result[:len(body)] += body[:n]
-    result[:len(nz)] += nz[:n]
-    result[:len(click)] += click
+    result[:click_n] += click[:min(click_n, n)]
+    result[:n] += head[:n] + head2[:n] + head3[:n]
+    result[:n] += wire_noise[:n]
+    result[:min(shell_n, n)] += shell[:min(shell_n, n)]
 
     return result.astype(np.float32)
 

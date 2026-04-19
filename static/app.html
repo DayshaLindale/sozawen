@@ -1023,8 +1023,13 @@
         document.getElementById('timeDisplay').textContent = '00:00.00';
     }
     function rewind() {
-        fetch('/api/transport/seek', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({seconds:0})});
+        fetch('/api/transport/stop', {method:'POST'}).then(() => {
+            fetch('/api/transport/seek', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({seconds:0})});
+        });
+        isPlaying = false;
+        document.getElementById('btnPlay').classList.remove('active');
         document.getElementById('timeDisplay').textContent = '00:00.00';
+        document.getElementById('statusText').textContent = 'Ready';
     }
 
     // ═══ STATE POLLING — meters, playhead, time display ═══
