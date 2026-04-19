@@ -1553,6 +1553,156 @@ def _open_file_dialog():
         return None
 
 
+# ═══════════════════════════════════════════════════════════════════
+# SHEET MUSIC & TABLATURE
+# ═══════════════════════════════════════════════════════════════════
+
+@api.get("/api/sheet/tunings")
+async def list_tunings(instrument: str = None):
+    """List available instrument tunings."""
+    from sozawen.sheet_music import list_tunings
+    return JSONResponse({"tunings": list_tunings(instrument)})
+
+@api.post("/api/sheet/tab-to-notation")
+async def tab_to_notation(request: Request):
+    """Convert tablature text to standard notation SVG."""
+    data = await request.json()
+    tab_text = data.get("tab", "")
+    tuning = data.get("tuning", "guitar_standard")
+    key = data.get("key", "C")
+    time_sig = data.get("time_sig", "4/4")
+
+    from sozawen.sheet_music import tab_to_notes, render_notation_svg, choose_clef
+    events = tab_to_notes(tab_text, tuning)
+    if not events:
+        return JSONResponse({"ok": False, "error": "No notes found in tab"})
+
+    clef = choose_clef(events)
+    svg = render_notation_svg(events, key=key, time_sig=time_sig, clef=clef)
+    return JSONResponse({
+        "ok": True,
+        "svg": svg,
+        "notes": len(events),
+        "clef": clef,
+        "events": [
+            {"notes": [{"note": n["note"], "octave": n["octave"],
+                        "fret": n.get("fret"), "string": n.get("string")}
+                       for n in e["notes"]],
+             "beat": e["beat"]}
+            for e in events[:100]
+        ],
+    })
+
+@api.post("/api/sheet/notes-to-tab")
+async def notation_to_tab(request: Request):
+    """Convert standard notation to tablature."""
+    data = await request.json()
+    notes = data.get("notes", [])  # [{note, octave}, ...]
+    tuning = data.get("tuning", "guitar_standard")
+
+    from sozawen.sheet_music import notes_to_tab
+    # Wrap single notes into events format
+    events = [{"notes": [n]} if "notes" not in n else n for n in notes]
+    tab = notes_to_tab(events, tuning)
+    return JSONResponse({"ok": True, "tab": tab})
+
+@api.post("/api/sheet/render")
+async def render_sheet(request: Request):
+    """Render a list of note events as SVG sheet music."""
+    data = await request.json()
+    events = data.get("events", [])
+    key = data.get("key", "C")
+    time_sig = data.get("time_sig", "4/4")
+    clef = data.get("clef")
+
+    from sozawen.sheet_music import render_notation_svg
+    svg = render_notation_svg(events, key=key, time_sig=time_sig, clef=clef)
+    return JSONResponse({"ok": True, "svg": svg})
+
+@api.post("/api/sheet/audio-to-notation")
+async def audio_to_notation(request: Request):
+    """Transcribe recorded audio to sheet music.
+
+    Uses audio-to-MIDI pipeline then renders as notation.
+    Play into the mic → see sheet music appear.
+    """
+    data = await request.json()
+    file_path = data.get("file")
+    key = data.get("key", "C")
+    tuning = data.get("tuning", "guitar_standard")
+
+    if not file_path or not Path(file_path).exists():
+        return JSONResponse({"ok": False, "error": "File not found"})
+
+    try:
+        from sozawen.midi_engine import audio_to_midi
+        from sozawen.sheet_music import render_notation_svg, notes_to_tab, choose_clef
+
+        # Audio → MIDI notes
+        midi_result = audio_to_midi(str(file_path))
+        if not midi_result or not midi_result.get("notes"):
+            return JSONResponse({"ok": False, "error": "No notes detected in audio"})
+
+        # Convert MIDI notes to sheet music events
+        from sozawen.music_theory import midi_to_note
+        events = []
+        for note in midi_result["notes"]:
+            midi_num = note.get("midi", 60)
+            note_name, octave = midi_to_note(midi_num)
+            events.append({
+                "notes": [{"note": note_name, "octave": octave, "midi": midi_num}],
+                "beat": len(events),
+            })
+
+        clef = choose_clef(events)
+        svg = render_notation_svg(events, key=key, clef=clef)
+        tab = notes_to_tab(events, tuning)
+
+        return JSONResponse({
+            "ok": True,
+            "svg": svg,
+            "tab": tab,
+            "notes_detected": len(events),
+            "clef": clef,
+        })
+
+    except Exception as e:
+        logger.error(f"Audio to notation error: {e}")
+        return JSONResponse({"ok": False, "error": str(e)})
+
+@api.post("/api/sheet/midi-to-notation")
+async def midi_to_notation(request: Request):
+    """Convert MIDI data to sheet music + tab."""
+    data = await request.json()
+    midi_notes = data.get("notes", [])  # [{midi: 60, duration: 0.5}, ...]
+    key = data.get("key", "C")
+    tuning = data.get("tuning", "guitar_standard")
+
+    from sozawen.sheet_music import render_notation_svg, notes_to_tab, choose_clef
+    from sozawen.music_theory import midi_to_note
+
+    events = []
+    for n in midi_notes:
+        midi_num = n.get("midi", 60)
+        note_name, octave = midi_to_note(midi_num)
+        events.append({
+            "notes": [{"note": note_name, "octave": octave, "midi": midi_num}],
+            "beat": len(events),
+        })
+
+    clef = choose_clef(events)
+    svg = render_notation_svg(events, key=key, clef=clef)
+    tab = notes_to_tab(events, tuning)
+
+    return JSONResponse({
+        "ok": True,
+        "svg": svg,
+        "tab": tab,
+        "notes": len(events),
+        "clef": clef,
+    })
+
+
 def main():
     global _window
     import webview
