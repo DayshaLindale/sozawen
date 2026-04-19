@@ -94,8 +94,10 @@ async def status():
 
 @api.post("/api/transport/play")
 async def transport_play():
+    # Default to looping — musicians expect it
+    _engine.looping = True
     _engine.play()
-    return JSONResponse({"ok": True, "playing": True})
+    return JSONResponse({"ok": True, "playing": True, "looping": True})
 
 @api.post("/api/transport/pause")
 async def transport_pause():
