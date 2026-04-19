@@ -262,16 +262,22 @@ def synthesize_string_note(midi_note, duration, sr=44100, velocity=0.7,
         bow_speed *= 0.9
 
     elif articulation == "tremolo":
-        # Rapid bow changes — create amplitude modulation
-        pass  # handled below
+        # Rapid bow alternation — fast, intense, dramatic
+        bow_speed = 0.8
+        bow_pressure = 0.6
+        vibrato_depth = 0  # tremolo IS the modulation
 
     elif articulation == "sul_ponticello":
-        bow_position = 0.03  # very close to bridge
-        vibrato_depth *= 0.5
+        # Bow VERY near bridge — glassy, eerie, harmonic-rich
+        bow_position = 0.02     # almost touching the bridge
+        bow_pressure = 0.2      # very light — too heavy = scratch
+        vibrato_depth *= 0.3    # minimal vibrato
+        brightness = 1.0        # maximum harmonics
 
     elif articulation == "sul_tasto":
-        bow_position = 0.3   # near fingerboard
-        bow_pressure *= 0.6
+        bow_position = 0.35     # well onto fingerboard
+        bow_pressure *= 0.4     # very gentle
+        vibrato_depth *= 1.5    # more expressive vibrato in soft passages
 
     elif articulation == "col_legno":
         # Wood of bow tapping — percussive, very short
@@ -297,11 +303,12 @@ def synthesize_string_note(midi_note, duration, sr=44100, velocity=0.7,
                          vibrato_rate=vibrato_rate,
                          vibrato_depth=vibrato_depth)
 
-    # Tremolo: rapid amplitude modulation
+    # Tremolo: rapid bow alternation — very obvious effect
     if articulation == "tremolo":
         t = np.linspace(0, duration, len(signal), dtype=np.float32)
-        trem_rate = 12  # bow changes per second
-        trem = 0.5 + 0.5 * np.abs(np.sin(2 * np.pi * trem_rate * t))
+        trem_rate = 14  # rapid bow changes per second
+        # Deep modulation — should be VERY audible
+        trem = 0.3 + 0.7 * np.abs(np.sin(2 * np.pi * trem_rate * t))
         signal *= trem
 
     # Apply body resonance

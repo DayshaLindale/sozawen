@@ -815,7 +815,7 @@
         // Calculate target width first, then request exactly that many peaks
         const track = tracks.find(t => t.id === trackUiId);
         const dur = track?.duration || 180;
-        const targetWidth = Math.max(800, Math.round(dur * PIXELS_PER_SECOND));
+        const targetWidth = Math.max(200, Math.round(dur * PIXELS_PER_SECOND));
 
         fetch(`/api/waveform/${engineId}?width=${targetWidth}`).then(r=>r.json()).then(w => {
             if (w.peaks && w.peaks.length > 0) {
@@ -832,7 +832,7 @@
         }
 
         const actualDuration = duration || (peaks.length * 0.1);
-        const targetWidth = Math.max(800, Math.round(actualDuration * PIXELS_PER_SECOND));
+        const targetWidth = Math.max(200, Math.round(actualDuration * PIXELS_PER_SECOND));
         trackEl.width = targetWidth;
         trackEl.style.width = targetWidth + 'px';
 

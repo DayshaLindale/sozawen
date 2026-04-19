@@ -316,14 +316,26 @@ def _tube_stage(signal, gain=1.0, bias=0.0):
     """
     x = signal * gain + bias
     # Asymmetric soft clip: positive clips higher than negative
-    # The exponential gives a gradual onset (not sudden like tanh)
-    pos = np.where(x > 0,
-                   x / (1 + np.abs(x * 1.4)) * 0.7,   # soft positive limit
-                   0)
-    neg = np.where(x < 0,
-                   x / (1 + np.abs(x * 3.0)) * 0.33,   # harder negative limit
-                   0)
-    return (pos + neg).astype(np.float32)
+    # At low gain: gradual, responsive to touch (edge of breakup)
+    # At high gain: approaches hard clip (metal saturation)
+    #
+    # Blend between soft (rational) and hard (tanh) based on signal level
+    # This gives clean dynamics at low gain and heavy saturation at high gain
+    abs_x = np.abs(x)
+
+    # Soft component (responsive, dynamic)
+    soft_pos = np.where(x > 0, x / (1 + abs_x * 1.2) * 0.7, 0)
+    soft_neg = np.where(x < 0, x / (1 + abs_x * 2.5) * 0.33, 0)
+    soft = soft_pos + soft_neg
+
+    # Hard component (saturated, compressed)
+    hard_pos = np.where(x > 0, np.tanh(x * 2.0) * 0.65, 0)
+    hard_neg = np.where(x < 0, np.tanh(x * 4.0) * 0.30, 0)
+    hard = hard_pos + hard_neg
+
+    # Blend: at low levels, mostly soft. At high levels, mostly hard.
+    blend = np.minimum(abs_x * 0.8, 1.0)  # 0→soft, 1→hard
+    return ((1 - blend) * soft + blend * hard).astype(np.float32)
 
 
 def _diode_clip(signal, gain=1.0, vf=0.6):
