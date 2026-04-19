@@ -426,7 +426,11 @@ class AudioEngine:
 
             # Loop control
             if self.looping:
-                loop_end = self.loop_end if self.loop_end > 0 else self.duration_samples
+                if self.loop_end > 0:
+                    loop_end = self.loop_end
+                else:
+                    # Calculate duration from tracks
+                    loop_end = max((t.duration_samples for t in self.tracks.values() if t.track_type == "audio"), default=0)
                 if loop_end > 0 and self.position >= loop_end:
                     self.position = self.loop_start
 
