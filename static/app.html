@@ -4813,52 +4813,28 @@
     });
 
     function instPlayNote(midi) {
+        if (!_instFamily || !_instModel) {
+            document.getElementById('instStatus').textContent = 'Select a family and model first';
+            return;
+        }
+
         const vel = parseInt(document.getElementById('instVelocity')?.value || 70) / 100;
         const dur = parseFloat(document.getElementById('instDuration')?.value || 1.0);
 
-        // Quick Web Audio preview for instant feedback
-        if (!_instAudioCtx) _instAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const freq = 440 * Math.pow(2, (midi - 69) / 12);
-        const osc = _instAudioCtx.createOscillator();
-        const gain = _instAudioCtx.createGain();
-        osc.type = _instFamily === 'strings' ? 'sawtooth' : (_instFamily === 'winds' || _instFamily === 'brass' ? 'square' : 'triangle');
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(vel * 0.3, _instAudioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, _instAudioCtx.currentTime + Math.min(dur, 0.5));
-        osc.connect(gain);
-        gain.connect(_instAudioCtx.destination);
-        osc.start();
-        osc.stop(_instAudioCtx.currentTime + Math.min(dur, 0.5));
+        document.getElementById('instStatus').textContent = 'Rendering...';
 
-        // Record for render
+        // Record for later
         _instNotes.push({note: midi, velocity: vel, duration: dur});
 
-        // Also render the real physics on the server (adds to DAW as track)
-        const params = {};
-        if (_instFamily === 'bass') {
-            params.technique = document.getElementById('instTechnique')?.value || 'finger';
-            params.amp = document.getElementById('instAmp')?.value || 'clean_di';
-        } else if (_instFamily === 'strings') {
-            params.articulation = document.getElementById('instArticulation')?.value || 'sustain';
-        } else if (_instFamily === 'brass') {
-            params.mute = document.getElementById('instMute')?.value || 'none';
-        } else if (_instFamily === 'keys') {
-            params.leslie = document.getElementById('instLeslie')?.value || 'off';
-        }
-
-        fetch('/api/instrument/preview', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                family: _instFamily, model: _instModel,
-                note: midi, duration: dur, velocity: vel, params
-            })
-        }).then(r => r.json()).then(d => {
-            if (d.ok) {
-                document.getElementById('instStatus').textContent =
-                    `${_instFamily}: ${_instModel} — note ${midi} rendered to track #${d.track_id}`;
-            }
-        }).catch(() => {});
+        // Play the REAL physics-rendered sound from the server
+        const url = `/api/instrument/play/${_instFamily}/${_instModel}/${midi}?duration=${dur}&velocity=${vel}`;
+        const audio = new Audio(url);
+        audio.play().then(() => {
+            document.getElementById('instStatus').textContent =
+                `${_instModel} — playing note ${midi}`;
+        }).catch(err => {
+            document.getElementById('instStatus').textContent = 'Playback error: ' + err.message;
+        });
     }
 
     function instPlayChord() {

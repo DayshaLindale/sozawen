@@ -661,70 +661,97 @@ async def render_synth(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@api.get("/api/instrument/play/{family}/{model}/{note}")
+async def play_instrument_direct(family: str, model: str, note: int,
+                                 duration: float = 1.5, velocity: float = 0.7):
+    """Render and return a WAV file directly for browser playback.
+
+    This is the instant-play endpoint — returns audio you can hear immediately.
+    """
+    import asyncio
+    from fastapi.responses import FileResponse
+
+    midi_note = note
+    params = {}
+
+    try:
+        audio = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _render_instrument(family, model, midi_note, duration, velocity, params))
+
+        import numpy as np
+        if audio.ndim == 1:
+            audio = np.column_stack([audio, audio])
+
+        output_path = str(BASE_DIR / "temp" / f"play_{family}_{model}_{note}.wav")
+        Path(output_path).parent.mkdir(exist_ok=True)
+        sf.write(output_path, audio, 44100)
+
+        return FileResponse(output_path, media_type="audio/wav")
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+def _render_instrument(family, model, midi_note, duration, velocity, params):
+    """Render a single instrument note — shared by preview and play endpoints."""
+    if family == "guitar":
+        from sozawen.physical_guitar import synthesize_guitar_note
+        return synthesize_guitar_note(
+            440 * 2**((midi_note-69)/12), duration, 44100,
+            body_profile=model or "taylor_dreadnought", velocity=velocity, **params)
+    elif family == "bass":
+        from sozawen.physical_bass import synthesize_bass_note
+        return synthesize_bass_note(
+            440 * 2**((midi_note-69)/12), duration, 44100,
+            body_profile=model or "precision", velocity=velocity, **params)
+    elif family == "piano":
+        from sozawen.physical_piano import synthesize_piano_note
+        return synthesize_piano_note(
+            midi_note, duration, 44100, velocity,
+            piano_model=model or "steinway_d", **params)
+    elif family == "keys":
+        from sozawen.physical_keys import synthesize_keys_note
+        return synthesize_keys_note(
+            midi_note, duration, 44100, velocity,
+            instrument=model or "rhodes_mark1", **params)
+    elif family == "strings":
+        from sozawen.physical_strings import synthesize_string_note
+        return synthesize_string_note(
+            midi_note, duration, 44100, velocity,
+            instrument=model or "violin", **params)
+    elif family == "brass":
+        from sozawen.physical_brass import synthesize_brass_note
+        return synthesize_brass_note(
+            midi_note, duration, 44100, velocity,
+            instrument=model or "trumpet", **params)
+    elif family == "winds":
+        from sozawen.physical_woodwinds import synthesize_wind_note
+        return synthesize_wind_note(
+            midi_note, duration, 44100, velocity,
+            instrument=model or "alto_sax", **params)
+    elif family == "percussion":
+        from sozawen.physical_percussion import synthesize_percussion_note
+        return synthesize_percussion_note(
+            model or "timpani", midi_note, duration, 44100, velocity, **params)
+    else:
+        import numpy as np
+        return np.zeros(int(duration * 44100), dtype=np.float32)
+
+
 @api.post("/api/instrument/preview")
 async def preview_instrument(request: Request):
-    """Preview any physical instrument — play a single note or chord."""
+    """Preview any physical instrument — render and add as track."""
     import asyncio
     data = await request.json()
-    family = data.get("family", "guitar")      # guitar, bass, piano, keys, strings, brass, winds, percussion
-    model = data.get("model", "")              # specific model/instrument within family
+    family = data.get("family", "guitar")
+    model = data.get("model", "")
     midi_note = data.get("note", 60)
     duration = min(5.0, max(0.1, data.get("duration", 1.5)))
     velocity = max(0.1, min(1.0, data.get("velocity", 0.7)))
     params = data.get("params", {})
 
     try:
-        if family == "guitar":
-            from sozawen.physical_guitar import synthesize_guitar_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_guitar_note(
-                    440 * 2**((midi_note-69)/12), duration, 44100,
-                    body_profile=model or "taylor_dreadnought",
-                    velocity=velocity, **params))
-        elif family == "bass":
-            from sozawen.physical_bass import synthesize_bass_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_bass_note(
-                    440 * 2**((midi_note-69)/12), duration, 44100,
-                    body_profile=model or "precision",
-                    velocity=velocity, **params))
-        elif family == "piano":
-            from sozawen.physical_piano import synthesize_piano_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_piano_note(
-                    midi_note, duration, 44100, velocity,
-                    piano_model=model or "steinway_d", **params))
-        elif family == "keys":
-            from sozawen.physical_keys import synthesize_keys_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_keys_note(
-                    midi_note, duration, 44100, velocity,
-                    instrument=model or "rhodes_mark1", **params))
-        elif family == "strings":
-            from sozawen.physical_strings import synthesize_string_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_string_note(
-                    midi_note, duration, 44100, velocity,
-                    instrument=model or "violin", **params))
-        elif family == "brass":
-            from sozawen.physical_brass import synthesize_brass_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_brass_note(
-                    midi_note, duration, 44100, velocity,
-                    instrument=model or "trumpet", **params))
-        elif family == "winds":
-            from sozawen.physical_woodwinds import synthesize_wind_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_wind_note(
-                    midi_note, duration, 44100, velocity,
-                    instrument=model or "alto_sax", **params))
-        elif family == "percussion":
-            from sozawen.physical_percussion import synthesize_percussion_note
-            audio = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: synthesize_percussion_note(
-                    model or "timpani", midi_note, duration, 44100, velocity, **params))
-        else:
-            return JSONResponse({"error": f"Unknown family: {family}"}, status_code=400)
+        audio = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _render_instrument(family, model, midi_note, duration, velocity, params))
 
         import numpy as np
         if audio.ndim == 1:
