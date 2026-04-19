@@ -1885,9 +1885,8 @@
                     </select>
                 </div>
 
-                <!-- Interactive staff -->
+                <!-- Interactive staff — renders empty on open -->
                 <div id="scoreStaff" style="background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px; min-height:200px; cursor:crosshair; overflow-x:auto; position:relative;" onclick="onScoreClick(event)">
-                    <div style="color:var(--text-muted); font-size:11px; text-align:center; padding:40px;">Click on the staff to place notes. Drag to reposition.</div>
                 </div>
 
                 <!-- Tab input/output -->
@@ -1913,7 +1912,8 @@
                     <button class="btn btn-secondary" style="flex:1;" onclick="stopScore()">&#9632; Stop</button>
                     <button class="btn btn-secondary" onclick="clearScore()">Clear</button>
                     <button class="btn btn-secondary" onclick="renderScoreToTrack()">To Track</button>
-                    <button class="btn btn-secondary" onclick="transcribeAudioToScore()">Audio → Score</button>
+                    <button class="btn btn-secondary" onclick="transcribeAudioToScore()">Audio &rarr; Score</button>
+                    <button class="btn btn-secondary" style="padding:8px 10px;" onclick="popOutScore()" title="Full screen score editor">&#8599;</button>
                 </div>`,
         };
 
@@ -1925,6 +1925,11 @@
 
         content.innerHTML = panels[name] || `<h3>${name}</h3><div style="color:var(--text-dim)">Coming soon</div>`;
         panel.classList.add('visible');
+
+        // Render empty staff when Score panel opens
+        if (name === 'score') {
+            setTimeout(() => renderScore(), 100);
+        }
 
         // Load input devices when that panel opens
         if (name === 'input_select') {
@@ -4307,40 +4312,51 @@
     function onScoreClick(e) {
         const staff = document.getElementById('scoreStaff');
         const rect = staff.getBoundingClientRect();
-        const x = e.clientX - rect.left - 12;
-        const y = e.clientY - rect.top - 12;
+        const svg = staff.querySelector('svg');
+        if (!svg) { renderScore(); return; }
 
-        // Map click Y to note (staff is ~200px, 5 lines spanning ~80px)
-        const staffTop = 40;
+        const svgRect = svg.getBoundingClientRect();
+        const x = e.clientX - svgRect.left;
+        const y = e.clientY - svgRect.top;
+
+        // Staff geometry matches render_notation_svg:
+        // staffTop = 60, lineSpacing = 10, 5 lines
+        // Bottom line (E4 treble) = y=60, Top line (F5) = y=60-40=20... wait
+        // Actually: line 0 at staffTop=60, line 4 at staffTop+40=100
+        // Each line is 10px apart
+        // Notes: E4=line0=y60, F4=space=y55, G4=line1=y50, A4=y45, B4=line2=y40
+        //        C5=y35, D5=line3=y30, E5=y25, F5=line4=y20
+
+        const staffTop = 60;
         const lineSpacing = 10;
-        const staffCenter = staffTop + 20; // middle line (B4 in treble)
 
-        // Each half-step of staff position = lineSpacing/2 = 5px
-        const stepsFromMiddle = Math.round((staffCenter - y) / (lineSpacing / 2));
+        // Y position to staff position (0=bottom line E4, each 0.5 = one step)
+        const staffPos = (staffTop + 40 - y) / lineSpacing; // 0 at bottom line, 4 at top
 
-        // Middle line in treble = B4. Each step is a natural note step.
+        // Staff position to note: position 0=E4, 0.5=F4, 1=G4, 1.5=A4, 2=B4, 2.5=C5...
         const naturalNotes = ['C','D','E','F','G','A','B'];
-        const middleNote = 6; // B index
-        const middleOctave = 4;
+        // E4 is position 0. E is index 4 in natural notes, octave 4.
+        const baseNoteIdx = 4; // E
+        const baseOctave = 4;
 
-        const totalSteps = middleNote + stepsFromMiddle;
-        const octaveOffset = Math.floor(totalSteps / 7);
-        const noteIdx = ((totalSteps % 7) + 7) % 7;
+        const steps = Math.round(staffPos * 2); // each half-position = one natural note
+        const totalIdx = baseNoteIdx + steps;
+        const octaveOffset = Math.floor(totalIdx / 7);
+        const noteIdx = ((totalIdx % 7) + 7) % 7;
 
         const note = naturalNotes[noteIdx];
-        const octave = middleOctave + octaveOffset;
+        const octave = baseOctave + octaveOffset;
 
         // Map click X to beat
         const noteSpacing = 40;
-        const startX = 80;
-        const beat = Math.round((x - startX) / noteSpacing);
-        if (beat < 0) return;
+        const startX = 120; // matches SVG rendering start
+        const beat = Math.max(0, Math.round((x - startX) / noteSpacing));
 
-        const duration = parseFloat(document.getElementById('scoreDuration').value);
+        const duration = parseFloat(document.getElementById('scoreDuration')?.value || '0.25');
 
         // MIDI number
         const noteMap = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
-        const midi = (octave + 1) * 12 + noteMap[note];
+        const midi = (octave + 1) * 12 + (noteMap[note] || 0);
 
         _scoreNotes.push({ note, octave, midi, beat, duration });
         _scoreNotes.sort((a,b) => a.beat - b.beat);
@@ -4496,6 +4512,94 @@
         }).then(r=>r.json()).then(d => {
             if (d.ok) showNotification('Score rendered to track');
         });
+    }
+
+    function popOutScore() {
+        let overlay = document.getElementById('scoreOverlay');
+        if (overlay) { overlay.style.display = 'flex'; renderScoreOverlay(); return; }
+
+        overlay = document.createElement('div');
+        overlay.id = 'scoreOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.97);z-index:300;display:flex;flex-direction:column;padding:24px;overflow:auto;';
+
+        overlay.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:20px;font-weight:200;letter-spacing:6px;color:var(--teal);">SCORE</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <select id="scoreOverlayKey" onchange="renderScoreOverlay()" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                        ${['C','G','D','A','E','B','F','Bb','Eb','Ab'].map(k=>'<option value="'+k+'">'+k+'</option>').join('')}
+                    </select>
+                    <select id="scoreOverlayTime" onchange="renderScoreOverlay()" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                        <option>4/4</option><option>3/4</option><option>6/8</option><option>2/4</option>
+                    </select>
+                    <select id="scoreOverlayDuration" style="padding:4px;background:#12121f;border:1px solid #2a2a44;color:#d8d8e8;border-radius:4px;font-size:11px;">
+                        <option value="1">Whole</option><option value="0.5">Half</option><option value="0.25" selected>Quarter</option><option value="0.125">8th</option><option value="0.0625">16th</option>
+                    </select>
+                    <button onclick="playScore()" style="padding:4px 12px;background:#181828;border:1px solid #2a2a44;color:#2dd4a8;border-radius:4px;cursor:pointer;font-size:12px;">&#9654; Play</button>
+                    <button onclick="clearScore();renderScoreOverlay()" style="padding:4px 8px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:4px;cursor:pointer;font-size:10px;">Clear</button>
+                    <button onclick="document.getElementById('scoreOverlay').style.display='none'" style="background:none;border:none;color:#7878a0;font-size:24px;cursor:pointer;margin-left:8px;">&times;</button>
+                </div>
+            </div>
+            <div id="scoreOverlayStaff" style="flex:1;overflow:auto;border:1px solid #2a2a44;border-radius:8px;background:#0a0a14;cursor:crosshair;padding:16px;" onclick="onScoreOverlayClick(event)">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button onclick="renderScoreToTrack();document.getElementById('scoreOverlay').style.display='none'" style="padding:10px 24px;background:linear-gradient(135deg,#9b59b6,#2dd4a8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px;">Render to Track</button>
+                <button onclick="scoreToTab()" style="padding:10px 24px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:20px;cursor:pointer;font-size:13px;">Export Tab</button>
+                <button onclick="document.getElementById('scoreOverlay').style.display='none'" style="padding:10px 24px;background:#181828;border:1px solid #2a2a44;color:#7878a0;border-radius:20px;cursor:pointer;font-size:13px;">Close</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        renderScoreOverlay();
+    }
+
+    function renderScoreOverlay() {
+        const key = document.getElementById('scoreOverlayKey')?.value || 'C';
+        const timeSig = document.getElementById('scoreOverlayTime')?.value || '4/4';
+        const beats = {};
+        _scoreNotes.forEach(n => {
+            if (!beats[n.beat]) beats[n.beat] = [];
+            beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
+        });
+        const events = Object.keys(beats).sort((a,b)=>a-b).map(beat => ({
+            notes: beats[beat], beat: parseInt(beat),
+        }));
+        fetch('/api/sheet/render', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ events, key, time_sig: timeSig, width: Math.max(800, window.innerWidth - 80) }),
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) document.getElementById('scoreOverlayStaff').innerHTML = d.svg;
+        });
+    }
+
+    function onScoreOverlayClick(e) {
+        // Use the overlay's duration selector
+        const origDur = document.getElementById('scoreDuration');
+        const overlayDur = document.getElementById('scoreOverlayDuration');
+        if (origDur && overlayDur) origDur.value = overlayDur.value;
+        // Delegate to the main click handler but target the overlay staff
+        const staff = document.getElementById('scoreOverlayStaff');
+        const svg = staff.querySelector('svg');
+        if (!svg) return;
+        const svgRect = svg.getBoundingClientRect();
+        const x = e.clientX - svgRect.left;
+        const y = e.clientY - svgRect.top;
+        const staffTop = 60, lineSpacing = 10;
+        const staffPos = (staffTop + 40 - y) / lineSpacing;
+        const naturalNotes = ['C','D','E','F','G','A','B'];
+        const steps = Math.round(staffPos * 2);
+        const totalIdx = 4 + steps;
+        const octaveOffset = Math.floor(totalIdx / 7);
+        const noteIdx = ((totalIdx % 7) + 7) % 7;
+        const note = naturalNotes[noteIdx];
+        const octave = 4 + octaveOffset;
+        const noteMap = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+        const midi = (octave + 1) * 12 + (noteMap[note] || 0);
+        const noteSpacing = 40, startX = 120;
+        const beat = Math.max(0, Math.round((x - startX) / noteSpacing));
+        const duration = parseFloat(overlayDur?.value || '0.25');
+        _scoreNotes.push({ note, octave, midi, beat, duration });
+        _scoreNotes.sort((a,b) => a.beat - b.beat);
+        renderScoreOverlay();
     }
 
     function transcribeAudioToScore() {

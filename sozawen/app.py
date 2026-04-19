@@ -1614,9 +1614,10 @@ async def render_sheet(request: Request):
     key = data.get("key", "C")
     time_sig = data.get("time_sig", "4/4")
     clef = data.get("clef")
+    width = int(data.get("width", 800))
 
     from sozawen.sheet_music import render_notation_svg
-    svg = render_notation_svg(events, key=key, time_sig=time_sig, clef=clef)
+    svg = render_notation_svg(events, key=key, time_sig=time_sig, clef=clef, width=width)
     return JSONResponse({"ok": True, "svg": svg})
 
 @api.post("/api/sheet/audio-to-notation")
