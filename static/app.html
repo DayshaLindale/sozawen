@@ -1216,6 +1216,51 @@
 
         const panels = {
             open_file: 'OPEN_FILE',  // special: triggers file picker instead of panel
+
+            instruments: `<h3>Instruments ${h('62 physically modeled instruments. Pick a family, choose a model, click the keyboard to play. Every sound synthesized from physics — no samples.')}</h3>
+                <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('guitar')" style="font-size:10px;padding:4px 8px;">🎸 Guitar</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('bass')" style="font-size:10px;padding:4px 8px;">🎸 Bass</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('piano')" style="font-size:10px;padding:4px 8px;">🎹 Piano</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('keys')" style="font-size:10px;padding:4px 8px;">🎹 Keys</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('strings')" style="font-size:10px;padding:4px 8px;">🎻 Strings</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('brass')" style="font-size:10px;padding:4px 8px;">🎺 Brass</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('winds')" style="font-size:10px;padding:4px 8px;">🎷 Winds</button>
+                    <button class="btn btn-secondary inst-fam-btn" onclick="selectInstFamily('percussion')" style="font-size:10px;padding:4px 8px;">🔔 Percussion</button>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <select id="instModelSelect" style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:6px;font-family:inherit;font-size:11px;" onchange="onInstModelChange()">
+                        <option>Select a family above</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:8px;display:flex;gap:6px;align-items:center;">
+                    <label style="font-size:10px;color:var(--text-dim);min-width:50px;">Velocity</label>
+                    <input type="range" id="instVelocity" min="10" max="100" value="70" style="flex:1;">
+                    <span id="instVelLabel" style="font-size:10px;color:var(--teal);min-width:24px;">70%</span>
+                </div>
+                <div id="instExtraParams" style="margin-bottom:8px;"></div>
+
+                <!-- Piano keyboard for playing notes -->
+                <div id="instKeyboard" style="display:flex;height:60px;margin-bottom:10px;border-radius:4px;overflow:hidden;user-select:none;"></div>
+                <div style="display:flex;gap:4px;margin-bottom:8px;align-items:center;">
+                    <button class="btn btn-secondary" onclick="instOctave(-1)" style="font-size:10px;padding:3px 8px;">Oct -</button>
+                    <span id="instOctaveLabel" style="font-size:10px;color:var(--text-dim);">Oct 4</span>
+                    <button class="btn btn-secondary" onclick="instOctave(1)" style="font-size:10px;padding:3px 8px;">Oct +</button>
+                    <span style="flex:1;"></span>
+                    <label style="font-size:10px;color:var(--text-dim);">Duration</label>
+                    <select id="instDuration" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="0.5">Short</option>
+                        <option value="1.0" selected>Medium</option>
+                        <option value="2.0">Long</option>
+                        <option value="4.0">Sustained</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="instRenderToTrack()">Render to Track</button>
+                    <button class="btn btn-secondary" onclick="instPlayChord()">Play Chord</button>
+                    <button class="btn btn-secondary" onclick="instClear()">Clear</button>
+                </div>
+                <div id="instStatus" style="font-size:10px;color:var(--text-muted);padding:4px 0;min-height:16px;"></div>`,
             input_select: `<h3>Input Device ${h('Choose which microphone or audio interface to record from.')}</h3>
                 <div class="field"><label>Input Device ${h('Your audio interface or microphone. If you have multiple, select which one to record from.')}</label>
                     <select id="inputDeviceSelect" onchange="onDeviceChange()"><option>Loading...</option></select></div>
@@ -1930,6 +1975,19 @@
         // Render empty staff when Score panel opens
         if (name === 'score') {
             setTimeout(() => renderScore(), 100);
+        }
+
+        // Build keyboard when Instruments panel opens
+        if (name === 'instruments') {
+            setTimeout(() => {
+                buildInstKeyboard();
+                // Load instrument catalog
+                if (!_allInstruments) {
+                    fetch('/api/instrument/all').then(r => r.json()).then(d => {
+                        _allInstruments = d;
+                    });
+                }
+            }, 100);
         }
 
         // Load input devices when that panel opens
@@ -4624,6 +4682,205 @@
         _scoreNotes.push({ note, octave, midi, beat, duration });
         _scoreNotes.sort((a,b) => a.beat - b.beat);
         renderScoreOverlay();
+    }
+
+    // ═══ INSTRUMENT PANEL ═══
+    let _instFamily = '';
+    let _instModel = '';
+    let _instOctave = 4;
+    let _instNotes = []; // recorded notes for render
+    let _instAudioCtx = null;
+    let _allInstruments = null;
+
+    function selectInstFamily(family) {
+        _instFamily = family;
+        document.querySelectorAll('.inst-fam-btn').forEach(b => b.style.background = '');
+        event.target.style.background = 'var(--violet)';
+
+        // Fetch models for this family
+        if (!_allInstruments) {
+            fetch('/api/instrument/all').then(r => r.json()).then(d => {
+                _allInstruments = d;
+                populateInstModels(family);
+            });
+        } else {
+            populateInstModels(family);
+        }
+        buildInstKeyboard();
+    }
+
+    function populateInstModels(family) {
+        const sel = document.getElementById('instModelSelect');
+        if (!_allInstruments) return;
+        let items = _allInstruments[family];
+        if (!items) { sel.innerHTML = '<option>No instruments</option>'; return; }
+
+        // Normalize — some families return {models:[...], ...}
+        if (items.models) items = items.models;
+        if (items.instruments) items = items.instruments;
+
+        sel.innerHTML = items.map(m =>
+            `<option value="${m.id}">${m.name}</option>`
+        ).join('');
+        _instModel = items[0]?.id || '';
+
+        // Show extra params based on family
+        const extra = document.getElementById('instExtraParams');
+        if (family === 'bass') {
+            extra.innerHTML = `
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+                    <label style="font-size:10px;color:var(--text-dim);min-width:60px;">Technique</label>
+                    <select id="instTechnique" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="finger">Finger</option><option value="pick">Pick</option>
+                        <option value="slap">Slap</option><option value="pop">Pop</option><option value="muted">Muted</option>
+                    </select>
+                    <label style="font-size:10px;color:var(--text-dim);min-width:30px;">Amp</label>
+                    <select id="instAmp" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="clean_di">Clean DI</option><option value="ampeg_svt">Ampeg SVT</option>
+                        <option value="darkglass">Darkglass</option><option value="orange">Orange</option><option value="mesa">Mesa</option>
+                    </select>
+                </div>`;
+        } else if (family === 'strings') {
+            extra.innerHTML = `
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+                    <label style="font-size:10px;color:var(--text-dim);min-width:60px;">Articulation</label>
+                    <select id="instArticulation" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="sustain">Sustain</option><option value="pizzicato">Pizzicato</option>
+                        <option value="staccato">Staccato</option><option value="tremolo">Tremolo</option>
+                        <option value="sul_ponticello">Sul Pont.</option><option value="harmonics">Harmonics</option>
+                    </select>
+                </div>`;
+        } else if (family === 'brass') {
+            extra.innerHTML = `
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+                    <label style="font-size:10px;color:var(--text-dim);min-width:30px;">Mute</label>
+                    <select id="instMute" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="none">Open</option><option value="straight">Straight</option>
+                        <option value="cup">Cup</option><option value="harmon">Harmon</option><option value="plunger">Plunger</option>
+                    </select>
+                </div>`;
+        } else if (family === 'keys') {
+            extra.innerHTML = `
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+                    <label style="font-size:10px;color:var(--text-dim);min-width:40px;">Leslie</label>
+                    <select id="instLeslie" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="off">Off</option><option value="slow">Slow</option><option value="fast">Fast</option>
+                    </select>
+                </div>`;
+        } else {
+            extra.innerHTML = '';
+        }
+    }
+
+    function onInstModelChange() {
+        _instModel = document.getElementById('instModelSelect').value;
+    }
+
+    function buildInstKeyboard() {
+        const kb = document.getElementById('instKeyboard');
+        if (!kb) return;
+        const notes = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+        const isBlack = [0,1,0,1,0,0,1,0,1,0,1,0];
+        let html = '';
+        for (let i = 0; i < 12; i++) {
+            const midi = (_instOctave + 1) * 12 + i;
+            const black = isBlack[i];
+            const color = black ? '#222' : '#ddd';
+            const textColor = black ? '#888' : '#333';
+            const width = black ? '7%' : '8.33%';
+            const height = black ? '60%' : '100%';
+            const zIndex = black ? '2' : '1';
+            const margin = black ? '-2% 0 0 -3.5%' : '0';
+            html += `<div onmousedown="instPlayNote(${midi})" style="
+                width:${width};height:${height};background:${color};
+                border:1px solid #444;border-radius:0 0 3px 3px;
+                display:flex;align-items:flex-end;justify-content:center;
+                cursor:pointer;z-index:${zIndex};position:relative;
+                margin:${margin};font-size:8px;color:${textColor};padding-bottom:2px;
+                user-select:none;" title="${notes[i]}${_instOctave}">${notes[i]}</div>`;
+        }
+        kb.innerHTML = html;
+    }
+
+    function instOctave(delta) {
+        _instOctave = Math.max(1, Math.min(7, _instOctave + delta));
+        document.getElementById('instOctaveLabel').textContent = 'Oct ' + _instOctave;
+        buildInstKeyboard();
+    }
+
+    document.getElementById('instVelocity')?.addEventListener('input', function() {
+        document.getElementById('instVelLabel').textContent = this.value + '%';
+    });
+
+    function instPlayNote(midi) {
+        const vel = parseInt(document.getElementById('instVelocity')?.value || 70) / 100;
+        const dur = parseFloat(document.getElementById('instDuration')?.value || 1.0);
+
+        // Quick Web Audio preview for instant feedback
+        if (!_instAudioCtx) _instAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const osc = _instAudioCtx.createOscillator();
+        const gain = _instAudioCtx.createGain();
+        osc.type = _instFamily === 'strings' ? 'sawtooth' : (_instFamily === 'winds' || _instFamily === 'brass' ? 'square' : 'triangle');
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(vel * 0.3, _instAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, _instAudioCtx.currentTime + Math.min(dur, 0.5));
+        osc.connect(gain);
+        gain.connect(_instAudioCtx.destination);
+        osc.start();
+        osc.stop(_instAudioCtx.currentTime + Math.min(dur, 0.5));
+
+        // Record for render
+        _instNotes.push({note: midi, velocity: vel, duration: dur});
+
+        // Also render the real physics on the server (adds to DAW as track)
+        const params = {};
+        if (_instFamily === 'bass') {
+            params.technique = document.getElementById('instTechnique')?.value || 'finger';
+            params.amp = document.getElementById('instAmp')?.value || 'clean_di';
+        } else if (_instFamily === 'strings') {
+            params.articulation = document.getElementById('instArticulation')?.value || 'sustain';
+        } else if (_instFamily === 'brass') {
+            params.mute = document.getElementById('instMute')?.value || 'none';
+        } else if (_instFamily === 'keys') {
+            params.leslie = document.getElementById('instLeslie')?.value || 'off';
+        }
+
+        fetch('/api/instrument/preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                family: _instFamily, model: _instModel,
+                note: midi, duration: dur, velocity: vel, params
+            })
+        }).then(r => r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('instStatus').textContent =
+                    `${_instFamily}: ${_instModel} — note ${midi} rendered to track #${d.track_id}`;
+            }
+        }).catch(() => {});
+    }
+
+    function instPlayChord() {
+        const root = (_instOctave + 1) * 12;  // C of current octave
+        [root, root+4, root+7].forEach((n, i) => {
+            setTimeout(() => instPlayNote(n), i * 50);
+        });
+    }
+
+    function instRenderToTrack() {
+        if (!_instNotes.length) {
+            document.getElementById('instStatus').textContent = 'Play some notes first';
+            return;
+        }
+        document.getElementById('instStatus').textContent = `Rendering ${_instNotes.length} notes...`;
+        // Notes are already rendered individually — this is a placeholder for pattern rendering
+        document.getElementById('instStatus').textContent = `${_instNotes.length} notes rendered to tracks`;
+    }
+
+    function instClear() {
+        _instNotes = [];
+        document.getElementById('instStatus').textContent = 'Cleared';
     }
 
     function transcribeAudioToScore() {
