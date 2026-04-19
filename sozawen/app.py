@@ -30,6 +30,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger("sozawen")
 
+# Clean shutdown — stop audio when the program closes
+import atexit, signal
+
+def _cleanup():
+    try:
+        _engine.stop()
+    except Exception:
+        pass
+
+atexit.register(_cleanup)
+
+def _signal_handler(sig, frame):
+    _cleanup()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, _signal_handler)
+signal.signal(signal.SIGTERM, _signal_handler)
+
 # Settings
 SETTINGS = {}
 if SETTINGS_PATH.exists():

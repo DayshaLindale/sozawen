@@ -2355,11 +2355,19 @@
                 const wavePanel = document.getElementById('wavePanel');
                 if (wavePanel && maxDur > 0) {
                     const visibleWidth = wavePanel.clientWidth - 40;
-                    const idealPPS = visibleWidth / Math.max(maxDur + 1, 2);
+                    const idealPPS = visibleWidth / Math.max(maxDur, 1);
                     _zoomLevel = Math.max(1, idealPPS / PIXELS_PER_SECOND_BASE);
                     PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
                 }
-                buildRuler(Math.max(3, maxDur + 1));
+                buildRuler(Math.max(2, maxDur));
+
+                // Redraw ALL waveforms with the correct zoom level
+                d.tracks.forEach(t => {
+                    if (t.regions && t.regions.length > 0) {
+                        const uiTrack = tracks.find(e => e.engineId === t.id);
+                        if (uiTrack) loadAndDrawWaveform(uiTrack.id, t.id);
+                    }
+                });
             }
         });
     }
