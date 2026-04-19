@@ -1202,7 +1202,7 @@
         panel.classList.remove('visible', 'wide');
         document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
     }
-    const WIDE_PANELS = ['learn', 'glossary', 'shortcuts', 'help', 'community', 'bandmate'];
+    const WIDE_PANELS = ['learn', 'glossary', 'shortcuts', 'help', 'community', 'bandmate', 'score'];
     function showPanel(name, btn) {
         document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
         if(btn) btn.classList.add('active');
@@ -1859,6 +1859,61 @@
                     <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Ctrl++/-</kbd> Zoom in/out</div>
                     <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">Del</kbd> Delete selection</div>
                     <div><kbd style="background:var(--bg-hover); padding:2px 6px; border-radius:3px; font-size:11px;">M</kbd> Mute selected track</div>
+                </div>`,
+
+            score: `<h3>Score — Sheet Music Composer</h3>
+                <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                    <select id="scoreKey" style="padding:6px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:6px; font-size:11px;">
+                        ${['C','G','D','A','E','B','F','Bb','Eb','Ab','Db'].map(k=>'<option value="'+k+'">'+k+' Major</option>').join('')}
+                        ${['Am','Em','Bm','F#m','Dm','Gm','Cm','Fm'].map(k=>'<option value="'+k+'">'+k+' Minor</option>').join('')}
+                    </select>
+                    <select id="scoreTime" style="padding:6px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:6px; font-size:11px;">
+                        <option>4/4</option><option>3/4</option><option>6/8</option><option>2/4</option><option>5/4</option><option>7/8</option>
+                    </select>
+                    <select id="scoreDuration" style="padding:6px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:6px; font-size:11px;">
+                        <option value="1">Whole</option><option value="0.5">Half</option><option value="0.25" selected>Quarter</option><option value="0.125">Eighth</option><option value="0.0625">Sixteenth</option>
+                    </select>
+                </div>
+
+                <!-- Instrument staves -->
+                <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+                    <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="addScoreInstrument()">+ Add Instrument</button>
+                    <select id="scoreInstrument" style="padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:10px;">
+                        <option value="treble">Treble (Piano/Guitar/Violin)</option>
+                        <option value="bass">Bass (Bass/Cello/Left Hand)</option>
+                        <option value="treble+bass">Grand Staff (Piano)</option>
+                    </select>
+                </div>
+
+                <!-- Interactive staff -->
+                <div id="scoreStaff" style="background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px; min-height:200px; cursor:crosshair; overflow-x:auto; position:relative;" onclick="onScoreClick(event)">
+                    <div style="color:var(--text-muted); font-size:11px; text-align:center; padding:40px;">Click on the staff to place notes. Drag to reposition.</div>
+                </div>
+
+                <!-- Tab input/output -->
+                <div style="margin-top:10px;">
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:11px; color:var(--text-dim);">Tab:</span>
+                        <select id="scoreTuning" style="padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:10px;">
+                            <option value="guitar_standard">Guitar Standard</option>
+                            <option value="guitar_drop_d">Guitar Drop D</option>
+                            <option value="bass_4_standard">Bass 4-String</option>
+                            <option value="bass_5_standard">Bass 5-String</option>
+                            <option value="ukulele_standard">Ukulele</option>
+                        </select>
+                        <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="tabToScore()">Tab → Score</button>
+                        <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="scoreToTab()">Score → Tab</button>
+                    </div>
+                    <textarea id="scoreTabInput" rows="6" style="width:100%; background:var(--bg-deep); border:1px solid var(--border); color:var(--teal); border-radius:6px; padding:8px; font-family:monospace; font-size:11px; resize:vertical;" placeholder="Paste tablature here...&#10;e|--0--2--3--|&#10;B|--1--3--0--|&#10;G|--0--2--0--|&#10;D|--2--0--0--|&#10;A|--3--------|&#10;E|-----------|"></textarea>
+                </div>
+
+                <!-- Playback + export -->
+                <div style="display:flex; gap:6px; margin-top:10px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="playScore()">&#9654; Play</button>
+                    <button class="btn btn-secondary" style="flex:1;" onclick="stopScore()">&#9632; Stop</button>
+                    <button class="btn btn-secondary" onclick="clearScore()">Clear</button>
+                    <button class="btn btn-secondary" onclick="renderScoreToTrack()">To Track</button>
+                    <button class="btn btn-secondary" onclick="transcribeAudioToScore()">Audio → Score</button>
                 </div>`,
         };
 
@@ -4240,6 +4295,231 @@
             handle.classList.remove('dragging');
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
+        });
+    }
+
+    // ═══ SHEET MUSIC COMPOSER ═══
+    let _scoreNotes = [];      // [{note, octave, midi, beat, duration}]
+    let _scoreInstruments = [{ clef: 'treble', name: 'Instrument 1' }];
+    let _scorePlayback = null;
+    let _scoreAudioCtx = null;
+
+    function onScoreClick(e) {
+        const staff = document.getElementById('scoreStaff');
+        const rect = staff.getBoundingClientRect();
+        const x = e.clientX - rect.left - 12;
+        const y = e.clientY - rect.top - 12;
+
+        // Map click Y to note (staff is ~200px, 5 lines spanning ~80px)
+        const staffTop = 40;
+        const lineSpacing = 10;
+        const staffCenter = staffTop + 20; // middle line (B4 in treble)
+
+        // Each half-step of staff position = lineSpacing/2 = 5px
+        const stepsFromMiddle = Math.round((staffCenter - y) / (lineSpacing / 2));
+
+        // Middle line in treble = B4. Each step is a natural note step.
+        const naturalNotes = ['C','D','E','F','G','A','B'];
+        const middleNote = 6; // B index
+        const middleOctave = 4;
+
+        const totalSteps = middleNote + stepsFromMiddle;
+        const octaveOffset = Math.floor(totalSteps / 7);
+        const noteIdx = ((totalSteps % 7) + 7) % 7;
+
+        const note = naturalNotes[noteIdx];
+        const octave = middleOctave + octaveOffset;
+
+        // Map click X to beat
+        const noteSpacing = 40;
+        const startX = 80;
+        const beat = Math.round((x - startX) / noteSpacing);
+        if (beat < 0) return;
+
+        const duration = parseFloat(document.getElementById('scoreDuration').value);
+
+        // MIDI number
+        const noteMap = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+        const midi = (octave + 1) * 12 + noteMap[note];
+
+        _scoreNotes.push({ note, octave, midi, beat, duration });
+        _scoreNotes.sort((a,b) => a.beat - b.beat);
+
+        renderScore();
+    }
+
+    function renderScore() {
+        const key = document.getElementById('scoreKey').value;
+        const timeSig = document.getElementById('scoreTime').value;
+
+        // Group notes by beat
+        const beats = {};
+        _scoreNotes.forEach(n => {
+            if (!beats[n.beat]) beats[n.beat] = [];
+            beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
+        });
+
+        const events = Object.keys(beats).sort((a,b)=>a-b).map(beat => ({
+            notes: beats[beat],
+            beat: parseInt(beat),
+        }));
+
+        fetch('/api/sheet/render', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ events, key, time_sig: timeSig }),
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('scoreStaff').innerHTML = d.svg;
+                // Make notes clickable for deletion
+                document.getElementById('scoreStaff').querySelectorAll('ellipse').forEach((el, i) => {
+                    el.style.cursor = 'pointer';
+                    el.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        if (_scoreNotes[i]) {
+                            _scoreNotes.splice(i, 1);
+                            renderScore();
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    function tabToScore() {
+        const tab = document.getElementById('scoreTabInput').value;
+        const tuning = document.getElementById('scoreTuning').value;
+        const key = document.getElementById('scoreKey').value;
+        const timeSig = document.getElementById('scoreTime').value;
+
+        fetch('/api/sheet/tab-to-notation', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ tab, tuning, key, time_sig: timeSig }),
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('scoreStaff').innerHTML = d.svg;
+                _scoreNotes = [];
+                (d.events || []).forEach(e => {
+                    e.notes.forEach(n => {
+                        _scoreNotes.push({
+                            note: n.note, octave: n.octave,
+                            midi: n.midi || 60, beat: e.beat, duration: 0.25,
+                        });
+                    });
+                });
+            }
+        });
+    }
+
+    function scoreToTab() {
+        const tuning = document.getElementById('scoreTuning').value;
+        const events = [];
+        const beats = {};
+        _scoreNotes.forEach(n => {
+            if (!beats[n.beat]) beats[n.beat] = [];
+            beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
+        });
+        Object.keys(beats).sort((a,b)=>a-b).forEach(beat => {
+            events.push({notes: beats[beat]});
+        });
+
+        fetch('/api/sheet/notes-to-tab', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ notes: events, tuning }),
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('scoreTabInput').value = d.tab;
+            }
+        });
+    }
+
+    function playScore() {
+        if (!_scoreAudioCtx) _scoreAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        stopScore();
+
+        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || '120');
+        const beatDuration = 60 / bpm;
+        const now = _scoreAudioCtx.currentTime;
+
+        _scoreNotes.forEach(n => {
+            const freq = 440 * Math.pow(2, (n.midi - 69) / 12);
+            const startTime = now + n.beat * beatDuration;
+            const dur = n.duration * beatDuration * 4;
+
+            const osc = _scoreAudioCtx.createOscillator();
+            const gain = _scoreAudioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.3, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+            osc.connect(gain);
+            gain.connect(_scoreAudioCtx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + dur);
+        });
+    }
+
+    function stopScore() {
+        if (_scoreAudioCtx) {
+            _scoreAudioCtx.close();
+            _scoreAudioCtx = null;
+        }
+    }
+
+    function clearScore() {
+        _scoreNotes = [];
+        const staff = document.getElementById('scoreStaff');
+        if (staff) staff.innerHTML = '<div style="color:var(--text-muted); font-size:11px; text-align:center; padding:40px;">Click on the staff to place notes. Drag to reposition.</div>';
+        document.getElementById('scoreTabInput').value = '';
+    }
+
+    function addScoreInstrument() {
+        const clef = document.getElementById('scoreInstrument').value;
+        const num = _scoreInstruments.length + 1;
+        _scoreInstruments.push({ clef, name: 'Instrument ' + num });
+        renderScore();
+    }
+
+    function renderScoreToTrack() {
+        // Render score notes as audio and add to the DAW timeline
+        if (!_scoreNotes.length) return;
+        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || '120');
+        const events = _scoreNotes.map(n => ({
+            midi: n.midi, duration: n.duration, beat: n.beat
+        }));
+        fetch('/api/midi/pattern', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ notes: events, bpm }),
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) showNotification('Score rendered to track');
+        });
+    }
+
+    function transcribeAudioToScore() {
+        // Use the currently selected track's audio file
+        const track = _tracks[_selectedTrack];
+        if (!track || !track.file) {
+            showNotification('Select a track with audio first');
+            return;
+        }
+        const key = document.getElementById('scoreKey').value;
+        const tuning = document.getElementById('scoreTuning').value;
+
+        fetch('/api/sheet/audio-to-notation', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ file: track.file, key, tuning }),
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                document.getElementById('scoreStaff').innerHTML = d.svg;
+                if (d.tab) document.getElementById('scoreTabInput').value = d.tab;
+                showNotification(d.notes_detected + ' notes transcribed');
+            } else {
+                showNotification(d.error || 'Transcription failed');
+            }
         });
     }
 

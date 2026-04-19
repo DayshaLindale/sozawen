@@ -103,6 +103,7 @@ TOOLS = {
     "tuner":        {"label": "Tuner",            "icon": "🎵", "group": "record"},
     "learn":        {"label": "Learn",            "icon": "📖", "group": "master"},
     "piano_roll":   {"label": "Piano Roll",       "icon": "🎹", "group": "edit"},
+    "score":        {"label": "Score",            "icon": "🎼", "group": "edit"},
     "sample_browser":{"label": "Samples",         "icon": "📁", "group": "import"},
     "noise_reduce": {"label": "Noise Reduction",  "icon": "🔇", "group": "cleanup"},
     "click_removal":{"label": "Click Removal",   "icon": "🔕", "group": "cleanup"},
