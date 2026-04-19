@@ -1988,7 +1988,7 @@
                 <div style="font-size:9px; color:var(--text-muted); margin-bottom:6px;">Click a part name to select it, then click the staff to add notes to that part.</div>
 
                 <!-- Interactive staff — renders empty on open -->
-                <div id="scoreStaff" style="background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px; min-height:200px; overflow-x:auto; position:relative; cursor: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2212%22><ellipse cx=%227%22 cy=%226%22 rx=%226%22 ry=%225%22 fill=%22%232dd4a8%22 fill-opacity=%220.8%22 stroke=%22%232dd4a8%22 stroke-width=%221%22 transform=%22rotate(-10 7 6)%22/></svg>') 7 6, crosshair;" onclick="onScoreClick(event)" onmousemove="onScoreHover(event)">
+                <div id="scoreStaff" style="background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px; min-height:200px; overflow-x:auto; position:relative; cursor: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2212%22><ellipse cx=%227%22 cy=%226%22 rx=%226%22 ry=%225%22 fill=%22%232dd4a8%22 fill-opacity=%220.8%22 stroke=%22%232dd4a8%22 stroke-width=%221%22 transform=%22rotate(-10 7 6)%22/></svg>') 7 6, crosshair;" onclick="onScoreClick(event)" oncontextmenu="onScoreRightClick(event)" onmousemove="onScoreHover(event)">
                 </div>
                 <div id="scorePreview" style="font-size:10px; color:var(--text-muted); padding:4px 8px; min-height:16px;"></div>
 
@@ -4540,6 +4540,45 @@
         preview.textContent = partName + ': ' + note + octave + ' (' + (durName[dur] || 'quarter') + ' note)';
     }
 
+    function onScoreRightClick(e) {
+        e.preventDefault();
+        const staff = document.getElementById('scoreStaff');
+        const svg = staff.querySelector('svg');
+        if (!svg) return;
+
+        const svgRect = svg.getBoundingClientRect();
+        const x = e.clientX - svgRect.left;
+        const y = e.clientY - svgRect.top;
+
+        // Find the closest note to remove
+        const staffTop = 60, lineSpacing = 10, noteSpacing = 35, startX = 120;
+        const staffPos = (staffTop + 40 - y) / lineSpacing;
+        const beat = Math.max(0, Math.round((x - startX) / noteSpacing));
+
+        const naturalNotes = ['C','D','E','F','G','A','B'];
+        const steps = Math.round(staffPos * 2);
+        const totalIdx = 4 + steps;
+        const noteIdx = ((totalIdx % 7) + 7) % 7;
+        const note = naturalNotes[noteIdx];
+        const octave = 4 + Math.floor(totalIdx / 7);
+
+        // Find and remove the closest note in the active part
+        const notes = _scoreParts[_activePartIndex].notes;
+        let closest = -1;
+        let closestDist = Infinity;
+        for (let i = 0; i < notes.length; i++) {
+            const dist = Math.abs(notes[i].beat - beat) + (notes[i].note === note && notes[i].octave === octave ? 0 : 5);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = i;
+            }
+        }
+        if (closest >= 0 && closestDist < 3) {
+            notes.splice(closest, 1);
+            renderScore();
+        }
+    }
+
     function renderScore() {
         const key = document.getElementById('scoreKey')?.value || 'C';
         const timeSig = document.getElementById('scoreTime')?.value || '4/4';
@@ -4743,7 +4782,7 @@
 
         overlay = document.createElement('div');
         overlay.id = 'scoreOverlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.97);z-index:300;display:flex;flex-direction:column;padding:24px;overflow:auto;';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(8,8,15,0.98);z-index:300;display:flex;flex-direction:column;padding:16px;overflow:auto;';
 
         overlay.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -4934,22 +4973,27 @@
         const notes = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
         const isBlack = [0,1,0,1,0,0,1,0,1,0,1,0];
         let html = '';
-        for (let i = 0; i < 12; i++) {
-            const midi = (_instOctave + 1) * 12 + i;
-            const black = isBlack[i];
-            const color = black ? '#222' : '#ddd';
-            const textColor = black ? '#888' : '#333';
-            const width = black ? '7%' : '8.33%';
-            const height = black ? '60%' : '100%';
-            const zIndex = black ? '2' : '1';
-            const margin = black ? '-2% 0 0 -3.5%' : '0';
-            html += `<div onmousedown="instPlayNote(${midi})" style="
-                width:${width};height:${height};background:${color};
-                border:1px solid #444;border-radius:0 0 3px 3px;
-                display:flex;align-items:flex-end;justify-content:center;
-                cursor:pointer;z-index:${zIndex};position:relative;
-                margin:${margin};font-size:8px;color:${textColor};padding-bottom:2px;
-                user-select:none;" title="${notes[i]}${_instOctave}">${notes[i]}</div>`;
+        // Two octaves
+        for (let oct = 0; oct < 2; oct++) {
+            const octave = _instOctave + oct;
+            for (let i = 0; i < 12; i++) {
+                const midi = (octave + 1) * 12 + i;
+                const black = isBlack[i];
+                const color = black ? '#222' : (oct === 0 ? '#ddd' : '#ccc');
+                const textColor = black ? '#888' : '#333';
+                const width = black ? '3.5%' : '4.17%';
+                const height = black ? '58%' : '100%';
+                const zIndex = black ? '2' : '1';
+                const margin = black ? '-1.5% 0 0 -1.75%' : '0';
+                const label = i === 0 ? notes[i] + octave : (black ? '' : notes[i]);
+                html += `<div onmousedown="instPlayNote(${midi})" style="
+                    width:${width};height:${height};background:${color};
+                    border:1px solid #444;border-radius:0 0 3px 3px;
+                    display:flex;align-items:flex-end;justify-content:center;
+                    cursor:pointer;z-index:${zIndex};position:relative;
+                    margin:${margin};font-size:7px;color:${textColor};padding-bottom:2px;
+                    user-select:none;" title="${notes[i]}${octave}">${label}</div>`;
+            }
         }
         kb.innerHTML = html;
     }
