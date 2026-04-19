@@ -1976,14 +1976,16 @@
                 </div>
 
                 <!-- Instrument staves -->
-                <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
-                    <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="addScoreInstrument()">+ Add Instrument</button>
-                    <select id="scoreInstrument" style="padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:10px;">
-                        <option value="treble">Treble (Piano/Guitar/Violin)</option>
-                        <option value="bass">Bass (Bass/Cello/Left Hand)</option>
-                        <option value="treble+bass">Grand Staff (Piano)</option>
+                <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; flex-wrap:wrap;">
+                    <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="addScoreInstrument()">+ Add Part</button>
+                    <select id="scoreClef" style="padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:10px;">
+                        <option value="treble">Treble Clef (Violin, Flute, Guitar, Trumpet, Sax)</option>
+                        <option value="bass">Bass Clef (Bass, Cello, Trombone, Tuba, Left Hand)</option>
                     </select>
+                    <input type="text" id="scorePartName" placeholder="Part name" value="" style="padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:10px; width:100px;">
                 </div>
+                <div id="scorePartsList" style="margin-bottom:6px; font-size:10px; color:var(--text-dim);"></div>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:6px;">Click a part name to select it, then click the staff to add notes to that part.</div>
 
                 <!-- Interactive staff — renders empty on open -->
                 <div id="scoreStaff" style="background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px; min-height:200px; overflow-x:auto; position:relative; cursor: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2212%22><ellipse cx=%227%22 cy=%226%22 rx=%226%22 ry=%225%22 fill=%22%232dd4a8%22 fill-opacity=%220.8%22 stroke=%22%232dd4a8%22 stroke-width=%221%22 transform=%22rotate(-10 7 6)%22/></svg>') 7 6, crosshair;" onclick="onScoreClick(event)" onmousemove="onScoreHover(event)">
@@ -2029,7 +2031,7 @@
 
         // Render empty staff when Score panel opens
         if (name === 'score') {
-            setTimeout(() => renderScore(), 100);
+            setTimeout(() => { updatePartsList(); renderScore(); }, 100);
         }
 
         // Build keyboard when Instruments panel opens
@@ -4454,8 +4456,8 @@
     }
 
     // ═══ SHEET MUSIC COMPOSER ═══
-    let _scoreNotes = [];      // [{note, octave, midi, beat, duration}]
-    let _scoreInstruments = [{ clef: 'treble', name: 'Instrument 1' }];
+    let _scoreParts = [{ clef: 'treble', name: 'Part 1', notes: [] }];
+    let _activePartIndex = 0;
     let _scorePlayback = null;
     let _scoreAudioCtx = null;
 
@@ -4508,8 +4510,8 @@
         const noteMap = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
         const midi = (octave + 1) * 12 + (noteMap[note] || 0);
 
-        _scoreNotes.push({ note, octave, midi, beat, duration });
-        _scoreNotes.sort((a,b) => a.beat - b.beat);
+        _scoreParts[_activePartIndex].notes.push({ note, octave, midi, beat, duration });
+        _scoreParts[_activePartIndex].notes.sort((a,b) => a.beat - b.beat);
 
         renderScore();
     }
@@ -4534,43 +4536,43 @@
 
         const durName = {'1':'whole','0.5':'half','0.25':'quarter','0.125':'eighth','0.0625':'sixteenth'};
         const dur = document.getElementById('scoreDuration')?.value || '0.25';
-        preview.textContent = note + octave + ' (' + (durName[dur] || 'quarter') + ' note)';
+        const partName = _scoreParts[_activePartIndex]?.name || 'Part 1';
+        preview.textContent = partName + ': ' + note + octave + ' (' + (durName[dur] || 'quarter') + ' note)';
     }
 
     function renderScore() {
-        const key = document.getElementById('scoreKey').value;
-        const timeSig = document.getElementById('scoreTime').value;
+        const key = document.getElementById('scoreKey')?.value || 'C';
+        const timeSig = document.getElementById('scoreTime')?.value || '4/4';
 
-        // Group notes by beat
-        const beats = {};
-        _scoreNotes.forEach(n => {
-            if (!beats[n.beat]) beats[n.beat] = [];
-            beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
+        // Build parts for orchestral renderer
+        const parts = _scoreParts.map(part => {
+            const beats = {};
+            part.notes.forEach(n => {
+                if (!beats[n.beat]) beats[n.beat] = [];
+                beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
+            });
+            return {
+                name: part.name,
+                clef: part.clef,
+                events: Object.keys(beats).sort((a,b)=>a-b).map(beat => ({
+                    notes: beats[beat], beat: parseInt(beat),
+                })),
+            };
         });
 
-        const events = Object.keys(beats).sort((a,b)=>a-b).map(beat => ({
-            notes: beats[beat],
-            beat: parseInt(beat),
-        }));
+        // Use orchestral renderer for multi-part, single renderer for solo
+        const endpoint = parts.length > 1 ? '/api/sheet/orchestral' : '/api/sheet/render';
+        const body = parts.length > 1
+            ? { parts, key, time_sig: timeSig }
+            : { events: parts[0]?.events || [], key, time_sig: timeSig };
 
-        fetch('/api/sheet/render', {
+        fetch(endpoint, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ events, key, time_sig: timeSig }),
+            body: JSON.stringify(body),
         }).then(r=>r.json()).then(d => {
             if (d.ok) {
                 document.getElementById('scoreStaff').innerHTML = d.svg;
-                // Make notes clickable for deletion
-                document.getElementById('scoreStaff').querySelectorAll('ellipse').forEach((el, i) => {
-                    el.style.cursor = 'pointer';
-                    el.addEventListener('dblclick', (e) => {
-                        e.stopPropagation();
-                        if (_scoreNotes[i]) {
-                            _scoreNotes.splice(i, 1);
-                            renderScore();
-                        }
-                    });
-                });
             }
         });
     }
@@ -4588,10 +4590,10 @@
         }).then(r=>r.json()).then(d => {
             if (d.ok) {
                 document.getElementById('scoreStaff').innerHTML = d.svg;
-                _scoreNotes = [];
+                _scoreParts[_activePartIndex].notes = [];
                 (d.events || []).forEach(e => {
                     e.notes.forEach(n => {
-                        _scoreNotes.push({
+                        _scoreParts[_activePartIndex].notes.push({
                             note: n.note, octave: n.octave,
                             midi: n.midi || 60, beat: e.beat, duration: 0.25,
                         });
@@ -4605,7 +4607,7 @@
         const tuning = document.getElementById('scoreTuning').value;
         const events = [];
         const beats = {};
-        _scoreNotes.forEach(n => {
+        _scoreParts[_activePartIndex].notes.forEach(n => {
             if (!beats[n.beat]) beats[n.beat] = [];
             beats[n.beat].push({note: n.note, octave: n.octave, midi: n.midi});
         });
@@ -4631,7 +4633,9 @@
         const beatDuration = 60 / bpm;
         const now = _scoreAudioCtx.currentTime;
 
-        _scoreNotes.forEach(n => {
+        // Play all parts
+        const allNotes = _scoreParts.flatMap(p => p.notes);
+        allNotes.forEach(n => {
             const freq = 440 * Math.pow(2, (n.midi - 69) / 12);
             const startTime = now + n.beat * beatDuration;
             const dur = n.duration * beatDuration * 4;
@@ -4657,24 +4661,51 @@
     }
 
     function clearScore() {
-        _scoreNotes = [];
-        const staff = document.getElementById('scoreStaff');
-        if (staff) staff.innerHTML = '<div style="color:var(--text-muted); font-size:11px; text-align:center; padding:40px;">Click on the staff to place notes. Drag to reposition.</div>';
-        document.getElementById('scoreTabInput').value = '';
+        _scoreParts = [{ clef: 'treble', name: 'Part 1', notes: [] }];
+        _activePartIndex = 0;
+        updatePartsList();
+        renderScore();
+        const tabInput = document.getElementById('scoreTabInput');
+        if (tabInput) tabInput.value = '';
     }
 
     function addScoreInstrument() {
-        const clef = document.getElementById('scoreInstrument').value;
-        const num = _scoreInstruments.length + 1;
-        _scoreInstruments.push({ clef, name: 'Instrument ' + num });
+        const clef = document.getElementById('scoreClef').value;
+        const name = document.getElementById('scorePartName')?.value.trim() || ('Part ' + (_scoreParts.length + 1));
+        _scoreParts.push({ clef, name, notes: [] });
+        _activePartIndex = _scoreParts.length - 1;
+        document.getElementById('scorePartName').value = '';
+        updatePartsList();
         renderScore();
     }
 
+    function selectPart(index) {
+        _activePartIndex = index;
+        updatePartsList();
+    }
+
+    function removePart(index) {
+        if (_scoreParts.length <= 1) return;
+        _scoreParts.splice(index, 1);
+        if (_activePartIndex >= _scoreParts.length) _activePartIndex = _scoreParts.length - 1;
+        updatePartsList();
+        renderScore();
+    }
+
+    function updatePartsList() {
+        const el = document.getElementById('scorePartsList');
+        if (!el) return;
+        el.innerHTML = _scoreParts.map((p, i) =>
+            `<span onclick="selectPart(${i})" style="cursor:pointer;padding:2px 8px;border-radius:10px;margin-right:4px;${i === _activePartIndex ? 'background:var(--teal);color:#000;font-weight:600;' : 'background:var(--bg-hover);color:var(--text-dim);'}">${p.name} (${p.clef === 'treble' ? '𝄞' : '𝄢'})</span>` +
+            `<span onclick="removePart(${i})" style="cursor:pointer;color:var(--red);font-size:9px;margin-right:8px;">×</span>`
+        ).join('');
+    }
+
     function renderScoreToTrack() {
-        // Render score notes as audio and add to the DAW timeline
-        if (!_scoreNotes.length) return;
+        const allNotes = _scoreParts.flatMap(p => p.notes);
+        if (!allNotes.length) return;
         const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || '120');
-        const events = _scoreNotes.map(n => ({
+        const events = allNotes.map(n => ({
             midi: n.midi, duration: n.duration, beat: n.beat
         }));
         fetch('/api/midi/pattern', {
