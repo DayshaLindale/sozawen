@@ -4560,21 +4560,39 @@
             };
         });
 
-        // Use orchestral renderer for multi-part, single renderer for solo
-        const endpoint = parts.length > 1 ? '/api/sheet/orchestral' : '/api/sheet/render';
-        const body = parts.length > 1
-            ? { parts, key, time_sig: timeSig }
-            : { events: parts[0]?.events || [], key, time_sig: timeSig };
-
-        fetch(endpoint, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body),
-        }).then(r=>r.json()).then(d => {
-            if (d.ok) {
-                document.getElementById('scoreStaff').innerHTML = d.svg;
-            }
-        });
+        // Try orchestral renderer for multi-part, fall back to single
+        if (parts.length > 1) {
+            fetch('/api/sheet/orchestral', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ parts, key, time_sig: timeSig }),
+            }).then(r => {
+                if (r.ok) return r.json();
+                // Fallback: render each part separately and stack
+                return Promise.all(parts.map(p =>
+                    fetch('/api/sheet/render', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ events: p.events, key, time_sig: timeSig, clef: p.clef }),
+                    }).then(r2 => r2.json())
+                )).then(results => {
+                    const svgs = results.filter(r => r.ok).map((r, i) =>
+                        `<div style="margin-bottom:4px;"><span style="font-size:10px;color:var(--teal);">${parts[i].name}</span>${r.svg}</div>`
+                    ).join('');
+                    return { ok: true, svg: svgs };
+                });
+            }).then(d => {
+                if (d && d.ok) document.getElementById('scoreStaff').innerHTML = d.svg;
+            });
+        } else {
+            fetch('/api/sheet/render', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ events: parts[0]?.events || [], key, time_sig: timeSig }),
+            }).then(r=>r.json()).then(d => {
+                if (d.ok) document.getElementById('scoreStaff').innerHTML = d.svg;
+            });
+        }
     }
 
     function tabToScore() {
@@ -4636,9 +4654,11 @@
         // Play all parts
         const allNotes = _scoreParts.flatMap(p => p.notes);
         allNotes.forEach(n => {
-            const freq = 440 * Math.pow(2, (n.midi - 69) / 12);
-            const startTime = now + n.beat * beatDuration;
-            const dur = n.duration * beatDuration * 4;
+            if (!n.midi || !n.beat && n.beat !== 0) return;
+            const freq = 440 * Math.pow(2, ((n.midi || 60) - 69) / 12);
+            const startTime = now + (n.beat || 0) * beatDuration;
+            const dur = Math.max(0.1, (n.duration || 0.25) * beatDuration * 4);
+            if (!isFinite(startTime) || !isFinite(dur) || !isFinite(freq)) return;
 
             const osc = _scoreAudioCtx.createOscillator();
             const gain = _scoreAudioCtx.createGain();
