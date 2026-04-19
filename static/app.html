@@ -746,6 +746,7 @@
     let _loopEnabled = false;
     const PIXELS_PER_SECOND_BASE = 10;
     let _zoomLevel = 1.0;
+    let PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
 
     // Manual scroll disables auto-scroll temporarily
     document.getElementById('wavePanel')?.addEventListener('scroll', () => {
@@ -767,7 +768,7 @@
         marks.innerHTML = '';
         const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || 120);
         const beatSec = 60 / bpm;
-        const pps = (typeof PIXELS_PER_SECOND !== 'undefined') ? PIXELS_PER_SECOND : 10;
+        const pps = PIXELS_PER_SECOND || 10;
 
         // Mark every beat (at current zoom level)
         const beatWidth = beatSec * pps;
@@ -1065,7 +1066,6 @@
     }
 
     // ═══ STATE POLLING — meters, playhead, time display ═══
-    let PIXELS_PER_SECOND = PIXELS_PER_SECOND_BASE * _zoomLevel;
     setInterval(() => {
         if (!isPlaying) return;
         fetch('/api/transport/state').then(r=>r.json()).then(d => {
