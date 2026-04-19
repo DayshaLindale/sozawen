@@ -535,7 +535,7 @@ def render_drum_pattern(pattern, sr=44100, bpm=120):
         return np.zeros((sr, 2), dtype=np.float32)
 
     end_beat = max(p['beat'] for p in pattern) + 0.25  # quarter beat after last hit
-    total_samples = int(end_beat * beat_sec * sr) + int(0.15 * sr)  # 150ms tail for decay
+    total_samples = int(end_beat * beat_sec * sr)  # no extra padding — the beat IS the length
     audio = np.zeros(total_samples, dtype=np.float64)
 
     # Cache rendered drum sounds
