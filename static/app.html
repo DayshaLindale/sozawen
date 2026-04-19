@@ -4827,7 +4827,19 @@
         _instNotes.push({note: midi, velocity: vel, duration: dur});
 
         // Play the REAL physics-rendered sound from the server
-        const url = `/api/instrument/play/${_instFamily}/${_instModel}/${midi}?duration=${dur}&velocity=${vel}`;
+        // Include technique/amp/articulation/mute params
+        let extraParams = '';
+        const tech = document.getElementById('instTechnique')?.value;
+        const amp = document.getElementById('instAmp')?.value;
+        const art = document.getElementById('instArticulation')?.value;
+        const mute = document.getElementById('instMute')?.value;
+        const leslie = document.getElementById('instLeslie')?.value;
+        if (tech) extraParams += `&technique=${tech}`;
+        if (amp) extraParams += `&amp=${amp}`;
+        if (art) extraParams += `&articulation=${art}`;
+        if (mute) extraParams += `&mute=${mute}`;
+        if (leslie) extraParams += `&leslie=${leslie}`;
+        const url = `/api/instrument/play/${_instFamily}/${_instModel}/${midi}?duration=${dur}&velocity=${vel}${extraParams}`;
         const audio = new Audio(url);
         audio.play().then(() => {
             document.getElementById('instStatus').textContent =

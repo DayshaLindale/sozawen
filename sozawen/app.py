@@ -663,16 +663,24 @@ async def render_synth(request: Request):
 
 @api.get("/api/instrument/play/{family}/{model}/{note}")
 async def play_instrument_direct(family: str, model: str, note: int,
-                                 duration: float = 1.5, velocity: float = 0.7):
-    """Render and return a WAV file directly for browser playback.
-
-    This is the instant-play endpoint — returns audio you can hear immediately.
-    """
+                                 duration: float = 1.5, velocity: float = 0.7,
+                                 technique: str = "", amp: str = "",
+                                 articulation: str = "", mute: str = "",
+                                 leslie: str = "", drive: float = 0.0,
+                                 pickup: str = ""):
+    """Render and return a WAV file directly for browser playback."""
     import asyncio
     from fastapi.responses import FileResponse
 
     midi_note = note
     params = {}
+    if technique: params["technique"] = technique
+    if amp: params["amp"] = amp
+    if drive > 0: params["drive"] = drive
+    if articulation: params["articulation"] = articulation
+    if mute: params["mute"] = mute
+    if leslie: params["leslie"] = leslie
+    if pickup: params["pickup"] = pickup
 
     try:
         audio = await asyncio.get_event_loop().run_in_executor(
