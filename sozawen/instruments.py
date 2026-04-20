@@ -490,18 +490,24 @@ def drum_hihat_pedal(sr=44100):
     n = int(dur * sr)
     t = np.linspace(0, dur, n, dtype=np.float32)
 
-    # Air compression pop
-    pop = noise(0.008, sr) * 0.3
+    # Air compression pop — louder for audibility
+    pop = noise(0.008, sr) * 0.8
     pop_n = len(pop)
-    b, a = butter(2, [2000 / (sr / 2), 6000 / (sr / 2)], btype='band')
+    b, a = butter(2, [2000 / (sr / 2), 8000 / (sr / 2)], btype='band')
     pop = lfilter(b, a, pop).astype(np.float32)
-    pop *= np.exp(-np.linspace(0, 20, pop_n))
+    pop *= np.exp(-np.linspace(0, 15, pop_n))
 
-    # Brief contact ring
-    ring = np.sin(2 * np.pi * 3500 * t[:int(0.02 * sr)]) * 0.06
-    ring *= np.exp(-np.linspace(0, 30, len(ring)))
+    # Brief contact ring — stronger
+    ring = np.sin(2 * np.pi * 3500 * t[:int(0.02 * sr)]) * 0.2
+    ring *= np.exp(-np.linspace(0, 25, len(ring)))
+
+    # Metallic click
+    click_n = int(0.001 * sr)
+    click = np.random.randn(min(click_n, n)).astype(np.float32) * 0.3
+    click *= np.linspace(1, 0, len(click))
 
     result = np.zeros(n, dtype=np.float32)
+    result[:len(click)] += click
     result[:pop_n] += pop
     result[:len(ring)] += ring
     return result * 0.35
@@ -930,7 +936,7 @@ def render_drum_pattern(pattern, sr=44100, bpm=120):
     total_samples = int(end_beat * beat_sec * sr)
     audio = np.zeros(total_samples, dtype=np.float64)
 
-    # Cache rendered drum sounds
+    # Cache rendered drum sounds — normalize to prevent clipping
     cache = {}
 
     for hit in pattern:
@@ -941,7 +947,18 @@ def render_drum_pattern(pattern, sr=44100, bpm=120):
         if sound_name not in cache:
             gen = DRUM_SOUNDS.get(sound_name)
             if gen:
-                cache[sound_name] = gen(sr)
+                s = gen(sr).astype(np.float64)
+                # Remove DC offset
+                s -= np.mean(s)
+                # Normalize to 0.8 peak (prevents clipping when layered)
+                peak = np.max(np.abs(s))
+                if peak > 0.01:
+                    s = s / peak * 0.8
+                # Micro fade-out (last 64 samples) to prevent end clicks
+                fade = min(64, len(s))
+                if fade > 0:
+                    s[-fade:] *= np.linspace(1, 0, fade)
+                cache[sound_name] = s.astype(np.float32)
             else:
                 continue
 
