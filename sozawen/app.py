@@ -758,6 +758,38 @@ async def export_audio(request: Request):
 # INPUT DEVICES — for recording
 # ═══════════════════════════════════════════════════════════════════
 
+@api.get("/api/hardware")
+async def list_all_hardware():
+    """Unified hardware scanner — shows everything plugged in."""
+    result = {"audio_inputs": [], "audio_outputs": [], "midi_inputs": [], "midi_outputs": []}
+
+    # Audio devices
+    try:
+        import sounddevice as sd
+        for i, d in enumerate(sd.query_devices()):
+            entry = {"id": i, "name": d['name'].strip(), "channels": 0, "sample_rate": int(d['default_samplerate'])}
+            if d['max_input_channels'] > 0:
+                entry['channels'] = d['max_input_channels']
+                result['audio_inputs'].append(entry)
+            if d['max_output_channels'] > 0:
+                entry_out = dict(entry)
+                entry_out['channels'] = d['max_output_channels']
+                result['audio_outputs'].append(entry_out)
+    except Exception as e:
+        result['audio_error'] = str(e)
+
+    # MIDI devices
+    try:
+        import mido
+        result['midi_inputs'] = mido.get_input_names()
+        result['midi_outputs'] = mido.get_output_names()
+    except Exception as e:
+        result['midi_error'] = str(e)
+
+    result['total'] = (len(result['audio_inputs']) + len(result['audio_outputs']) +
+                       len(result['midi_inputs']) + len(result['midi_outputs']))
+    return JSONResponse(result)
+
 @api.get("/api/input-devices")
 async def list_input_devices():
     """List available audio input devices — deduplicated and grouped."""

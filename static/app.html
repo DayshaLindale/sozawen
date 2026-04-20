@@ -2233,6 +2233,10 @@
                     <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('sad')">Sad Minor</button>
                 </div>`,
 
+            hardware: `<h3>Hardware ${h('Everything plugged into your computer. Audio interfaces, MIDI keyboards, controllers — Sozawen sees them all. Plug something in and refresh to detect it.')}</h3>
+                <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="scanHardware()">Scan for Devices</button>
+                <div id="hardwareList" style="font-size:11px;color:var(--text-dim);line-height:1.8;">Scanning...</div>`,
+
             vocal_tune: `<h3>Vocal Tuning ${h('Correct pitch on vocal recordings. Subtle correction keeps it natural — heavy correction creates the Auto-Tune effect. Drag notes to the correct pitch on the grid.')}</h3>
                 <div class="field"><label>Correction Strength ${h('0% = no correction (natural). 50% = gentle nudge toward correct pitch. 100% = hard snap to nearest note (Auto-Tune effect).')}</label>
                     <input type="range" id="tuneStrength" min="0" max="100" value="50" oninput="document.getElementById('tuneLabel').textContent=this.value+'%'">
@@ -5541,6 +5545,61 @@
         _buildDrumGridFromState(steps);
     }
 
+    // ═══ HARDWARE SCANNER ═══
+    function scanHardware() {
+        const el = document.getElementById('hardwareList');
+        if (el) el.innerHTML = 'Scanning...';
+        fetch('/api/hardware').then(r=>r.json()).then(d => {
+            if (!el) return;
+            let html = '';
+
+            if (d.audio_inputs && d.audio_inputs.length > 0) {
+                html += `<div style="color:var(--teal);font-weight:500;margin-bottom:4px;">Audio Inputs (${d.audio_inputs.length})</div>`;
+                d.audio_inputs.forEach(dev => {
+                    html += `<div style="padding:3px 0;border-bottom:1px solid var(--border);">
+                        <span style="color:var(--text);">${dev.name}</span>
+                        <span style="color:var(--text-muted);font-size:9px;margin-left:6px;">${dev.channels}ch ${dev.sample_rate}Hz</span>
+                    </div>`;
+                });
+            } else {
+                html += '<div style="color:var(--text-muted);">No audio inputs detected</div>';
+            }
+
+            if (d.midi_inputs && d.midi_inputs.length > 0) {
+                html += `<div style="color:var(--violet-glow);font-weight:500;margin:8px 0 4px;">MIDI Inputs (${d.midi_inputs.length})</div>`;
+                d.midi_inputs.forEach(name => {
+                    html += `<div style="padding:3px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+                        <span style="color:var(--text);">${name}</span>
+                        <button class="btn btn-secondary" style="font-size:8px;padding:2px 8px;" onclick="connectMidi('${name.replace(/'/g,"\\'")}')">Connect</button>
+                    </div>`;
+                });
+            } else {
+                html += '<div style="color:var(--text-muted);margin-top:8px;">No MIDI devices detected</div>';
+            }
+
+            if (d.audio_outputs && d.audio_outputs.length > 0) {
+                html += `<div style="color:var(--teal);font-weight:500;margin:8px 0 4px;">Audio Outputs (${d.audio_outputs.length})</div>`;
+                d.audio_outputs.slice(0, 5).forEach(dev => {
+                    html += `<div style="padding:3px 0;border-bottom:1px solid var(--border);">
+                        <span style="color:var(--text);">${dev.name}</span>
+                        <span style="color:var(--text-muted);font-size:9px;margin-left:6px;">${dev.channels}ch</span>
+                    </div>`;
+                });
+                if (d.audio_outputs.length > 5) html += `<div style="color:var(--text-muted);font-size:9px;">...and ${d.audio_outputs.length-5} more</div>`;
+            }
+
+            html += `<div style="margin-top:10px;font-size:9px;color:var(--text-muted);">${d.total || 0} devices total. Plug in new hardware and click Scan to detect.</div>`;
+            el.innerHTML = html;
+        }).catch(() => { if (el) el.innerHTML = 'Scan failed — check your audio drivers.'; });
+    }
+
+    function connectMidi(name) {
+        fetch('/api/midi/connect', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({device:name})})
+            .then(r=>r.json()).then(d => {
+                showStatus(d.ok ? 'Connected to ' + name : (d.error || 'Connection failed'));
+            });
+    }
+
     // ═══ QUICK NOTE PLAYER (for scale ref + chord builder) ═══
     function playQuickNote(midi, dur) {
         dur = dur || 0.5;
@@ -6383,6 +6442,7 @@
         if (name === 'piano_roll') setTimeout(buildPianoRoll, 100);
         if (name === 'chords') setTimeout(loadChordKey, 100);
         if (name === 'scale_ref') setTimeout(showScale, 100);
+        if (name === 'hardware') setTimeout(scanHardware, 100);
     };
 
     // ═══ RESIZABLE PANELS ═══
