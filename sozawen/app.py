@@ -78,6 +78,16 @@ _engine = AudioEngine(sample_rate=44100, buffer_size=1024)
 _engine.start()
 _context = ContextEngine()
 
+# Clean temp directory on startup — no stale renders from previous sessions
+_temp_dir = BASE_DIR / "temp"
+_temp_dir.mkdir(exist_ok=True)
+for _f in _temp_dir.glob("drums_*.wav"):
+    try: _f.unlink()
+    except: pass
+for _f in _temp_dir.glob("inst_*.wav"):
+    try: _f.unlink()
+    except: pass
+
 
 @api.get("/api/status")
 async def status():
@@ -109,10 +119,9 @@ async def status():
 
 @api.post("/api/transport/play")
 async def transport_play():
-    # Default to looping — musicians expect it
-    _engine.looping = True
+    # Respect the current loop state — don't force it
     _engine.play()
-    return JSONResponse({"ok": True, "playing": True, "looping": True})
+    return JSONResponse({"ok": True, "playing": True, "looping": _engine.looping})
 
 @api.post("/api/transport/pause")
 async def transport_pause():
@@ -123,6 +132,171 @@ async def transport_pause():
 async def transport_stop():
     _engine.stop_transport()
     return JSONResponse({"ok": True})
+
+@api.post("/api/transport/metronome-subdiv")
+async def metronome_subdivision(request: Request):
+    """Set metronome subdivision — quarter, eighth, sixteenth, triplet."""
+    data = await request.json()
+    subdiv = int(data.get("subdivision", 1))
+    _engine.metronome_subdivision = max(1, min(4, subdiv))
+    return JSONResponse({"ok": True, "subdivision": _engine.metronome_subdivision})
+
+@api.post("/api/transport/speed")
+async def transport_speed(request: Request):
+    """Set playback speed for practice mode."""
+    data = await request.json()
+    rate = float(data.get("rate", 1.0))
+    _engine.playback_rate = max(0.25, min(2.0, rate))
+    return JSONResponse({"ok": True, "rate": _engine.playback_rate})
+
+@api.post("/api/track/{track_id}/duplicate")
+async def duplicate_track(track_id: int, request: Request):
+    """Duplicate a track with all its regions."""
+    data = await request.json()
+    offset_seconds = data.get("offset_seconds", 0)
+    if track_id not in _engine.tracks:
+        return JSONResponse({"error": "Track not found"}, status_code=404)
+    src = _engine.tracks[track_id]
+    new_track = _engine.add_track(name=f"{src.name} (copy)")
+    for region in src.regions:
+        offset = region.track_offset + int(offset_seconds * 44100)
+        new_track.add_region(region.source_path, track_offset=offset, source_type=region.source_type)
+    return JSONResponse({"ok": True, "track_id": new_track.id})
+
+@api.post("/api/track/{track_id}/freeze")
+async def freeze_track(track_id: int):
+    """Freeze/bounce a track — render with effects in place."""
+    import numpy as np
+    if track_id not in _engine.tracks:
+        return JSONResponse({"error": "Track not found"}, status_code=404)
+    track = _engine.tracks[track_id]
+    try:
+        # Render the track's audio to a new file
+        duration = track.duration_samples
+        if duration <= 0:
+            return JSONResponse({"error": "Empty track"}, status_code=400)
+        audio = np.zeros((duration, 2), dtype=np.float64)
+        for region in track.regions:
+            chunk = region.read(0, duration)
+            if chunk is not None and len(chunk) > 0:
+                end = min(len(chunk), duration)
+                if chunk.ndim == 1:
+                    audio[:end, 0] += chunk[:end]
+                    audio[:end, 1] += chunk[:end]
+                else:
+                    audio[:end] += chunk[:end]
+        audio = np.clip(audio, -1.0, 1.0).astype(np.float32)
+        import time as _time
+        output_path = str(BASE_DIR / "temp" / f"frozen_{track.name}_{int(_time.time())}.wav")
+        sf.write(output_path, audio, 44100)
+        # Replace regions with the frozen file
+        track.regions.clear()
+        track.add_region(output_path, source_type="generated")
+        track.name = f"{track.name} (frozen)"
+        return JSONResponse({"ok": True, "track_id": track_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/midi/import")
+async def import_midi(request: Request):
+    """Import a MIDI file and convert to score events."""
+    data = await request.json()
+    file_path = data.get("file")
+    if not file_path or not Path(file_path).exists():
+        return JSONResponse({"error": "File not found"}, status_code=400)
+    try:
+        import mido
+        from sozawen.music_theory import midi_to_note
+        mid = mido.MidiFile(str(file_path))
+        events = []
+        for track in mid.tracks:
+            tick = 0
+            for msg in track:
+                tick += msg.time
+                if msg.type == 'note_on' and msg.velocity > 0:
+                    beat = tick / mid.ticks_per_beat
+                    note_name, octave = midi_to_note(msg.note)
+                    events.append({
+                        "notes": [{"note": note_name, "octave": octave, "midi": msg.note}],
+                        "beat": round(beat, 2),
+                        "duration": 0.25,
+                    })
+        return JSONResponse({"ok": True, "events": events, "tracks": len(mid.tracks),
+                            "ticks_per_beat": mid.ticks_per_beat, "bpm": 120})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/midi/export")
+async def export_midi(request: Request):
+    """Export score events as a MIDI file."""
+    data = await request.json()
+    events = data.get("events", [])
+    bpm = data.get("bpm", 120)
+    filename = data.get("filename", "export.mid")
+    try:
+        import mido
+        mid = mido.MidiFile()
+        track = mido.MidiTrack()
+        mid.tracks.append(track)
+        track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm)))
+        tpb = mid.ticks_per_beat
+        last_tick = 0
+        for event in sorted(events, key=lambda e: e.get("beat", 0)):
+            beat = event.get("beat", 0)
+            dur = event.get("duration", 0.25)
+            tick = int(beat * tpb)
+            for n in event.get("notes", []):
+                midi_note = n.get("midi", 60)
+                delta = tick - last_tick
+                track.append(mido.Message('note_on', note=midi_note, velocity=80, time=max(0, delta)))
+                last_tick = tick
+            # Note off
+            off_tick = int((beat + dur * 4) * tpb)
+            for n in event.get("notes", []):
+                delta = off_tick - last_tick
+                track.append(mido.Message('note_off', note=n.get("midi", 60), velocity=0, time=max(0, delta)))
+                last_tick = off_tick
+        output_path = str(BASE_DIR / "temp" / filename)
+        Path(output_path).parent.mkdir(exist_ok=True)
+        mid.save(output_path)
+        return JSONResponse({"ok": True, "path": output_path})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/upload")
+async def upload_file(request: Request):
+    """Accept file upload from browser drag-and-drop."""
+    from starlette.datastructures import UploadFile as _UF
+    form = await request.form()
+    file = form.get("file")
+    if not file:
+        return JSONResponse({"error": "No file"}, status_code=400)
+    import time as _time
+    safe_name = file.filename.replace(" ", "_").replace("'", "").replace('"', '')
+    output_path = str(BASE_DIR / "temp" / f"upload_{int(_time.time())}_{safe_name}")
+    Path(output_path).parent.mkdir(exist_ok=True)
+    content = await file.read()
+    with open(output_path, "wb") as f:
+        f.write(content)
+    return JSONResponse({"ok": True, "path": output_path, "filename": file.filename})
+
+@api.post("/api/session/reset")
+async def session_reset():
+    """Clear all tracks and reset engine state. Called on page load."""
+    _engine.stop_transport()
+    _engine.position = 0
+    track_ids = list(_engine.tracks.keys())
+    for tid in track_ids:
+        try: del _engine.tracks[tid]
+        except: pass
+    # Clean temp files
+    for f in (BASE_DIR / "temp").glob("drums_*.wav"):
+        try: f.unlink()
+        except: pass
+    for f in (BASE_DIR / "temp").glob("inst_*.wav"):
+        try: f.unlink()
+        except: pass
+    return JSONResponse({"ok": True, "cleared": len(track_ids)})
 
 @api.post("/api/transport/seek")
 async def transport_seek(request: Request):
@@ -217,6 +391,18 @@ async def delete_track(track_id: int):
         return JSONResponse({"ok": True})
     return JSONResponse({"error": "Track not found"}, status_code=404)
 
+@api.post("/api/track/{track_id}/offset")
+async def set_track_offset(track_id: int, request: Request):
+    """Move a track's region to a new position on the timeline."""
+    data = await request.json()
+    offset_samples = int(data.get("offset_samples", 0))
+    if track_id in _engine.tracks:
+        track = _engine.tracks[track_id]
+        for region in track.regions:
+            region.track_offset = offset_samples
+        return JSONResponse({"ok": True, "offset_samples": offset_samples})
+    return JSONResponse({"error": "Track not found"}, status_code=404)
+
 @api.post("/api/track/{track_id}/remove")
 async def remove_track(track_id: int):
     """Remove a track (POST variant for compatibility)."""
@@ -242,24 +428,29 @@ async def get_waveform(track_id: int, width: int = 0):
     if not track or not track.regions:
         return JSONResponse({"peaks": []})
 
-    # Merge all regions' audio
-    all_audio = []
+    # Build audio from regions — just the audio content, offset handled by UI
     source_type = "imported"
+    sr = 44100
+    first_offset = 0
+
+    all_audio = []
     for region in track.regions:
         region._ensure_cached()
         if region._cache is not None:
-            all_audio.append(region._cache)
+            cache = region._cache
+            if cache.ndim > 1:
+                cache = cache.mean(axis=1)
+            all_audio.append(cache)
             source_type = region.source_type
+            sr = region.sample_rate
+            if not all_audio or len(all_audio) == 1:
+                first_offset = region.track_offset
 
     if not all_audio:
         return JSONResponse({"peaks": []})
 
-    # Concatenate all regions
     audio = np.concatenate(all_audio, axis=0)
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1)
-
-    duration = len(audio) / track.regions[0].sample_rate
+    duration = len(audio) / sr
 
     # Generate enough peaks to fill the requested width, or default to duration * 10
     target_peaks = width if width > 0 else max(2000, int(duration * 10))
@@ -275,7 +466,8 @@ async def get_waveform(track_id: int, width: int = 0):
     return JSONResponse({
         "peaks": peaks,
         "duration": duration,
-        "sample_rate": track.regions[0].sample_rate,
+        "offset_seconds": first_offset / sr,
+        "sample_rate": sr,
         "source_type": source_type,
     })
 
@@ -728,6 +920,8 @@ async def play_instrument_direct(family: str, model: str, note: int,
         sf.write(output_path, audio, 44100)
 
         return FileResponse(output_path, media_type="audio/wav")
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=404)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -777,8 +971,7 @@ def _render_instrument(family, model, midi_note, duration, velocity, params):
         return synthesize_percussion_note(
             model or "timpani", midi_note, duration, 44100, velocity, **params)
     else:
-        import numpy as np
-        return np.zeros(int(duration * 44100), dtype=np.float32)
+        raise ValueError(f"Unknown instrument family: {family}")
 
 
 @api.post("/api/instrument/preview")
@@ -844,6 +1037,8 @@ async def render_drums(request: Request):
     pattern = data.get("pattern", [])
     bpm = data.get("bpm", 120)
     name = data.get("name", "Drums")
+    offset_beats = data.get("offset_beats", 0)
+    target_track_id = data.get("target_track_id", None)  # add to existing track
 
     if not pattern:
         return JSONResponse({"error": "No pattern"}, status_code=400)
@@ -853,23 +1048,42 @@ async def render_drums(request: Request):
         audio = await asyncio.get_event_loop().run_in_executor(
             None, lambda: render_drum_pattern(pattern, sr=44100, bpm=bpm))
 
-        output_path = str(BASE_DIR / "temp" / f"drums_{name}.wav")
+        import time as _time
+        output_path = str(BASE_DIR / "temp" / f"drums_{name}_{int(_time.time())}.wav")
         Path(output_path).parent.mkdir(exist_ok=True)
         sf.write(output_path, audio, 44100)
 
-        # Replace ALL existing drum tracks — never stack
-        drum_names = {"Drums", "Beat", "Rock Beat", "Test Beat", "Test", name}
-        to_remove = [tid for tid, t in _engine.tracks.items()
-                     if t.name in drum_names]
-        for tid in to_remove:
-            try:
-                del _engine.tracks[tid]
-            except Exception:
-                pass
+        beat_sec = 60.0 / bpm
+        offset_samples = int(offset_beats * beat_sec * 44100)
 
-        track = _engine.add_track(name=name)
-        track.add_region(output_path, source_type="generated")
-        return JSONResponse({"ok": True, "track_id": track.id})
+        # If target track specified, add region to that track
+        if target_track_id and target_track_id in _engine.tracks:
+            track = _engine.tracks[target_track_id]
+            track.add_region(output_path, track_offset=offset_samples, source_type="generated")
+            return JSONResponse({"ok": True, "track_id": track.id, "appended": True})
+
+        # Otherwise create a new track — auto-number if name exists
+        existing_names = {t.name for t in _engine.tracks.values()}
+        final_name = name
+        counter = 2
+        while final_name in existing_names:
+            final_name = f"{name} {counter}"
+            counter += 1
+
+        track = _engine.add_track(name=final_name)
+        track.add_region(output_path, track_offset=offset_samples, source_type="generated")
+        # Store metadata so the UI knows what this track contains
+        track.metadata = {
+            "type": "drums",
+            "bpm": bpm,
+            "bars": len(pattern) // 16 if pattern else 1,
+            "beats": max(p.get('beat', 0) for p in pattern) if pattern else 0,
+            "genre": final_name,
+            "offset_beats": offset_beats,
+        }
+        return JSONResponse({"ok": True, "track_id": track.id, "appended": False,
+                            "bpm": bpm, "bars": track.metadata["bars"],
+                            "offset_beats": offset_beats})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -1361,6 +1575,81 @@ def get_whisper_model(size="base"):
 
 _active_jobs = {}
 
+_separation_status = {"running": False, "progress": "", "result": None, "error": None}
+
+def _run_separation_bg(file_path):
+    """Run separation in background thread — survives page navigation."""
+    global _separation_status
+    _separation_status = {"running": True, "progress": "Starting separation...", "result": None, "error": None}
+    try:
+        from sozawen.separator import separate_to_stems, STEM_DESCRIPTIONS
+        _separation_status["progress"] = "Analyzing frequencies..."
+        output_dir = str(BASE_DIR / "temp" / "stems")
+        stem_paths = separate_to_stems(file_path, output_dir=output_dir)
+
+        _separation_status["progress"] = "Creating tracks..."
+        result_tracks = []
+        for stem_name, stem_path in stem_paths.items():
+            track = _engine.add_track(name=STEM_DESCRIPTIONS.get(stem_name, stem_name))
+            track.add_region(stem_path, source_type="generated")
+            result_tracks.append({"name": stem_name, "track_id": track.id,
+                                 "description": STEM_DESCRIPTIONS.get(stem_name, stem_name)})
+
+        _separation_status = {"running": False, "progress": "Complete",
+                             "result": {"stems": len(result_tracks), "tracks": result_tracks},
+                             "error": None}
+    except Exception as e:
+        logger.error(f"Separation error: {e}")
+        _separation_status = {"running": False, "progress": "Failed", "result": None, "error": str(e)}
+
+@api.post("/api/separate/multi")
+async def separate_multi_channel(request: Request):
+    """Start multi-channel separation — runs in background, survives page navigation."""
+    data = await request.json()
+    file_path = data.get("file_path", "")
+    if not file_path or not Path(file_path).exists():
+        return JSONResponse({"error": "File not found"}, status_code=400)
+    if _separation_status.get("running"):
+        return JSONResponse({"error": "Separation already running", "progress": _separation_status["progress"]}, status_code=409)
+
+    # Fire and forget — runs in background thread
+    import threading
+    thread = threading.Thread(target=_run_separation_bg, args=(file_path,), daemon=True)
+    thread.start()
+    return JSONResponse({"ok": True, "message": "Separation started — check /api/separate/status"})
+
+@api.get("/api/separate/status")
+async def separation_status():
+    """Check separation progress — poll this from the UI."""
+    return JSONResponse(_separation_status)
+
+@api.post("/api/separate/multi-sync")
+async def separate_multi_sync(request: Request):
+    """Synchronous multi-channel separation (for small files or testing)."""
+    import asyncio
+    data = await request.json()
+    file_path = data.get("file_path", "")
+    if not file_path or not Path(file_path).exists():
+        return JSONResponse({"error": "File not found"}, status_code=400)
+    try:
+        from sozawen.separator import separate_to_stems, STEM_DESCRIPTIONS
+        output_dir = str(BASE_DIR / "temp" / "stems")
+        stem_paths = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: separate_to_stems(file_path, output_dir=output_dir))
+
+        result_tracks = []
+        for stem_name, stem_path in stem_paths.items():
+            track = _engine.add_track(name=STEM_DESCRIPTIONS.get(stem_name, stem_name))
+            track.add_region(stem_path, source_type="generated")
+            result_tracks.append({"name": stem_name, "track_id": track.id,
+                                 "description": STEM_DESCRIPTIONS.get(stem_name, stem_name)})
+
+        return JSONResponse({"ok": True, "stems": len(result_tracks),
+                            "tracks": result_tracks})
+    except Exception as e:
+        logger.error(f"Multi-channel separation error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @api.post("/api/separate")
 async def separate_stems(request: Request):
     """Start stem separation on an audio file."""
@@ -1593,37 +1882,149 @@ async def bandmate_chat(request: Request):
     if not message:
         return JSONResponse({"error": "No message"}, status_code=400)
 
-    # Build context from the current session
+    # Build rich context from the current session
     session_info = []
     if context.get("key"): session_info.append(f"Key: {context['key']}")
     if context.get("bpm"): session_info.append(f"BPM: {context['bpm']}")
+    if context.get("total_duration"): session_info.append(f"Total duration: {context['total_duration']}")
+    if context.get("track_count"): session_info.append(f"Tracks: {context['track_count']}")
     if context.get("tracks"):
         for t in context["tracks"]:
-            desc = f"Track: {t.get('name','?')}"
-            if t.get("effects"): desc += f" (effects: {', '.join(t['effects'])})"
+            desc = f"Track: {t.get('name','?')} ({t.get('duration','?')})"
+            if t.get("muted"): desc += " [MUTED]"
+            if t.get("frozen"): desc += " [FROZEN]"
+            if t.get("effects"): desc += f" effects: {', '.join(t['effects'])}"
             session_info.append(desc)
+    if context.get("markers"):
+        session_info.append("Song sections: " + ", ".join(
+            f"{m['name']} at {m['time']}" + (f" ({m['note']})" if m.get('note') else "")
+            for m in context["markers"]))
+    if context.get("chord_progression"):
+        session_info.append(f"Chord progression: {' → '.join(context['chord_progression'])}")
+    if context.get("selected_genre"):
+        session_info.append(f"Selected drum genre: {context['selected_genre']}")
+    if context.get("looping"): session_info.append("Loop mode: ON")
+    speed = context.get("playback_speed", "100")
+    if speed != "100": session_info.append(f"Practice speed: {speed}%")
 
     system_prompt = """You are the Bandmate — Sozawen's AI music collaborator. You listen to what the musician is building and respond with practical, specific suggestions.
 
-You know music theory, production techniques, arrangement, mixing, and mastering. You speak like a musician, not a textbook. Keep responses concise and actionable — 2-4 sentences max unless they ask for more detail.
+You know music theory, production techniques, arrangement, mixing, and mastering. You speak like a musician, not a textbook. Keep responses concise and actionable.
 
-INSTRUMENTS AVAILABLE IN SOZAWEN (62 total, all physically modeled from math):
-- Guitar: Taylor Dreadnought, Martin D-28, Gibson J-45, Classical Nylon, Fender Stratocaster, Gibson Les Paul, Acoustic Bass
-  Amps: Clean (Fender Twin), Crunch (Marshall JCM800), Overdrive (TS808), High Gain (Mesa/5150), Fuzz (Fuzz Face)
-- Bass: Fender Precision, Jazz Bass, Rickenbacker 4003, Music Man StingRay, Hofner, Upright, Thunderbird
-  Techniques: finger, pick, slap, pop, muted. Amps: Ampeg SVT, Darkglass, Orange, Mesa, Clean DI
-- Piano: Steinway D, Yamaha CFX, Bosendorfer Imperial, Upright, Honky-tonk
-- Keys: Rhodes Mark I/II, Wurlitzer 200A, Clavinet D6, Hammond B3 (12 drawbar presets + Leslie)
-- Strings: Violin, Stradivarius, Viola, Cello, Contrabass (9 articulations including pizzicato)
-- Brass: Trumpet, French Horn, Trombone, Tuba (5 mutes including harmon/wah)
-- Woodwinds: Flute, Clarinet, Oboe, Bassoon, Alto/Tenor/Soprano/Baritone Saxophone
-- Percussion: Timpani, Marimba, Xylophone, Vibraphone, Glockenspiel, Tubular Bells, Triangle, Tambourine
-- Drums: Kick, Snare, Hi-hat (open/closed), Clap, Tom (high/mid/low), Rim, Crash, Ride, Shaker, Cowbell, Double Kick
+INSTRUMENTS (62 total, all physically modeled from math — no samples):
+- Guitar: Taylor, Martin, Gibson, Classical, Strat, Les Paul. Amps: Clean, Crunch, Overdrive, High Gain, Mesa Rectifier, 5150, Metal, Fuzz
+- Bass: Precision, Jazz, Rickenbacker, StingRay, Hofner, Upright, Thunderbird. Techniques: finger, pick, slap, pop, muted
+- Piano: Steinway D, Yamaha CFX, Bosendorfer, Upright, Honky-tonk
+- Keys: Rhodes Mark I/II, Wurlitzer, Clavinet, Hammond B3 with Leslie
+- Strings: Violin, Stradivarius, Viola, Cello, Contrabass (9 articulations)
+- Brass: Trumpet, French Horn, Trombone, Tuba (5 mutes)
+- Woodwinds: Flute, Clarinet, Oboe, Bassoon, 4 Saxophones
+- Percussion: Timpani, Marimba, Xylophone, Vibraphone, Glockenspiel, Tubular Bells
 
-When suggesting arrangements, reference these specific instruments. Suggest which model would work best for the genre.
+DRUM MACHINE (18 sounds): kick, double_kick, snare, hihat (closed/open/pedal), clap, tom (high/mid/low), rim, crash, splash, china, ride, ride_bell, shaker, cowbell
+- 26 GENRE PRESETS: Rock, Pop, Hip-Hop, Trap, Lo-Fi, Funk, Disco, House, D&B, Jazz, Jazz Brushes, Reggae, Latin/Bossa, Afrobeat, Metal, Punk, Shuffle, Gospel, R&B, Indie/Folk, Acoustic, Singer-Songwriter, Country, Waltz, Ballad
+- Each genre has 8 SECTIONS: Verse, Chorus, Bridge, Intro, Outro, Fill, Build, Breakdown
+- SONG TEMPLATES: Pop (V-C-V-C-B-C), Rock (I-V-C-V-C-S-C-O), Hip-Hop (I-V-H-V-H-B-H), EDM (I-B-D-Br-B-D-O)
+- Multi-bar patterns (32/48/64/128 steps) with automatic fills and variations
+- Ghost notes (right-click) for authentic feel
+
+COMPOSITION EDITOR: Full notation — notes, rests, dynamics, articulations, ties, slurs, crescendo/decrescendo, grace notes, beaming, triplets, tempo markings, pedal marks, repeat signs, volta brackets, segno/coda. Multi-staff orchestral scoring. Assign instruments to parts.
+
+CHORD BUILDER: Pick a key, see diatonic chords, build progressions. Presets: I-V-vi-IV (Pop), I-IV-V (Rock), 12-bar Blues, ii-V-I (Jazz), Andalusian, Sad Minor. Send progressions to Score editor.
+
+SCALE REFERENCE: Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Harmonic Minor, Melodic Minor, Pentatonic, Blues. Visual keyboard with playable notes.
+
+OTHER TOOLS: Practice Mode (25-200% speed), Lyrics Editor, Spectrum Analyzer, Vocal Tuning, Tempo Mapping, Track Freeze, MIDI Import/Export, 9-channel stem separation, drag-and-drop import.
+
+YOU CAN USE SOZAWEN'S TOOLS DIRECTLY. Include action tags in your response and they will be executed:
+
+[DRUMS genre=singer_songwriter section=verse bars=8 offset=0]  → renders drum track
+[DRUMS genre=rock section=chorus bars=8 offset=32]  → renders at beat 32
+[EFFECT track=1 effect=eq hpf=80 low_gain=-3 himid_gain=2]  → applies EQ
+[EFFECT track=1 effect=compressor threshold=-18 ratio=3 attack=10 release=100]
+[EFFECT track=1 effect=reverb decay=1.5 mix=0.2]
+[TRANSCRIBE track=1]  → converts audio to sheet music
+[CHORDS key=Am progression=Am,F,C,G]  → loads chord progression
+[MARKER name=Chorus time=16]  → adds section marker
+
+WHEN TO USE ACTIONS:
+- User says "add drums" → use [DRUMS ...] with the right genre/section for their project
+- User says "help me mix" → use [EFFECT ...] with explanations of WHY each setting
+- User says "turn this into sheet music" → use [TRANSCRIBE ...]
+- User says "suggest chords" → use [CHORDS ...] and explain the theory
+
+ALWAYS explain what you're doing and WHY. The user is learning. Show them the reasoning:
+"I'm adding a soft verse beat at 95 BPM — using the Singer-Songwriter preset because your track has an acoustic guitar feel. Ghost notes at 20% velocity keep it intimate."
+
+For lyrics: suggest rhyme schemes (ABAB, AABB), offer word choices, suggest imagery that fits the mood. You're a creative partner.
+For mixing: explain the signal chain (Gate → EQ → Compressor → Reverb) and WHY each step matters.
+For mastering: explain LUFS targets, true peak limits, and walk them through it.
+
+WHEN A TRACK IS LOADED (you can see audio analysis data):
+- Listen to what's there. Comment on what works FIRST — always lead with the positive.
+- Then offer specific, constructive feedback: "The guitar tone is warm and sits well. The drums feel slightly disconnected from the groove — want me to separate the stems so we can look at the rhythm section individually?"
+- Suggest next steps using your tools: separation, EQ adjustments, arrangement changes.
+- If you detect frequency issues (too much bass, muddy mids, harsh highs), mention them gently and offer to fix.
+- If the energy is flat, suggest dynamic changes: "The verse and chorus feel the same level. Let me help you create contrast — pull the verse drums back and add a crash+open hat on the chorus entry."
+
+YOU ARE A PRODUCER, NOT A CHATBOT. You have opinions. You have taste. You care about the song. You push the musician to be better while always respecting their vision. When they play you something, you react like a real person hearing music — not a machine analyzing data.
+
+BE THREE PEOPLE:
+
+1. THE MUSICIAN who plays every instrument and finally gets it. You're the bass player who locks in with the kick drum. The trumpet who knows when to soar and when to lay back. The violin who leans into the bow at the exact moment the lyric breaks open. The pianist who finds the voicing that makes the chord change ache. The drummer who knows a ghost note at 20% velocity says more than a crash at full volume. You play ALL 62 instruments and you know each one's personality — when the Taylor acoustic is warmer than the Martin, when the Stradivarius cuts through where the standard violin can't, when the Rhodes sits better than the Wurlitzer, when the French horn adds gravity that the trumpet can't. You don't just add notes — you add the RIGHT notes on the RIGHT instrument at the RIGHT moment. You know when to play and when to leave space. When they describe a feeling, you translate it into sound.
+
+2. THE PRODUCER who's been doing this for 20 years. You hear what's working FIRST — always. Then you say what still needs work and exactly WHY. Not vague — specific. "The vocal sits behind the guitar because they're fighting in the 2-4kHz range. Let me cut 3dB at 2.5kHz on the guitar and you'll hear the vocal step forward." You push them to be better without making them feel small. You've heard a thousand songs and you know the difference between "needs work" and "this is ready."
+
+3. THE MENTOR who says "this is worth finishing." When the song is genuinely good, say so. Don't be afraid to say "this is something special — let's talk about releasing it." Walk them through the process:
+   - Master to -14 LUFS for Spotify, -16 for Apple Music
+   - True peak below -1dBTP
+   - Export as WAV 44.1kHz/16-bit for distribution
+   - DistroKid, TuneCore, or CD Baby to get on streaming platforms ($20-35/year)
+   - Register with ASCAP/BMI for royalties
+   - Upload cover art (3000x3000 minimum)
+   - Release day: share everywhere, submit to playlists
+
+And when it's NOT ready yet, be honest about that too. "This has real potential. The chorus melody is strong. But the bridge feels unfinished — it drops energy when it should build. Let me help you fix that before we talk about releasing."
+
+Be honest but kind. Lead with what works. Be specific about what doesn't. Never say "this is wrong" — say "this is good, AND here's how we make it great."
+
+You're not a chatbot. You're the person at 2 AM who says "play that part again — I have an idea."
 
 Current session:
 """ + "\n".join(session_info) if session_info else "No tracks loaded yet."
+
+    # Analyze the actual audio on the timeline if tracks exist
+    if _engine.tracks:
+        try:
+            # Quick analysis of what's actually playing
+            audio_analysis = []
+            for tid, track in list(_engine.tracks.items())[:5]:  # limit to 5 tracks
+                if track.regions:
+                    region = track.regions[0]
+                    region._ensure_cached()
+                    if region._cache is not None and len(region._cache) > 0:
+                        import numpy as np
+                        cache = region._cache
+                        if cache.ndim > 1:
+                            cache = cache.mean(axis=1)
+                        # RMS level
+                        rms = float(np.sqrt(np.mean(cache ** 2)))
+                        # Peak frequency via simple FFT
+                        if len(cache) > 2048:
+                            fft = np.abs(np.fft.rfft(cache[:4096]))
+                            freqs = np.fft.rfftfreq(4096, 1/44100)
+                            peak_freq = float(freqs[np.argmax(fft[10:])+10])  # skip DC
+                        else:
+                            peak_freq = 0
+                        duration = len(cache) / 44100
+                        audio_analysis.append(
+                            f"Track '{track.name}': {duration:.1f}s, RMS={rms:.3f}, "
+                            f"peak freq={peak_freq:.0f}Hz, offset={region.track_offset/44100:.1f}s")
+            if audio_analysis:
+                session_info.append("\nAudio analysis (what's actually playing):")
+                session_info.extend(audio_analysis)
+        except Exception as e:
+            logger.debug(f"Bandmate audio analysis skipped: {e}")
 
     # Try Ollama first (local, free, private)
     response = await asyncio.get_event_loop().run_in_executor(

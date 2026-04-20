@@ -208,9 +208,11 @@ class AudioEngine:
         self.looping = False
         self.loop_start = 0
         self.loop_end = 0
+        self.playback_rate = 1.0     # 0.25 to 2.0 — practice mode speed
 
         # Metronome
         self.metronome_on = False
+        self.metronome_subdivision = 1  # 1=quarter, 2=eighth, 4=sixteenth, 3=triplet
         self.bpm = 120.0
         self.time_sig_num = 4
         self.time_sig_den = 4
@@ -461,8 +463,8 @@ class AudioEngine:
             # Output (convert to float32 for sounddevice)
             outdata[:] = mix[:frames].astype(np.float32)
 
-            # Advance position
-            self.position = self.position + frames
+            # Advance position (playback rate for practice mode)
+            self.position = self.position + int(frames * self.playback_rate)
 
             # Loop control
             if self.looping:

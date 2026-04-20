@@ -479,33 +479,136 @@ def electric_amp(signal, amp_type="clean", drive=0.3, sr=44100):
         output = _speaker_cab(output, "1x12", sr)
 
     elif amp_type == "high_gain":
-        # Mesa Mark IIC+ / 5150 / Dual Rectifier
-        # Metallica, Pantera, Meshuggah — the metal sound
+        # Mesa Mark IIC+ — Metallica's Black Album tone
         # EMG 81 → four stages → scooped mids → tight cab
-
-        # Simulate hot EMG pickup input (active pickups are louder/compressed)
-        output = output * 1.5  # hotter input signal
-
-        # Stage 1: preamp gain — already hitting hard
+        output = output * 1.5  # hot EMG input
         output = _tube_stage(output, 4.0 + drive * 8, bias=0.12)
-
-        # EQ BETWEEN stages — V-shaped scoop (Metallica)
         output = _tone_stack(output, bass=0.8, mid=0.15, treble=0.9, sr=sr)
-
-        # Stage 2: this is where the crunch lives
         output = _tube_stage(output, 3.0 + drive * 6, bias=0.1)
-
-        # Presence filter
         b, a = butter(1, 5500 / (sr / 2), btype='low')
         output = lfilter(b, a, output).astype(np.float32)
-
-        # Stage 3: saturation thickens
         output = _tube_stage(output, 2.5 + drive * 4, bias=0.08)
-
-        # Stage 4: power amp compression — pushes everything together
         output = _tube_stage(output, 2.0 + drive * 3, bias=0.05)
+        output = _speaker_cab(output, "4x12", sr)
 
-        # 4x12 closed-back cabinet — tight, focused, no fizz
+    elif amp_type == "mesa_rectifier":
+        # Mesa Dual Rectifier — Lamb of God, Tool, Deftones
+        # Thick, warm saturation with massive low end
+        # Rectifier tubes cause "sag" — compression bloom under sustain
+
+        output = output * 1.4  # active pickup
+        # Tight gate — kill noise below threshold
+        gate_threshold = 0.01
+        gate = np.where(np.abs(output) > gate_threshold, 1.0, 0.0).astype(np.float32)
+        # Smooth gate to avoid clicks
+        from scipy.ndimage import uniform_filter1d
+        gate = uniform_filter1d(gate.astype(np.float64), size=int(0.002 * sr)).astype(np.float32)
+
+        # Stage 1: preamp — moderate gain, Mesa warmth
+        output = _tube_stage(output, 3.5 + drive * 7, bias=0.10)
+
+        # Rectifier sag simulation — output level compresses the signal
+        # Louder = more sag = less gain (natural compression bloom)
+        rms = np.sqrt(np.convolve(output ** 2, np.ones(256) / 256, mode='same'))
+        sag = 1.0 / (1.0 + rms * 2.0)  # gain reduces as RMS rises
+        output = output * (0.6 + sag * 0.4)
+
+        # EQ — Mesa Rectifier has LESS scoop than Mark series
+        # More mids = thicker, heavier, less "scooped" character
+        output = _tone_stack(output, bass=0.9, mid=0.35, treble=0.7, sr=sr)
+
+        # Stage 2: cascaded preamp
+        output = _tube_stage(output, 2.8 + drive * 5, bias=0.09)
+
+        # Tight low cut — prevent sub-bass mush at high gain
+        b, a = butter(2, 80 / (sr / 2), btype='high')
+        output = lfilter(b, a, output).astype(np.float32)
+
+        # Stage 3: saturation
+        output = _tube_stage(output, 2.2 + drive * 3.5, bias=0.07)
+
+        # Presence — adjustable via drive (more drive = darker)
+        pres_freq = 6000 - drive * 1500  # 6000Hz at clean, 4500Hz at max
+        b, a = butter(1, pres_freq / (sr / 2), btype='low')
+        output = lfilter(b, a, output).astype(np.float32)
+
+        # Stage 4: power amp with sag
+        output = _tube_stage(output, 1.8 + drive * 2.5, bias=0.04)
+
+        # Apply gate
+        output = output * gate
+
+        # Mesa Recto 4x12 — deeper than Marshall, V30 speakers
+        output = _speaker_cab(output, "4x12", sr)
+        # Extra low-end body from Recto cab
+        b, a = butter(1, 200 / (sr / 2), btype='low')
+        low_body = lfilter(b, a, output).astype(np.float32) * 0.15
+        output = output + low_body
+
+    elif amp_type == "5150":
+        # Peavey 5150 / EVH — Van Halen, Periphery, August Burns Red
+        # THE djent amp. Tight, aggressive, percussive pick attack
+        # Less sag than Mesa — tighter power section
+
+        output = output * 1.6  # hot input — 5150 input is LOUD
+        # Hard noise gate (5150 players always gate)
+        gate_threshold = 0.012
+        gate = np.where(np.abs(output) > gate_threshold, 1.0, 0.0).astype(np.float32)
+        from scipy.ndimage import uniform_filter1d
+        gate = uniform_filter1d(gate.astype(np.float64), size=int(0.001 * sr)).astype(np.float32)
+
+        # Stage 1: aggressive preamp — 5150 has more bite than Mesa
+        output = _tube_stage(output, 4.5 + drive * 9, bias=0.13)
+
+        # 5150 EQ — harder scoop than Mesa, more treble bite
+        output = _tone_stack(output, bass=0.7, mid=0.10, treble=0.95, sr=sr)
+
+        # Tight sub filter EARLY — 5150 is known for tight bass
+        b, a = butter(3, 100 / (sr / 2), btype='high')
+        output = lfilter(b, a, output).astype(np.float32)
+
+        # Stage 2: crunch — 5150 stays tight
+        output = _tube_stage(output, 3.5 + drive * 7, bias=0.11)
+
+        # Presence — 5150 has aggressive upper mids
+        b, a = butter(1, 5000 / (sr / 2), btype='low')
+        output = lfilter(b, a, output).astype(np.float32)
+
+        # Stage 3: saturation — tighter bias than Mesa
+        output = _tube_stage(output, 2.8 + drive * 4.5, bias=0.09)
+
+        # Stage 4: solid-state-like power section (6L6 tubes, very tight)
+        output = _tube_stage(output, 2.0 + drive * 2.5, bias=0.03)
+
+        # Apply gate
+        output = output * gate
+
+        # 5150 cab — even tighter than Marshall, very focused
+        output = _speaker_cab(output, "4x12", sr)
+
+    elif amp_type == "metal":
+        # General-purpose metal — TS808 boost → high gain → tight cab
+        # The classic modern metal signal chain:
+        # Guitar → TS808 (low gain, high output) → High gain amp → 4x12
+
+        # TS808 boost stage (gain low, mids boosted, output hot)
+        b, a = butter(2, [250 / (sr / 2), 4000 / (sr / 2)], btype='band')
+        mid_boosted = lfilter(b, a, output).astype(np.float32)
+        output = output * 0.4 + mid_boosted * 0.8  # mid push
+        output = _tube_stage(output, 1.5 + drive * 2, bias=0.03)  # light OD
+        output = _diode_clip(output, 1.0, 0.6)  # silicon clip
+        b, a = butter(1, 4500 / (sr / 2), btype='low')
+        output = lfilter(b, a, output).astype(np.float32)
+
+        # Into high gain amp (5150 style)
+        output = output * 1.3
+        output = _tube_stage(output, 4.0 + drive * 8, bias=0.12)
+        output = _tone_stack(output, bass=0.75, mid=0.20, treble=0.85, sr=sr)
+        b, a = butter(2, 90 / (sr / 2), btype='high')
+        output = lfilter(b, a, output).astype(np.float32)
+        output = _tube_stage(output, 3.0 + drive * 5, bias=0.10)
+        output = _tube_stage(output, 2.5 + drive * 3.5, bias=0.07)
+        output = _tube_stage(output, 1.8 + drive * 2, bias=0.04)
         output = _speaker_cab(output, "4x12", sr)
 
     elif amp_type == "fuzz":
@@ -553,7 +656,8 @@ def synthesize_guitar_note(freq, duration, sr=44100,
     For electric guitars (Strat, Les Paul), applies pickup simulation
     and optional amp processing. For acoustic, uses body resonance.
 
-    amp: "" (default for type), "clean", "crunch", "overdrive", "high_gain", "fuzz"
+    amp: "" (default for type), "clean", "crunch", "overdrive", "high_gain",
+         "mesa_rectifier", "5150", "metal", "fuzz"
     drive: 0-1 amp gain
     """
     is_electric = body_profile in ELECTRIC_PROFILES

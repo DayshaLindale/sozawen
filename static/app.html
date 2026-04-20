@@ -205,7 +205,7 @@
 
         /* Help tooltip */
         .help-tip { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--border); color: var(--text-muted); font-size: 9px; text-align: center; line-height: 14px; cursor: help; margin-left: 4px; vertical-align: middle; }
-        #tooltip { position: fixed; background: var(--bg-deep); color: var(--text); border: 1px solid var(--violet); border-radius: 6px; padding: 10px 14px; font-size: 11px; max-width: 280px; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,0.5); line-height: 1.5; pointer-events: none; display: none; }
+        #tooltip { position: fixed; background: var(--bg-deep); color: var(--text); border: 1px solid var(--violet); border-radius: 6px; padding: 10px 14px; font-size: 11px; max-width: 340px; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,0.5); line-height: 1.6; pointer-events: none; display: none; }
     </style>
 </head>
 <body>
@@ -335,6 +335,16 @@
             <option value="0.0625">1/16</option>
         </select>
         <button class="btn btn-secondary" onclick="addMarker()" style="font-size:9px; padding:4px 10px; border-radius:20px;" title="Add marker at playhead (M)">Marker</button>
+        <select onchange="if(this.value){addMarker(this.value);this.value='';}" style="font-size:9px; padding:3px 4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text-dim); border-radius:20px;">
+            <option value="">Section</option>
+            <option value="Intro">Intro</option>
+            <option value="Verse">Verse</option>
+            <option value="Pre-Chorus">Pre-Chorus</option>
+            <option value="Chorus">Chorus</option>
+            <option value="Bridge">Bridge</option>
+            <option value="Solo">Solo</option>
+            <option value="Outro">Outro</option>
+        </select>
         <button class="btn btn-secondary" onclick="toggleAutomationMode()" style="font-size:9px; padding:4px 10px; border-radius:20px;" title="Toggle automation drawing mode (A)">Auto</button>
 
         <div class="transport-divider"></div>
@@ -591,8 +601,10 @@
         dialog.innerHTML = `
             <div style="font-size:13px;color:var(--text);margin-bottom:12px;">Name this marker</div>
             <input type="text" id="markerNameInput" value="Marker ${id + 1}"
-                style="width:100%;padding:10px;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:14px;text-align:center;"
+                style="width:100%;padding:10px;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:14px;text-align:center;margin-bottom:8px;"
                 onkeydown="if(event.key==='Enter')confirmMarker(${id},${seconds})">
+            <textarea id="markerNoteInput" rows="2" placeholder="Notes (e.g. 'add harmonies here', 'key change to Am')"
+                style="width:100%;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:11px;resize:vertical;"></textarea>
             <div style="display:flex;gap:8px;margin-top:12px;">
                 <button onclick="confirmMarker(${id},${seconds})" style="flex:1;padding:10px;background:linear-gradient(135deg,var(--violet),var(--teal));color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:12px;">Add</button>
                 <button onclick="document.getElementById('markerDialog').style.display='none'" style="flex:1;padding:10px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer;font-size:12px;">Cancel</button>
@@ -603,14 +615,14 @@
     }
 
     function confirmMarker(id, seconds) {
-        const input = document.getElementById('markerNameInput');
-        const name = input?.value?.trim() || `Marker ${id + 1}`;
+        const name = document.getElementById('markerNameInput')?.value?.trim() || `Marker ${id + 1}`;
+        const note = document.getElementById('markerNoteInput')?.value?.trim() || '';
         document.getElementById('markerDialog').style.display = 'none';
 
-        _markers.push({ id, name, time: seconds });
+        _markers.push({ id, name, time: seconds, note });
         _markers.sort((a, b) => a.time - b.time);
         renderMarkers();
-        document.getElementById('statusText').textContent = `Marker "${markerName}" at ${seconds.toFixed(1)}s`;
+        document.getElementById('statusText').textContent = `Marker "${name}" at ${seconds.toFixed(1)}s`;
     }
 
     function removeMarker(id) {
@@ -634,7 +646,9 @@
             const label = document.createElement('div');
             label.style.cssText = `position:absolute; top:2px; left:4px; font-size:9px; color:var(--amber); background:rgba(212,168,77,0.15); padding:1px 6px; border-radius:3px; white-space:nowrap; pointer-events:auto; cursor:pointer;`;
             label.textContent = m.name;
-            label.title = `${m.name} — ${m.time.toFixed(1)}s (click to seek, right-click to remove)`;
+            const tipText = m.note ? `${m.name} — ${m.time.toFixed(1)}s\n${m.note}\n(click to seek, right-click to remove)` : `${m.name} — ${m.time.toFixed(1)}s (click to seek, right-click to remove)`;
+            label.setAttribute('data-tip', m.note ? `${m.name}: ${m.note}` : m.name);
+            label.title = tipText;
             label.onclick = () => seekToPosition(m.time);
             label.oncontextmenu = (e) => { e.preventDefault(); removeMarker(m.id); };
             el.appendChild(label);
@@ -766,7 +780,8 @@
     function buildRuler(seconds) {
         const marks = document.getElementById('rulerMarks');
         marks.innerHTML = '';
-        const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent || 120);
+        const rawBpm = parseFloat(document.getElementById('bpmDisplay')?.textContent);
+        const bpm = isFinite(rawBpm) && rawBpm > 0 ? rawBpm : 120;
         const beatSec = 60 / bpm;
         const pps = PIXELS_PER_SECOND || 10;
 
@@ -785,11 +800,19 @@
             m.style.minWidth = (markInterval * pps) + 'px';
             m.style.width = (markInterval * pps) + 'px';
 
-            // Show beat number or time
-            const beatNum = Math.round(t / beatSec) + 1;
-            const barNum = Math.floor((beatNum - 1) / 4) + 1;
-            const beatInBar = ((beatNum - 1) % 4) + 1;
-            m.textContent = `${barNum}.${beatInBar}`;
+            const beatNum = Math.round(t / beatSec);
+            const barNum = Math.floor(beatNum / 4) + 1;
+            const beatInBar = (beatNum % 4) + 1;
+
+            // Bar numbers bold, beat 1 gets the bar number
+            if (beatInBar === 1) {
+                m.innerHTML = `<span style="color:var(--teal);font-weight:600;">${barNum}</span><span style="color:var(--text-muted);font-size:7px;margin-left:2px;">beat ${beatNum}</span>`;
+                m.style.borderLeftColor = 'var(--teal)';
+                m.style.borderLeftWidth = '2px';
+            } else {
+                m.innerHTML = `<span>${barNum}.${beatInBar}</span>`;
+            }
+            m.title = `Bar ${barNum}, Beat ${beatInBar} (absolute beat: ${beatNum})`;
 
             marks.appendChild(m);
         }
@@ -829,10 +852,20 @@
                 body: JSON.stringify({file_path: filePath})
             }).then(r=>r.json()).then(d=>{
                 document.getElementById('statusText').textContent = 'Ready';
-                if(d.key) document.getElementById('keyDisplay').textContent = d.key;
+                if(d.key) {
+                    document.getElementById('keyDisplay').textContent = d.key;
+                    // Auto-set key across all tools
+                    const k = d.key.replace(' Major','').replace(' Minor','m');
+                    ['chordKey','scoreKey','scaleKey','compKey'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) { for(let o of el.options) { if(o.value===k) { el.value=k; break; } } }
+                    });
+                }
                 if(d.bpm) document.getElementById('bpmDisplay').textContent = d.bpm + ' BPM';
                 document.getElementById('bottomLeft').textContent = filePath.split(/[/\\]/).pop();
                 if(d.sample_rate) document.getElementById('bottomRight').textContent = `${d.sample_rate} Hz · ${d.duration ? Math.floor(d.duration/60)+':'+String(Math.floor(d.duration%60)).padStart(2,'0') : '--'}`;
+
+                // Track loaded — Bandmate is ready when the user asks
             });
         }
         return id;
@@ -847,20 +880,32 @@
 
         fetch(`/api/waveform/${engineId}?width=${targetWidth}`).then(r=>r.json()).then(w => {
             if (w.peaks && w.peaks.length > 0) {
+                // Store offset for visual positioning
+                const uiTrack = tracks.find(t => t.id === trackUiId);
+                if (uiTrack && w.offset_seconds > 0) {
+                    uiTrack.regionOffsetPx = w.offset_seconds * PIXELS_PER_SECOND;
+                    const region = document.getElementById(`region-${trackUiId}`);
+                    if (region) region.style.marginLeft = uiTrack.regionOffsetPx + 'px';
+                }
                 drawWaveform(trackUiId, w.peaks, w.source_type || 'imported', w.duration);
             }
         });
     }
 
-    function drawWaveform(trackUiId, peaks, sourceType, duration) {
+    let _waveformCache = {}; // Cache peaks so we can redraw after DOM rebuild
+
+    function drawWaveform(trackUiId, peaks, sourceType, duration, _retries) {
         const trackEl = document.getElementById(`waveform-${trackUiId}`);
         if (!trackEl) {
-            setTimeout(() => drawWaveform(trackUiId, peaks, sourceType, duration), 200);
+            const retry = (_retries || 0) + 1;
+            if (retry < 5) setTimeout(() => drawWaveform(trackUiId, peaks, sourceType, duration, retry), 200 * retry);
             return;
         }
+        // Cache for redraws
+        _waveformCache[trackUiId] = { peaks, sourceType, duration };
 
         const actualDuration = duration || (peaks.length * 0.1);
-        const targetWidth = Math.max(200, Math.round(actualDuration * PIXELS_PER_SECOND));
+        const targetWidth = Math.max(20, Math.round(actualDuration * PIXELS_PER_SECOND));
         trackEl.width = targetWidth;
         trackEl.style.width = targetWidth + 'px';
 
@@ -912,6 +957,123 @@
         ctx.stroke();
     }
 
+    // ═══ REGION DRAG + TRIM ═══
+    let _regionDrag = null; // {trackId, mode, startX, origLeft, origWidth}
+
+    function regionMouseDown(e, trackId, mode) {
+        e.preventDefault();
+        const region = document.getElementById(`region-${trackId}`);
+        if (!region) return;
+
+        _regionDrag = {
+            trackId,
+            mode, // 'move', 'trim-left', 'trim-right'
+            startX: e.clientX,
+            origLeft: parseInt(region.style.marginLeft || '0'),
+            origWidth: region.offsetWidth,
+        };
+
+        region.style.cursor = mode === 'move' ? 'grabbing' : 'col-resize';
+        document.addEventListener('mousemove', regionMouseMove);
+        document.addEventListener('mouseup', regionMouseUp);
+    }
+
+    function regionMouseMove(e) {
+        if (!_regionDrag) return;
+        const { trackId, mode, startX, origLeft, origWidth } = _regionDrag;
+        const region = document.getElementById(`region-${trackId}`);
+        const canvas = document.getElementById(`waveform-${trackId}`);
+        if (!region || !canvas) return;
+
+        const dx = e.clientX - startX;
+        const pps = PIXELS_PER_SECOND || 10;
+
+        // Snap to beats
+        const rawBpm = parseFloat(document.getElementById('bpmDisplay')?.textContent);
+        const bpm = isFinite(rawBpm) && rawBpm > 0 ? rawBpm : 120;
+        const beatPx = (60 / bpm) * pps;
+        const snapPx = e.shiftKey ? 1 : beatPx; // hold Shift for fine control
+
+        if (mode === 'move') {
+            const snapped = Math.round((origLeft + dx) / snapPx) * snapPx;
+            region.style.marginLeft = Math.max(0, snapped) + 'px';
+        } else if (mode === 'trim-left') {
+            const snapped = Math.round(dx / snapPx) * snapPx;
+            const newLeft = origLeft + snapped;
+            const newWidth = origWidth - snapped;
+            if (newWidth > 20) {
+                region.style.marginLeft = Math.max(0, newLeft) + 'px';
+                canvas.style.width = newWidth + 'px';
+                canvas.style.marginLeft = snapped + 'px'; // shift waveform view
+            }
+        } else if (mode === 'fade-in') {
+            // Drag right to increase fade-in length
+            const fadeWidth = Math.max(0, dx);
+            const fadeHandle = region.querySelector('.fade-in');
+            if (fadeHandle) fadeHandle.style.width = fadeWidth + 'px';
+            // Draw fade overlay on canvas
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                // Redraw from cache, then overlay fade
+                const cached = _waveformCache[trackId];
+                if (cached) drawWaveform(trackId, cached.peaks, cached.sourceType, cached.duration);
+                ctx.fillStyle = 'rgba(10,10,20,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(0, 0); ctx.lineTo(fadeWidth, 0);
+                ctx.lineTo(0, canvas.height); ctx.closePath(); ctx.fill();
+            }
+            region._fadeIn = fadeWidth;
+        } else if (mode === 'fade-out') {
+            const fadeWidth = Math.max(0, -dx);
+            const fadeHandle = region.querySelector('.fade-out');
+            if (fadeHandle) fadeHandle.style.width = fadeWidth + 'px';
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                const cached = _waveformCache[trackId];
+                if (cached) drawWaveform(trackId, cached.peaks, cached.sourceType, cached.duration);
+                const w = canvas.width;
+                ctx.fillStyle = 'rgba(10,10,20,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(w, 0); ctx.lineTo(w - fadeWidth, 0);
+                ctx.lineTo(w, canvas.height); ctx.closePath(); ctx.fill();
+            }
+            region._fadeOut = fadeWidth;
+        } else if (mode === 'trim-right') {
+            const snapped = Math.round(dx / snapPx) * snapPx;
+            const newWidth = origWidth + snapped;
+            if (newWidth > 20) {
+                region.style.width = newWidth + 'px';
+                region.style.overflow = 'hidden';
+            }
+        }
+    }
+
+    function regionMouseUp(e) {
+        if (!_regionDrag) return;
+        const { trackId, mode } = _regionDrag;
+        const region = document.getElementById(`region-${trackId}`);
+        if (region) region.style.cursor = 'grab';
+
+        // Update engine with new position
+        const track = tracks.find(t => t.id === trackId);
+        if (track && track.engineId !== null) {
+            const pps = PIXELS_PER_SECOND || 10;
+            const newLeft = parseInt(region?.style.marginLeft || '0');
+            const newOffsetSec = newLeft / pps;
+            const newOffsetSamples = Math.round(newOffsetSec * 44100);
+            // Tell engine about the new position
+            fetch(`/api/track/${track.engineId}/offset`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({offset_samples: newOffsetSamples})
+            }).catch(()=>{});
+        }
+
+        _regionDrag = null;
+        document.removeEventListener('mousemove', regionMouseMove);
+        document.removeEventListener('mouseup', regionMouseUp);
+    }
+
     function renderTracks() {
         // Track headers (left panel — fixed)
         const headers = document.getElementById('trackHeaders');
@@ -928,7 +1090,8 @@
                         <option value="-1" ${t.inputChannel===undefined||t.inputChannel<0?'selected':''}>—</option>
                         ${[0,1,2,3,4,5,6,7].map(ch => `<option value="${ch}" ${t.inputChannel===ch?'selected':''}>Ch${ch+1}</option>`).join('')}
                     </select>
-                    <button class="track-ctrl" onclick="showDialog('Remove this track?','confirm',function(yes){if(yes)removeTrack(${t.id})})" title="Remove track" style="margin-left:auto;color:var(--red);border-color:var(--red);">&times;</button>
+                    <button class="track-ctrl" onclick="freezeTrack(${t.id})" title="Freeze — render with effects" style="margin-left:auto;font-size:9px;" data-tip="Render this track with all effects baked in. Saves CPU and commits the sound.">&#10052;</button>
+                    <button class="track-ctrl" onclick="showDialog('Remove this track?','confirm',function(yes){if(yes)removeTrack(${t.id})})" title="Remove track" style="color:var(--red);border-color:var(--red);">&times;</button>
                     <input type="range" class="track-volume" min="0" max="100" value="${t.volume}" oninput="setVolume(${t.id}, this.value)" title="Volume">
                     <span style="font-size:8px;color:var(--text-muted);">L</span>
                     <input type="range" class="track-pan" min="-100" max="100" value="${t.pan || 0}" oninput="setPan(${t.id}, this.value)" title="Pan">
@@ -950,7 +1113,25 @@
         const list = document.getElementById('trackList');
         list.innerHTML = tracks.map(t => `
             <div class="track-row" data-id="${t.id}" style="min-height:80px; border-bottom:1px solid var(--border); position:relative;">
-                ${(t.file || t.hasAudio) ? `<canvas class="track-waveform" id="waveform-${t.id}" height="80" style="display:block;"></canvas>` : '<div class="track-empty" style="height:80px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:11px;">Drop audio here</div>'}
+                ${(t.file || t.hasAudio) ? `
+                <div class="region-container" id="region-${t.id}" style="position:relative; display:inline-block; height:80px; cursor:grab; margin-left:${t.regionOffsetPx || 0}px;"
+                     onmousedown="regionMouseDown(event,${t.id},'move')">
+                    <canvas class="track-waveform" id="waveform-${t.id}" height="80" style="display:block;"></canvas>
+                    <div class="trim-handle trim-left" onmousedown="event.stopPropagation();regionMouseDown(event,${t.id},'trim-left')"
+                         style="position:absolute;left:0;top:0;width:6px;height:100%;cursor:col-resize;background:var(--teal);opacity:0;transition:opacity 0.15s;z-index:3;"
+                         onmouseenter="this.style.opacity='0.6'" onmouseleave="this.style.opacity='0'"></div>
+                    <div class="trim-handle trim-right" onmousedown="event.stopPropagation();regionMouseDown(event,${t.id},'trim-right')"
+                         style="position:absolute;right:0;top:0;width:6px;height:100%;cursor:col-resize;background:var(--teal);opacity:0;transition:opacity 0.15s;z-index:3;"
+                         onmouseenter="this.style.opacity='0.6'" onmouseleave="this.style.opacity='0'"></div>
+                    <div class="fade-handle fade-in" style="position:absolute;left:0;top:0;width:20px;height:20px;cursor:nw-resize;z-index:4;"
+                         onmousedown="event.stopPropagation();regionMouseDown(event,${t.id},'fade-in')"
+                         data-tip="Drag to set fade-in length">
+                        <svg width="20" height="20" style="opacity:0.3;"><path d="M0,20 L20,0" stroke="var(--teal)" stroke-width="1.5" fill="none"/></svg></div>
+                    <div class="fade-handle fade-out" style="position:absolute;right:0;top:0;width:20px;height:20px;cursor:ne-resize;z-index:4;"
+                         onmousedown="event.stopPropagation();regionMouseDown(event,${t.id},'fade-out')"
+                         data-tip="Drag to set fade-out length">
+                        <svg width="20" height="20" style="opacity:0.3;"><path d="M0,0 L20,20" stroke="var(--teal)" stroke-width="1.5" fill="none"/></svg></div>
+                </div>` : '<div class="track-empty" style="height:80px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:11px;">Drop audio here</div>'}
             </div>
         `).join('');
 
@@ -958,6 +1139,18 @@
         const trackPanel = document.getElementById('trackPanel');
         const wavePanel = document.getElementById('wavePanel');
         wavePanel.onscroll = () => { trackPanel.scrollTop = wavePanel.scrollTop; };
+
+        // Redraw cached waveforms after DOM rebuild
+        setTimeout(() => {
+            tracks.forEach(t => {
+                const cached = _waveformCache[t.id];
+                if (cached) {
+                    drawWaveform(t.id, cached.peaks, cached.sourceType, cached.duration);
+                } else if ((t.file || t.hasAudio) && t.engineId !== null) {
+                    loadAndDrawWaveform(t.id, t.engineId);
+                }
+            });
+        }, 50);
     }
 
     function renameTrack(id, name) { const t = tracks.find(t=>t.id===id); if(t) t.name = name; }
@@ -1008,7 +1201,7 @@
     }
 
     // ═══ TRANSPORT — wired to audio engine ═══
-    let isLooping = true; // default ON — musicians expect loop
+    let isLooping = false; // default OFF — play through, stop at end
 
     function togglePlay() {
         if (isPlaying) {
@@ -1034,8 +1227,8 @@
         document.getElementById('btnLoop').classList.toggle('active', isLooping);
     }
 
-    // Init loop button state
-    document.getElementById('btnLoop')?.classList.add('active');
+    // Init loop button state — off by default
+    document.getElementById('btnLoop')?.classList.remove('active');
     function toggleRecord() {
         isRecording = !isRecording;
         document.getElementById('btnRecord').classList.toggle('active', isRecording);
@@ -1257,7 +1450,7 @@
         panel.classList.remove('visible', 'wide');
         document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
     }
-    const WIDE_PANELS = ['learn', 'glossary', 'shortcuts', 'help', 'community', 'bandmate', 'score'];
+    const WIDE_PANELS = ['learn', 'glossary', 'shortcuts', 'help', 'community', 'bandmate', 'score', 'chords', 'scale_ref'];
     function showPanel(name, btn) {
         document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
         if(btn) btn.classList.add('active');
@@ -1883,27 +2076,71 @@
                 <div id="padSequenceDisplay" style="font-size:10px; color:var(--text-muted); min-height:20px; margin-bottom:8px;"></div>
                 <button class="btn btn-primary" style="width:100%;" onclick="renderPadSequence()">Render to Track</button>`,
 
-            drums: `<h3>Drum Machine ${h('Every sound synthesized from math — no samples needed. Kick, snare, hi-hat, clap, toms, rim. Click the grid to program a pattern, hit Render to create a track.')}</h3>
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SYNTHESIZED DRUM MACHINE</div>
-                <div id="drumGrid" style="margin-bottom:12px;"></div>
-                <div class="field"><label>Steps ${h('How many steps in the pattern. 16 = one bar of 16th notes in 4/4. 32 = two bars. 64 = four bars. Use the pop-out button for larger grids.')}</label>
-                    <select id="drumSteps" onchange="buildDrumGrid()"><option value="8">8 (half bar)</option><option value="16" selected>16 (1 bar)</option><option value="32">32 (2 bars)</option><option value="48">48 (3 bars)</option><option value="64">64 (4 bars)</option></select></div>
-                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;">
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('basic')">Rock</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('hiphop')">Hip-Hop</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('funk')">Funk</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('edm')">EDM</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('jazz')">Jazz</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('reggae')">Reggae</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('latin')">Latin</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('metal')">Metal</button>
-                    <button class="btn btn-secondary" style="font-size:9px; padding:4px 8px;" onclick="loadDrumPreset('rnb')">R&B</button>
+            drums: `<h3>Drum Machine ${h('14 synthesized sounds from physics — no samples. Click the grid to program patterns. Multiple drum tracks supported for complex beats.')}</h3>
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">SYNTHESIZED DRUM MACHINE — 14 SOUNDS</div>
+                <div id="drumGrid" style="margin-bottom:12px; overflow-x:auto;"></div>
+                <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
+                    <div class="field" style="margin:0;"><label>Steps</label>
+                        <select id="drumSteps" onchange="buildDrumGrid()" data-tip="Steps per pattern. 16=1 bar (standard). 32=2 bars (verse). 48=3 bars (with fill). 64=4 bars (full section). 128=8 bars (extended section, drum rolls, or 32nd note resolution).">
+                        <option value="8">8 (half bar)</option>
+                        <option value="16" selected>16 (1 bar)</option>
+                        <option value="32">32 (2 bars)</option>
+                        <option value="48">48 (3 bars + fill)</option>
+                        <option value="64">64 (4 bars)</option>
+                        <option value="128">128 (8 bars / 32nd rolls)</option>
+                    </select></div>
+                    <div class="field" style="margin:0;"><label>Bars</label>
+                        <select id="drumBars"><option value="1">1</option><option value="2">2</option><option value="4" selected>4</option><option value="8">8</option><option value="16">16</option><option value="32">32</option></select></div>
+                    <div class="field" style="margin:0;"><label>Start at beat</label>
+                        <input type="number" id="drumOffset" value="0" min="0" step="4" style="width:60px; padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:11px;" title="Absolute beat on the timeline. 0=bar 1, 4=bar 2, 8=bar 3, 16=bar 5, 32=bar 9. Hover the ruler to see beat numbers.">
+                        <span id="drumOffsetInfo" style="font-size:8px;color:var(--text-muted);"></span></div>
+                    <div class="field" style="margin:0;"><label>Track name</label>
+                        <input type="text" id="drumTrackName" value="Drums" style="width:80px; padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:11px;"></div>
                 </div>
+                <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center;">
+                    <select id="drumGenre" onchange="showDrumSections()" style="padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:10px;">
+                        <option value="">-- Select Genre --</option>
+                        <option value="rock">Rock</option>
+                        <option value="pop">Pop</option>
+                        <option value="hiphop">Hip-Hop</option>
+                        <option value="trap">Trap</option>
+                        <option value="lofi">Lo-Fi</option>
+                        <option value="funk">Funk</option>
+                        <option value="disco">Disco</option>
+                        <option value="edm">House/EDM</option>
+                        <option value="dnb">Drum & Bass</option>
+                        <option value="jazz">Jazz</option>
+                        <option value="reggae">Reggae</option>
+                        <option value="latin">Latin/Bossa</option>
+                        <option value="afrobeat">Afrobeat</option>
+                        <option value="metal">Metal</option>
+                        <option value="punk">Punk</option>
+                        <option value="gospel">Gospel</option>
+                        <option value="shuffle">Blues Shuffle</option>
+                        <option value="rnb">R&B/Neo-Soul</option>
+                        <option value="indie_folk">Indie/Folk</option>
+                        <option value="acoustic">Acoustic</option>
+                        <option value="singer_songwriter">Singer-Songwriter</option>
+                        <option value="country">Country</option>
+                        <option value="waltz">Waltz (3/4)</option>
+                        <option value="ballad">Ballad</option>
+                    </select>
+                    <span style="font-size:9px; color:var(--text-muted);">Section:</span>
+                </div>
+                <div id="drumSections" style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:8px;"></div>
                 <div style="display:flex; gap:6px;">
-                    <button class="btn btn-primary" style="flex:1;" onclick="renderDrumPattern()">Render to Track</button>
-                    <button class="btn btn-secondary" style="padding:8px 10px;" onclick="popOutDrumMachine()" title="Open drum machine in a larger window">&#8599;</button>
+                    <button class="btn btn-primary" style="flex:1;" onclick="renderDrumPattern()">New Track</button>
+                    <button class="btn btn-secondary" style="flex:1;" onclick="renderDrumPattern(true)">Add to Selected</button>
+                    <button class="btn btn-secondary" style="padding:8px 10px;" onclick="popOutDrumMachine()" title="Full-screen drum machine">&#8599;</button>
                 </div>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Click cells to toggle hits. Each row is a different drum sound. Rendered at the current BPM.</p>`,
+                <div style="margin-top:8px; display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+                    <span style="font-size:9px;color:var(--text-muted);letter-spacing:1px;">SONG TEMPLATES</span>
+                    ${h('One-click full song drum arrangement. Pick your genre above, then click a template to auto-build verse, chorus, bridge, intro, and outro — all properly timed and placed on one track.')}
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="loadSongTemplate('pop')">Pop</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="loadSongTemplate('rock')">Rock</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="loadSongTemplate('hiphop')">Hip-Hop</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="loadSongTemplate('edm')">EDM</button>
+                </div>`,
 
             learn: `<h3>Learn</h3>
                 <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">From first note to final master. Search any topic or browse by category.</div>
@@ -1946,6 +2183,166 @@
                     <button class="btn btn-secondary" style="width:100%;" onclick="exportAllStems()">Export All Stems (ZIP)</button>
                     <p style="font-size:10px; color:var(--text-muted); margin-top:6px;">Send the project file to a collaborator. They open it in Sozawen and pick up where you left off.</p>
                 </div>`,
+
+            chords: `<h3>Chord Progression Builder ${h('Pick a key, see every chord that belongs in it, build progressions by clicking. Hear them instantly. Learn how songs are built — which chords go together and why.')}</h3>
+                <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+                    <div class="field" style="margin:0;"><label>Key</label>
+                        <select id="chordKey" onchange="loadChordKey()" style="padding:4px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:11px;">
+                            ${['C','G','D','A','E','B','F','Bb','Eb','Ab'].map(k=>'<option value="'+k+'">'+k+' Major</option>').join('')}
+                            ${['Am','Em','Bm','Dm','Gm','Cm','Fm'].map(k=>'<option value="'+k+'">'+k+' Minor</option>').join('')}
+                        </select></div>
+                </div>
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:6px;letter-spacing:1px;">CHORDS IN THIS KEY (click to add to progression)</div>
+                <div id="chordPalette" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:12px;"></div>
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:6px;letter-spacing:1px;">YOUR PROGRESSION (click chords above to build)</div>
+                <div id="chordProgression" style="display:flex; gap:4px; flex-wrap:wrap; min-height:32px; padding:8px; background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; margin-bottom:8px;">
+                    <span style="color:var(--text-muted);font-size:10px;">Click chords above to build a progression...</span>
+                </div>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="playChordProgression()">&#9654; Play</button>
+                    <button class="btn btn-secondary" onclick="clearChordProgression()">Clear</button>
+                    <button class="btn btn-secondary" onclick="renderChordProgression()">To Track</button>
+                </div>
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;letter-spacing:1px;">COMMON PROGRESSIONS ${h('These are the most-used chord progressions in popular music. The I-V-vi-IV powers thousands of pop/rock hits. The 12-bar blues is the foundation of blues, rock, and jazz. ii-V-I is the backbone of jazz harmony.')}</div>
+                <div style="display:flex; gap:3px; flex-wrap:wrap;">
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('pop')">I-V-vi-IV (Pop)</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('rock')">I-IV-V (Rock)</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('blues')">12-Bar Blues</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('jazz_251')">ii-V-I (Jazz)</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('fifties')">I-vi-IV-V (50s)</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('andalusian')">Andalusian</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('sad')">Sad Minor</button>
+                </div>`,
+
+            vocal_tune: `<h3>Vocal Tuning ${h('Correct pitch on vocal recordings. Subtle correction keeps it natural — heavy correction creates the Auto-Tune effect. Drag notes to the correct pitch on the grid.')}</h3>
+                <div class="field"><label>Correction Strength ${h('0% = no correction (natural). 50% = gentle nudge toward correct pitch. 100% = hard snap to nearest note (Auto-Tune effect).')}</label>
+                    <input type="range" id="tuneStrength" min="0" max="100" value="50" oninput="document.getElementById('tuneLabel').textContent=this.value+'%'">
+                    <span id="tuneLabel" style="font-size:11px;color:var(--teal);">50%</span></div>
+                <div class="field"><label>Key ${h('Set the key of your song so correction snaps to the right notes.')}</label>
+                    <select id="tuneKey" style="padding:4px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;">
+                        ${['C','G','D','A','E','B','F','Bb','Eb','Ab'].map(k=>'<option>'+k+'</option>').join('')}
+                    </select></div>
+                <div class="field"><label>Speed ${h('How fast the pitch corrects. Fast = robotic T-Pain effect. Slow = natural vibrato preserved.')}</label>
+                    <input type="range" id="tuneSpeed" min="1" max="100" value="30" oninput="document.getElementById('tuneSpeedLabel').textContent=this.value+'ms'">
+                    <span id="tuneSpeedLabel" style="font-size:11px;color:var(--text-dim);">30ms</span></div>
+                <button class="btn btn-primary" style="width:100%;" onclick="applyVocalTuning()">Apply to Selected Track</button>
+                <p style="font-size:10px;color:var(--text-muted);margin-top:8px;">Record or import vocals first. This analyzes the pitch and corrects it. Use subtly (20-40%) for natural correction, or crank to 100% for the Auto-Tune effect.</p>`,
+
+            tempo_map: `<h3>Tempo Mapping ${h('Change tempo mid-song. Essential for live recordings that naturally speed up and slow down, or for creating dramatic tempo changes in composed music.')}</h3>
+                <div id="tempoMapList" style="margin-bottom:10px;font-size:11px;color:var(--text-dim);">
+                    <div style="padding:4px 0;border-bottom:1px solid var(--border);">Beat 0: <strong style="color:var(--teal);">120 BPM</strong> (start)</div>
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:8px;">
+                    <input type="number" id="tempoMapBeat" placeholder="Beat" value="0" min="0" step="4" style="width:60px;padding:4px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:11px;">
+                    <input type="number" id="tempoMapBpm" placeholder="BPM" value="120" min="20" max="300" style="width:60px;padding:4px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:11px;">
+                    <button class="btn btn-secondary" style="font-size:10px;" onclick="addTempoPoint()">Add Point</button>
+                </div>
+                <p style="font-size:10px;color:var(--text-muted);">Add tempo change points along the timeline. The metronome and grid follow automatically. Use for ritardando, accelerando, or live recording tempo matching.</p>`,
+
+            templates: `<h3>Project Templates ${h('Start with a pre-configured session. Each template sets up tracks, BPM, and tools for a specific workflow — so you start making music immediately, not configuring software.')}</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <button class="btn btn-secondary" style="padding:12px;text-align:left;" onclick="loadProjectTemplate('songwriting')">
+                        <div style="font-size:12px;color:var(--teal);font-weight:500;">Songwriting</div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;">Chord Builder + Lyrics Editor + Score. Write a song from scratch.</div>
+                    </button>
+                    <button class="btn btn-secondary" style="padding:12px;text-align:left;" onclick="loadProjectTemplate('band')">
+                        <div style="font-size:12px;color:var(--teal);font-weight:500;">Band Recording</div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;">Drums + Bass + Guitar + Vocal tracks. Ready to record.</div>
+                    </button>
+                    <button class="btn btn-secondary" style="padding:12px;text-align:left;" onclick="loadProjectTemplate('beat')">
+                        <div style="font-size:12px;color:var(--teal);font-weight:500;">Beat Making</div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;">Drum Machine + Synth + Pad. Hip-hop/electronic production.</div>
+                    </button>
+                    <button class="btn btn-secondary" style="padding:12px;text-align:left;" onclick="loadProjectTemplate('podcast')">
+                        <div style="font-size:12px;color:var(--teal);font-weight:500;">Podcast</div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;">Vocal tracks with noise gate + EQ + compressor pre-configured.</div>
+                    </button>
+                    <button class="btn btn-secondary" style="padding:12px;text-align:left;" onclick="loadProjectTemplate('mixing')">
+                        <div style="font-size:12px;color:var(--teal);font-weight:500;">Mixing Session</div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;">Import stems and mix. EQ, Compressor, Reverb ready.</div>
+                    </button>
+                    <button class="btn btn-secondary" style="padding:12px;text-align:left;" onclick="loadProjectTemplate('orchestral')">
+                        <div style="font-size:12px;color:var(--teal);font-weight:500;">Orchestral</div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:4px;">Score editor + Strings + Brass + Woodwinds. Compose for orchestra.</div>
+                    </button>
+                </div>`,
+
+            spectrum: `<h3>Spectrum Analyzer ${h('Real-time frequency display. See where your sounds live in the frequency spectrum. Essential for mixing — find clashing frequencies between tracks, carve EQ space, check bass balance.')}</h3>
+                <canvas id="spectrumCanvas" width="600" height="200" style="width:100%;height:200px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;"></canvas>
+                <div style="display:flex;gap:4px;margin-top:6px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="startSpectrum()">Start</button>
+                    <button class="btn btn-secondary" style="flex:1;" onclick="stopSpectrum()">Stop</button>
+                    <select id="spectrumType" onchange="updateSpectrumType()" style="padding:4px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                        <option value="bars">Bars</option>
+                        <option value="line">Line</option>
+                        <option value="scope">Oscilloscope</option>
+                    </select>
+                </div>
+                <div style="font-size:9px;color:var(--text-muted);margin-top:6px;display:flex;justify-content:space-between;">
+                    <span>20Hz</span><span>100</span><span>500</span><span>1k</span><span>5k</span><span>20kHz</span>
+                </div>`,
+
+            lyrics_editor: `<h3>Lyrics Editor ${h('Write lyrics alongside your music. Tie lines to the timeline so they scroll during playback. Export as plain text or synced LRC format.')}</h3>
+                <textarea id="lyricsText" rows="12" style="width:100%; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:10px; font-family:'Crimson Pro',serif; font-size:14px; line-height:2; resize:vertical;"
+                    placeholder="Write your lyrics here...&#10;&#10;Verse 1:&#10;The words come when the music plays&#10;Like water finding lower ground&#10;&#10;Chorus:&#10;And we sing because we have to&#10;Not because we know the way"></textarea>
+                <div style="display:flex; gap:6px; margin-top:8px;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:10px;" onclick="exportLyrics('txt')">Export .txt</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:10px;" onclick="exportLyrics('lrc')">Export .lrc</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:10px;" onclick="document.getElementById('lyricsText').value=''">Clear</button>
+                </div>`,
+
+            practice: `<h3>Practice Mode ${h('Slow down playback to learn difficult parts. Loop a section and play along at your own speed. The metronome adjusts automatically.')}</h3>
+                <div style="margin-bottom:12px;">
+                    <div class="field"><label>Playback Speed ${h('Slow down to learn, speed up to challenge yourself. 50% = half speed. Pitch changes slightly — this is intentional for ear training.')}</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="range" id="practiceSpeed" min="25" max="200" value="100" style="flex:1;" oninput="setPracticeSpeed(this.value)">
+                            <span id="practiceSpeedLabel" style="font-size:13px;color:var(--teal);font-weight:500;min-width:40px;">100%</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:4px;margin-bottom:10px;">
+                        <button class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" onclick="setPracticeSpeed(25)">25%</button>
+                        <button class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" onclick="setPracticeSpeed(50)">50%</button>
+                        <button class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" onclick="setPracticeSpeed(75)">75%</button>
+                        <button class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" onclick="setPracticeSpeed(100)">100%</button>
+                        <button class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" onclick="setPracticeSpeed(125)">125%</button>
+                        <button class="btn btn-secondary" style="font-size:9px;padding:3px 8px;" onclick="setPracticeSpeed(150)">150%</button>
+                    </div>
+                </div>
+                <div style="font-size:10px;color:var(--text-dim);line-height:1.8;">
+                    <strong style="color:var(--teal);">How to practice:</strong><br>
+                    1. Load or record the part you want to learn<br>
+                    2. Set loop points around the difficult section<br>
+                    3. Slow down to 50% and play along<br>
+                    4. Gradually increase speed as you get comfortable<br>
+                    5. When you can play it at 100%, you own it<br>
+                    <br>
+                    <strong style="color:var(--text-dim);">Tip:</strong> Enable the metronome — it follows the speed automatically.
+                </div>`,
+
+            scale_ref: `<h3>Scale Reference ${h('Visual guide to every scale. See which notes belong in any scale across any key. Use this while composing to stay in key, or learn new scales to expand your musical vocabulary.')}</h3>
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <div class="field" style="margin:0;"><label>Key</label>
+                        <select id="scaleKey" onchange="showScale()" style="padding:4px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:11px;">
+                            ${['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].map(k=>'<option value="'+k+'">'+k+'</option>').join('')}
+                        </select></div>
+                    <div class="field" style="margin:0;"><label>Scale</label>
+                        <select id="scaleType" onchange="showScale()" style="padding:4px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:11px;">
+                            <option value="major">Major (Ionian)</option>
+                            <option value="minor">Natural Minor (Aeolian)</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="harmonic_minor">Harmonic Minor</option>
+                            <option value="melodic_minor">Melodic Minor</option>
+                            <option value="major_pentatonic">Major Pentatonic</option>
+                            <option value="minor_pentatonic">Minor Pentatonic</option>
+                            <option value="blues">Blues</option>
+                        </select></div>
+                </div>
+                <div id="scaleDisplay" style="margin-bottom:10px;"></div>
+                <div id="scaleKeyboard" style="display:flex;height:80px;border-radius:4px;overflow:hidden;user-select:none;margin-bottom:8px;"></div>
+                <div id="scaleInfo" style="font-size:10px;color:var(--text-dim);line-height:1.8;"></div>`,
 
             shortcuts: `<h3>Keyboard Shortcuts</h3>
                 <div style="font-size:12px; line-height:2.2; color:var(--text-dim);">
@@ -2177,14 +2574,7 @@
     }
 
     // ═══ RECORDING ═══
-    function armRecording() {
-        const sel = document.getElementById('inputDeviceSelect');
-        const deviceId = sel ? parseInt(sel.value) : null;
-        document.getElementById('statusText').textContent = 'Armed — hit Record to start';
-        document.getElementById('btnRecord').style.borderColor = 'var(--red)';
-        // Store selected device for when record is pressed
-        window._recordDeviceId = deviceId;
-    }
+    // armRecording defined below with full channel handling
 
     // Override toggleRecord to use the armed device
     const _originalToggleRecord = toggleRecord;
@@ -2248,7 +2638,8 @@
         return tracks.find(t => t.file || t.hasAudio) || tracks[0] || null;
     }
 
-    function applyEffect(effect, params) {
+    function _applyEffectLegacy(effect, params) {
+        // Legacy stub — use applyEffect below with undo support
         const track = getActiveTrack();
         if (!track || track.engineId === null) { showStatus('Load a track first'); return; }
         document.getElementById('statusText').textContent = `Applying ${effect}...`;
@@ -2282,17 +2673,7 @@
         });
     }
 
-    function exportMix() {
-        const fmt = document.querySelector('#panelContent select')?.value?.split(' ')[0]?.toLowerCase() || 'wav';
-        document.getElementById('statusText').textContent = 'Exporting...';
-        fetch('/api/export', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({format: fmt})
-        }).then(r => r.json()).then(d => {
-            document.getElementById('statusText').textContent = d.ok ? 'Exported!' : ('Error: ' + (d.error || 'unknown'));
-            if (d.ok) showDialog('Exported to:\n' + d.path, 'alert');
-        });
-    }
+    // exportMix defined below with full format handling
 
     function runSplit() {
         // Legacy — redirects to smart split
@@ -2365,6 +2746,14 @@
                     existing.muted = t.muted;
                     existing.solo = t.solo;
                     existing.hasAudio = t.regions && t.regions.length > 0;
+                    // Capture region offset for visual positioning
+                    if (t.regions && t.regions.length > 0) {
+                        existing.regionOffset = t.regions[0].offset || 0; // samples
+                        existing.regionOffsetPx = (existing.regionOffset / 44100) * PIXELS_PER_SECOND;
+                    } else {
+                        existing.regionOffset = 0;
+                        existing.regionOffsetPx = 0;
+                    }
                 });
                 renderTracks();
                 document.getElementById('emptyState').style.display = 'none';
@@ -2455,20 +2844,37 @@
         e.preventDefault();
         document.getElementById('dropOverlay').classList.remove('visible');
 
-        // Try to get the file path from the drop event
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
-            // In pywebview, File objects may have a .path property
             const file = files[0];
-            const path = file.path || file.name;
-            if (path && path.includes('/') || path.includes('\\')) {
-                // Got a full path — load directly
+            // pywebview: file.path gives the full path
+            const path = file.path;
+            if (path && (path.includes('/') || path.includes('\\'))) {
                 const name = path.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
                 addTrack(name, path);
                 return;
             }
+
+            // Browser mode: upload the file to the server
+            const formData = new FormData();
+            formData.append('file', file);
+            document.getElementById('statusText').textContent = 'Uploading ' + file.name + '...';
+            fetch('/api/upload', {method: 'POST', body: formData})
+                .then(r => r.json())
+                .then(d => {
+                    if (d.ok) {
+                        const name = file.name.replace(/\.[^.]+$/, '');
+                        addTrack(name, d.path);
+                        document.getElementById('statusText').textContent = 'Loaded ' + file.name;
+                    } else {
+                        document.getElementById('statusText').textContent = d.error || 'Upload failed';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('statusText').textContent = 'Upload failed — try Open File instead';
+                });
+            return;
         }
-        // No path available from drop — use file picker
         openFile();
     });
 
@@ -2492,7 +2898,7 @@
             const prominent = document.getElementById('prominentTools');
             prominent.innerHTML = ctx.prominent_tools.map(t => `
                 <button class="tool-btn" onclick="showPanel('${t.id}', this); reportAction('select_tool')"
-                        style="opacity:${0.5 + t.weight * 0.5}" title="${t.label}">
+                        style="opacity:${0.5 + t.weight * 0.5}" data-tip="${(t.tip || t.label).replace(/"/g, '&quot;')}">
                     <span class="icon">${t.icon}</span> ${t.label}
                 </button>
             `).join('');
@@ -2501,7 +2907,7 @@
             const drawer = document.getElementById('drawerTools');
             drawer.innerHTML = ctx.available_tools.map(t => `
                 <button class="tool-btn" onclick="showPanel('${t.id}', this)"
-                        style="opacity:0.5; font-size:11px;" title="${t.label}">
+                        style="opacity:0.5; font-size:11px;" data-tip="${(t.tip || t.label).replace(/"/g, '&quot;')}">
                     <span class="icon" style="font-size:12px;">${t.icon}</span> ${t.label}
                 </button>
             `).join('');
@@ -2527,6 +2933,11 @@
     }
 
     // Poll context every 2 seconds
+    // Reset engine on page load — clear all tracks from previous sessions
+    fetch('/api/session/reset', {method:'POST'}).then(r=>r.json()).then(d => {
+        console.log('Session reset:', d.cleared, 'tracks cleared');
+    }).catch(()=>{});
+
     setInterval(refreshContext, 2000);
     try { refreshContext(); } catch(e) { console.error('Context init error:', e); }
 
@@ -2541,6 +2952,8 @@
                 {id:'drums',icon:'🥁',label:'Drum Machine'},
                 {id:'piano_roll',icon:'🎹',label:'Piano Roll'},
                 {id:'pad',icon:'🎛',label:'Pad'},
+                {id:'chords',icon:'🎶',label:'Chord Builder'},
+                {id:'scale_ref',icon:'🎵',label:'Scale Reference'},
                 {id:'bandmate',icon:'💬',label:'Bandmate'},
                 {id:'learn',icon:'📖',label:'Learn'},
             ].map(t => `<button class="tool-btn" onclick="showPanel('${t.id}',this)" style="opacity:0.7;font-size:11px;"><span class="icon">${t.icon}</span> ${t.label}</button>`).join('');
@@ -2618,14 +3031,23 @@
         if (_undoStack.length > 50) _undoStack.shift();
     }
     function undo() {
-        if (_undoStack.length === 0) { document.getElementById('statusText').textContent = 'Nothing to undo'; return; }
+        if (_undoStack.length === 0) { showStatus('Nothing to undo'); return; }
         const entry = _undoStack.pop();
         _redoStack.push({description: 'redo', state: JSON.parse(JSON.stringify(tracks))});
+
+        // Find tracks that were added since the snapshot and delete them from engine
+        const oldIds = new Set(entry.state.map(t => t.engineId).filter(Boolean));
+        const currentIds = tracks.filter(t => t.engineId !== null).map(t => t.engineId);
+        currentIds.forEach(eid => {
+            if (!oldIds.has(eid)) {
+                fetch(`/api/track/${eid}/remove`, {method:'POST'}).catch(()=>{});
+            }
+        });
+
         tracks = entry.state;
         renderTracks();
         reloadAllWaveforms();
-        document.getElementById('statusText').textContent = `Undid: ${entry.description}`;
-        setTimeout(()=>document.getElementById('statusText').textContent='Ready', 1500);
+        showStatus(`Undid: ${entry.description}`);
     }
     function redo() {
         if (_redoStack.length === 0) { document.getElementById('statusText').textContent = 'Nothing to redo'; return; }
@@ -2746,7 +3168,7 @@
         const t = tracks.find(t => t.id === id);
         tracks = tracks.filter(t => t.id !== id);
         if (t && t.engineId !== null) {
-            fetch(`/api/track/${t.engineId}/delete`, {method:'POST'}).catch(()=>{});
+            fetch(`/api/track/${t.engineId}/remove`, {method:'POST'}).catch(()=>{});
         }
         renderTracks();
         if (tracks.length === 0) document.getElementById('emptyState').style.display = 'flex';
@@ -2759,7 +3181,7 @@
         pushUndo('delete track');
         tracks = tracks.filter(t => t.id !== track.id);
         if (track.engineId !== null) {
-            fetch(`/api/track/${track.engineId}/delete`, {method:'POST'}).catch(()=>{});
+            fetch(`/api/track/${track.engineId}/remove`, {method:'POST'}).catch(()=>{});
         }
         renderTracks();
         if (tracks.length === 0) document.getElementById('emptyState').style.display = 'flex';
@@ -2785,29 +3207,16 @@
 
     // ═══ TRACK MANAGEMENT ═══
     function addBusTrack() { pushUndo('add bus'); addTrack('Bus', null); }
-    function duplicateTrack() {
-        const track = getActiveTrack();
-        if (!track) return;
-        pushUndo('duplicate');
-        _clipboard = JSON.parse(JSON.stringify(track));
-        pasteSelection();
-    }
+    // duplicateTrack defined in COPY/PASTE section below
     function removeSelectedTrack() { deleteSelection(); }
-    function freezeTrack() {
-        const t = getActiveTrack();
-        if (!t || !t.engineId) { document.getElementById('statusText').textContent = 'Select a track first'; return; }
-        if (t.frozen) { document.getElementById('statusText').textContent = 'Track already frozen'; return; }
-        document.getElementById('statusText').textContent = 'Freezing...';
-        // Export just this track to a rendered file
-        fetch('/api/export', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ format: 'wav', sample_rate: 44100, track_id: t.engineId })
-        }).then(r=>r.json()).then(d => {
-            t.frozen = true;
-            t.originalFile = t.file;
-            document.getElementById('statusText').textContent = 'Track frozen — CPU saved';
-            renderTracks();
-        }).catch(() => { document.getElementById('statusText').textContent = 'Freeze failed'; });
+    function freezeTrack(uiIdOrNothing) {
+        const t = uiIdOrNothing ? tracks.find(tr => tr.id === uiIdOrNothing) : getActiveTrack();
+        if (!t || t.engineId === null) { showStatus('Select a track first'); return; }
+        showStatus('Freezing track...');
+        fetch(`/api/track/${t.engineId}/freeze`, {method:'POST'}).then(r=>r.json()).then(d => {
+            if (d.ok) { t.frozen = true; showStatus('Track frozen'); refreshTracks(); reloadAllWaveforms(); }
+            else showStatus(d.error || 'Freeze failed');
+        });
     }
     function unfreezeTrack() {
         const t = getActiveTrack();
@@ -3098,11 +3507,24 @@
         chat.innerHTML += `<div style="color:var(--text-muted); margin-top:4px; font-style:italic;" id="bandmateThinking">Thinking...</div>`;
         chat.scrollTop = chat.scrollHeight;
 
-        // Build session context
+        // Build rich session context — the Bandmate sees EVERYTHING
         const ctx = {
             key: document.getElementById('keyDisplay')?.textContent || '',
             bpm: document.getElementById('bpmDisplay')?.textContent?.replace(' BPM','') || '',
-            tracks: tracks.map(t => ({ name: t.name, effects: t.effects || [] })),
+            tracks: tracks.map(t => ({
+                name: t.name,
+                duration: t.duration ? t.duration.toFixed(1) + 's' : 'empty',
+                muted: t.muted,
+                frozen: t.frozen,
+                effects: t.effects || [],
+            })),
+            track_count: tracks.length,
+            total_duration: Math.max(...tracks.map(t => t.duration || 0), 0).toFixed(1) + 's',
+            markers: _markers.map(m => ({ name: m.name, time: m.time.toFixed(1) + 's', note: m.note || '' })),
+            chord_progression: _chordProgression.map(c => c.root + (c.quality === 'minor' ? 'm' : c.quality === 'diminished' ? 'dim' : '')),
+            selected_genre: document.getElementById('drumGenre')?.value || '',
+            looping: document.getElementById('btnLoop')?.classList.contains('active'),
+            playback_speed: document.getElementById('practiceSpeed')?.value || '100',
         };
 
         fetch('/api/bandmate', {
@@ -3111,13 +3533,107 @@
         }).then(r=>r.json()).then(d => {
             const thinking = document.getElementById('bandmateThinking');
             if (thinking) thinking.remove();
-            const response = d.response || d.error || 'No response';
+            let response = d.response || d.error || 'No response';
+
+            // Parse and execute action tags
+            const actions = [];
+            response = response.replace(/\[DRUMS ([^\]]+)\]/g, (match, params) => {
+                actions.push({type:'drums', params: _parseActionParams(params)});
+                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('drums',${actions.length-1})">Apply drums</button>`;
+            });
+            response = response.replace(/\[EFFECT ([^\]]+)\]/g, (match, params) => {
+                actions.push({type:'effect', params: _parseActionParams(params)});
+                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('effect',${actions.length-1})">Apply effect</button>`;
+            });
+            response = response.replace(/\[TRANSCRIBE ([^\]]+)\]/g, (match, params) => {
+                actions.push({type:'transcribe', params: _parseActionParams(params)});
+                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('transcribe',${actions.length-1})">Transcribe</button>`;
+            });
+            response = response.replace(/\[CHORDS ([^\]]+)\]/g, (match, params) => {
+                actions.push({type:'chords', params: _parseActionParams(params)});
+                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('chords',${actions.length-1})">Load chords</button>`;
+            });
+            response = response.replace(/\[MARKER ([^\]]+)\]/g, (match, params) => {
+                actions.push({type:'marker', params: _parseActionParams(params)});
+                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('marker',${actions.length-1})">Add marker</button>`;
+            });
+
+            window._bandmateActions = actions;
             chat.innerHTML += `<div style="color:var(--teal); margin-top:4px;"><strong>Bandmate:</strong> ${response}</div>`;
             chat.scrollTop = chat.scrollHeight;
         }).catch(() => {
             const thinking = document.getElementById('bandmateThinking');
             if (thinking) thinking.textContent = 'Could not reach the bandmate. Is Ollama running?';
         });
+    }
+
+    // ═══ BANDMATE ACTIONS ═══
+    function _parseActionParams(str) {
+        const params = {};
+        str.replace(/(\w+)=([^\s,\]]+)/g, (_, key, val) => { params[key] = val; });
+        return params;
+    }
+
+    function executeBandmateAction(type, idx) {
+        const action = (window._bandmateActions || [])[idx];
+        if (!action) return;
+        const p = action.params;
+
+        if (type === 'drums') {
+            // Load the preset and render
+            const genre = p.genre || 'singer_songwriter';
+            const section = p.section || 'verse';
+            const bars = parseInt(p.bars || 8);
+            const offset = parseInt(p.offset || 0);
+            document.getElementById('drumGenre').value = genre;
+            showDrumSections();
+            loadDrumPreset(genre + '_' + section);
+            document.getElementById('drumBars').value = bars;
+            document.getElementById('drumOffset').value = offset;
+            renderDrumPattern();
+            showStatus(`Bandmate rendered ${genre} ${section} (${bars} bars at beat ${offset})`);
+
+        } else if (type === 'effect') {
+            const trackId = parseInt(p.track || 0);
+            const effect = p.effect || 'eq';
+            const params = {...p};
+            delete params.track; delete params.effect;
+            // Convert string values to numbers
+            Object.keys(params).forEach(k => { if (!isNaN(params[k])) params[k] = parseFloat(params[k]); });
+            applyEffect(effect, params);
+            showStatus(`Bandmate applied ${effect}`);
+
+        } else if (type === 'transcribe') {
+            const trackId = parseInt(p.track || 0);
+            showStatus('Bandmate transcribing to sheet music...');
+            transcribeAudioToScore();
+
+        } else if (type === 'chords') {
+            const key = p.key || 'C';
+            const prog = (p.progression || '').split(',');
+            document.getElementById('chordKey').value = key;
+            loadChordKey();
+            // Load progression manually
+            if (prog.length > 0) {
+                _chordProgression = prog.map(name => {
+                    const root = name.replace('m','').replace('dim','');
+                    const quality = name.includes('dim') ? 'diminished' : name.includes('m') ? 'minor' : 'major';
+                    const noteMap = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+                    const midi = 60 + (noteMap[root] || 0);
+                    return {root, quality, numeral: name, notes: [midi, midi+(quality==='minor'?3:4), midi+7]};
+                });
+                renderChordProgressionUI();
+            }
+            showStatus(`Bandmate loaded ${key} progression: ${prog.join(' → ')}`);
+
+        } else if (type === 'marker') {
+            const name = p.name || 'Section';
+            const time = parseFloat(p.time || 0);
+            _markers.push({id: _markerIdCounter++, name, time, note: ''});
+            _markers.sort((a,b) => a.time - b.time);
+            renderMarkers();
+            showStatus(`Bandmate added marker: ${name} at ${time}s`);
+        }
     }
 
     // ═══ LUFS MEASUREMENT ═══
@@ -3342,7 +3858,7 @@
     }
 
     // ═══ LYRICS EXPORT ═══
-    function exportLyrics(format) {
+    function exportTranscribedLyrics(format) {
         const output = document.getElementById('lyricsOutput');
         if (!output || !output.textContent.trim()) { showStatus('No lyrics to export'); return; }
         const text = output.textContent;
@@ -3873,8 +4389,9 @@
     }
 
     // ═══ DRUM MACHINE ═══
-    const DRUM_ROWS = ['kick', 'snare', 'hihat', 'hihat_open', 'clap', 'tom_high', 'tom_mid', 'rim'];
-    const DRUM_LABELS = {'kick':'Kick', 'snare':'Snare', 'hihat':'HH', 'hihat_open':'OH', 'clap':'Clap', 'tom_high':'Tom H', 'tom_mid':'Tom M', 'rim':'Rim'};
+    const DRUM_ROWS = ['kick', 'double_kick', 'snare', 'hihat', 'hihat_open', 'hihat_pedal', 'clap', 'tom_high', 'tom_mid', 'tom_low', 'rim', 'crash', 'splash', 'china', 'ride', 'ride_bell', 'shaker', 'cowbell'];
+    const DRUM_LABELS = {'kick':'Kick', 'double_kick':'Dbl Kick', 'snare':'Snare', 'hihat':'HH Cls', 'hihat_open':'HH Open', 'hihat_pedal':'HH Pedal', 'clap':'Clap', 'tom_high':'Tom H', 'tom_mid':'Tom M', 'tom_low':'Tom L', 'rim':'Rim', 'crash':'Crash', 'splash':'Splash', 'china':'China', 'ride':'Ride', 'ride_bell':'Ride Bell', 'shaker':'Shaker', 'cowbell':'Cowbell'};
+    let _drumTrackCount = 0; // for unique naming
     let _drumState = {};
 
     function buildDrumGrid() {
@@ -3884,110 +4401,1474 @@
         _drumState = {};
 
         grid.innerHTML = DRUM_ROWS.map(sound => {
-            _drumState[sound] = new Array(steps).fill(false);
+            _drumState[sound] = new Array(steps).fill(0); // 0=off, 0.3=ghost, 0.8=normal, 1.0=accent
             const cells = Array.from({length: steps}, (_, i) => {
                 const beatBorder = i % 4 === 0 ? 'border-left:2px solid var(--border-light);' : '';
-                return `<div class="drum-cell" data-sound="${sound}" data-step="${i}" onclick="toggleDrumCell(this)" style="width:${Math.max(14, 240/steps)}px; height:16px; background:var(--bg-deep); border:1px solid var(--border); border-radius:2px; cursor:pointer; ${beatBorder}" title="${DRUM_LABELS[sound]} step ${i+1}"></div>`;
+                return `<div class="drum-cell" data-sound="${sound}" data-step="${i}" onclick="toggleDrumCell(this)" oncontextmenu="ghostDrumCell(this,event)" style="width:${Math.max(14, 240/steps)}px; height:16px; background:var(--bg-deep); border:1px solid var(--border); border-radius:2px; cursor:pointer; ${beatBorder}" title="${DRUM_LABELS[sound]} step ${i+1} (right-click=ghost)"></div>`;
             }).join('');
             return `<div style="display:flex; gap:2px; align-items:center; margin-bottom:2px;">
-                <span style="font-size:9px; color:var(--text-muted); width:36px; text-align:right; margin-right:4px;">${DRUM_LABELS[sound]}</span>
+                <span style="font-size:9px; color:var(--text-muted); width:44px; text-align:right; margin-right:4px;">${DRUM_LABELS[sound]}</span>
                 ${cells}
             </div>`;
         }).join('');
     }
 
+    function _drumCellColor(vel) {
+        if (vel >= 0.8) return 'var(--violet)';
+        if (vel > 0) return 'rgba(155,89,182,0.4)'; // ghost = dimmer
+        return 'var(--bg-deep)';
+    }
+
     function toggleDrumCell(el) {
         const sound = el.dataset.sound;
         const step = parseInt(el.dataset.step);
-        _drumState[sound][step] = !_drumState[sound][step];
-        el.style.background = _drumState[sound][step] ? 'var(--violet)' : 'var(--bg-deep)';
+        // Cycle: off → normal (0.8) → off
+        _drumState[sound][step] = _drumState[sound][step] >= 0.8 ? 0 : 0.8;
+        el.style.background = _drumCellColor(_drumState[sound][step]);
     }
 
-    function renderDrumPattern() {
+    function ghostDrumCell(el, e) {
+        e.preventDefault();
+        const sound = el.dataset.sound;
+        const step = parseInt(el.dataset.step);
+        // Right-click: cycle off → ghost (0.3) → off
+        _drumState[sound][step] = _drumState[sound][step] > 0 && _drumState[sound][step] < 0.8 ? 0 : 0.3;
+        el.style.background = _drumCellColor(_drumState[sound][step]);
+    }
+
+    function renderDrumPattern(appendToSelected) {
         const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
+        const bars = parseInt(document.getElementById('drumBars')?.value || 4);
         const bpmText = document.getElementById('bpmDisplay')?.textContent || '120';
         const bpm = parseFloat(bpmText) || 120;
-        const pattern = [];
+        const trackName = document.getElementById('drumTrackName')?.value.trim() || ('Drums ' + (++_drumTrackCount));
 
+        // Build pattern for one bar — use stored velocity (ghost=0.3, normal=0.8)
+        const oneBar = [];
         for (const sound in _drumState) {
-            _drumState[sound].forEach((on, step) => {
-                if (on) pattern.push({ sound, beat: step * 0.25, velocity: 0.8 });
+            _drumState[sound].forEach((vel, step) => {
+                if (vel > 0) oneBar.push({ sound, beat: step * 0.25, velocity: vel });
             });
         }
 
-        if (pattern.length === 0) { showStatus('Click some cells first'); return; }
+        if (oneBar.length === 0) { showStatus('Click some cells first'); return; }
 
-        document.getElementById('statusText').textContent = 'Rendering drums...';
+        // Repeat the pattern for the number of bars requested
+        const barLengthBeats = steps * 0.25; // each step = 1/16th note = 0.25 beats
+        const pattern = [];
+        for (let bar = 0; bar < bars; bar++) {
+            oneBar.forEach(hit => {
+                pattern.push({ ...hit, beat: hit.beat + bar * barLengthBeats });
+            });
+        }
+
+        const offsetBeats = parseInt(document.getElementById('drumOffset')?.value || 0);
+
+        // Build request — optionally append to the selected track
+        const payload = { pattern, bpm, name: trackName, offset_beats: offsetBeats };
+        if (appendToSelected) {
+            const active = getActiveTrack();
+            if (!active || active.engineId === null) {
+                document.getElementById('statusText').textContent = 'Select a track first to add to it';
+                return;
+            }
+            payload.target_track_id = active.engineId;
+        }
+
+        document.getElementById('statusText').textContent = `Rendering ${bars} bars...`;
         fetch('/api/instrument/drums', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ pattern, bpm, name: 'Beat' })
+            body: JSON.stringify(payload)
         }).then(r=>r.json()).then(d => {
             if (d.ok) {
-                document.getElementById('statusText').textContent = 'Drums rendered!';
+                const action = d.appended ? 'added to' : 'rendered';
+                document.getElementById('statusText').textContent = `${trackName} ${action} (${bars} bars at beat ${offsetBeats})`;
                 refreshTracks();
                 reloadAllWaveforms();
+                // Extend ruler to cover the new content
+                const totalBeats = offsetBeats + bars * 4;
+                const totalSec = totalBeats * (60 / bpm);
+                buildRuler(Math.max(10, totalSec + 4));
             } else {
                 document.getElementById('statusText').textContent = d.error || 'Failed';
             }
         });
     }
 
+    function _setHits(sound, steps_arr, steps, vel) {
+        steps_arr.forEach(s => { if (s < steps) _drumState[sound][s] = vel || 0.8; });
+    }
+
+    function showDrumSections() {
+        const genre = document.getElementById('drumGenre')?.value;
+        const el = document.getElementById('drumSections');
+        if (!el) return;
+        if (!genre) { el.innerHTML = '<span style="font-size:9px;color:var(--text-muted);">Pick a genre to see section patterns</span>'; return; }
+        const sections = ['verse','chorus','bridge','intro','outro','fill','buildup','breakdown'];
+        const sLabels = {verse:'Verse',chorus:'Chorus',bridge:'Bridge',intro:'Intro',outro:'Outro',fill:'Fill',buildup:'Build',breakdown:'Break'};
+        el.innerHTML = sections.map(s =>
+            `<button class="btn btn-secondary" style="font-size:8px; padding:3px 7px;" onclick="loadDrumPreset('${genre}_${s}')">${sLabels[s]}</button>`
+        ).join('');
+    }
+    // Init on load
+    setTimeout(showDrumSections, 200);
+
+    function loadSongTemplate(style) {
+        const genre = document.getElementById('drumGenre')?.value || 'rock';
+        const templates = {
+            pop: [
+                {section:'verse', bars:8, label:'Verse 1'},
+                {section:'chorus', bars:8, label:'Chorus 1'},
+                {section:'verse', bars:8, label:'Verse 2'},
+                {section:'chorus', bars:8, label:'Chorus 2'},
+                {section:'bridge', bars:4, label:'Bridge'},
+                {section:'chorus', bars:8, label:'Final Chorus'},
+            ],
+            rock: [
+                {section:'intro', bars:4, label:'Intro'},
+                {section:'verse', bars:8, label:'Verse 1'},
+                {section:'chorus', bars:8, label:'Chorus 1'},
+                {section:'verse', bars:8, label:'Verse 2'},
+                {section:'chorus', bars:8, label:'Chorus 2'},
+                {section:'breakdown', bars:8, label:'Solo/Breakdown'},
+                {section:'chorus', bars:8, label:'Final Chorus'},
+                {section:'outro', bars:4, label:'Outro'},
+            ],
+            hiphop: [
+                {section:'intro', bars:4, label:'Intro'},
+                {section:'verse', bars:16, label:'Verse 1'},
+                {section:'chorus', bars:8, label:'Hook'},
+                {section:'verse', bars:16, label:'Verse 2'},
+                {section:'chorus', bars:8, label:'Hook'},
+                {section:'bridge', bars:8, label:'Bridge'},
+                {section:'chorus', bars:8, label:'Hook'},
+            ],
+            edm: [
+                {section:'intro', bars:8, label:'Intro'},
+                {section:'buildup', bars:4, label:'Build'},
+                {section:'chorus', bars:8, label:'Drop'},
+                {section:'breakdown', bars:8, label:'Breakdown'},
+                {section:'buildup', bars:4, label:'Build 2'},
+                {section:'chorus', bars:8, label:'Drop 2'},
+                {section:'outro', bars:4, label:'Outro'},
+            ],
+        };
+
+        const template = templates[style] || templates.pop;
+        let beat = 0;
+        const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
+        const bpmText = document.getElementById('bpmDisplay')?.textContent || '120';
+        const bpm = parseFloat(bpmText) || 120;
+        const beatsPerBar = 4;
+
+        // Show what we're about to build
+        const plan = template.map(s => `${s.label}(${s.bars}bars)`).join(' → ');
+        if (!confirm(`Build ${genre} song structure:\n\n${plan}\n\nThis will render ${template.length} sections as one track.`)) return;
+
+        document.getElementById('statusText').textContent = 'Building song structure...';
+
+        // Render each section sequentially
+        let sectionIndex = 0;
+        let trackId = null;
+
+        function renderNextSection() {
+            if (sectionIndex >= template.length) {
+                document.getElementById('statusText').textContent = `Song structure complete! ${template.length} sections rendered.`;
+                refreshTracks();
+                reloadAllWaveforms();
+                return;
+            }
+
+            const s = template[sectionIndex];
+            const presetName = `${genre}_${s.section}`;
+
+            // Load the preset to get the pattern
+            _drumState = {};
+            DRUM_ROWS.forEach(snd => _drumState[snd] = new Array(steps).fill(0));
+            loadDrumPreset(presetName);
+
+            // Build pattern
+            const oneBar = [];
+            for (const sound in _drumState) {
+                _drumState[sound].forEach((vel, step) => {
+                    if (vel > 0) oneBar.push({ sound, beat: step * 0.25, velocity: vel });
+                });
+            }
+
+            const barLengthBeats = steps * 0.25;
+            const pattern = [];
+            for (let bar = 0; bar < s.bars; bar++) {
+                oneBar.forEach(hit => {
+                    pattern.push({ ...hit, beat: hit.beat + bar * barLengthBeats });
+                });
+            }
+
+            const payload = { pattern, bpm, name: `${genre} - ${s.label}`, offset_beats: beat };
+            if (trackId !== null) payload.target_track_id = trackId;
+
+            fetch('/api/instrument/drums', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(d => {
+                if (d.ok) {
+                    if (trackId === null) trackId = d.track_id;
+                    beat += s.bars * beatsPerBar;
+                    sectionIndex++;
+                    document.getElementById('statusText').textContent = `Rendered ${s.label} (${sectionIndex}/${template.length})`;
+                    setTimeout(renderNextSection, 100); // small delay between renders
+                }
+            });
+        }
+
+        renderNextSection();
+    }
+
+    // Update offset info label
+    document.addEventListener('input', function(e) {
+        if (e.target.id === 'drumOffset') {
+            const beat = parseInt(e.target.value) || 0;
+            const bar = Math.floor(beat / 4) + 1;
+            const info = document.getElementById('drumOffsetInfo');
+            if (info) info.textContent = `= Bar ${bar}`;
+        }
+    });
+
+    const PRESET_NAMES = {
+        basic:'Rock Beat', rock_halftime:'Half-Time', pop:'Pop Beat', hiphop:'Boom Bap',
+        trap:'Trap Beat', lofi:'Lo-Fi Beat', funk:'Funk Groove', disco:'Disco Beat',
+        edm:'House Beat', dnb:'D&B Break', jazz:'Jazz Swing', jazz_brushes:'Jazz Brushes',
+        reggae:'One Drop', latin:'Bossa Nova', afrobeat:'Afrobeat', metal:'Metal Blast',
+        punk:'Punk Beat', shuffle:'Blues Shuffle', gospel:'Gospel Groove', rnb:'R&B Groove',
+        indie_folk:'Indie/Folk', acoustic:'Acoustic', singer_songwriter:'Singer-Songwriter',
+        country:'Country', waltz:'Waltz', ballad:'Ballad',
+    };
+    // Section names auto-generate from genre + section
+    function _presetTrackName(name) {
+        if (PRESET_NAMES[name]) return PRESET_NAMES[name];
+        // Parse genre_section format
+        const parts = name.split('_');
+        const section = parts.pop();
+        const genre = parts.join('_');
+        const genreName = PRESET_NAMES[genre] || genre.charAt(0).toUpperCase() + genre.slice(1);
+        const sectionName = {verse:'Verse',chorus:'Chorus',bridge:'Bridge',intro:'Intro',outro:'Outro',fill:'Fill',buildup:'Build',breakdown:'Breakdown'}[section] || section;
+        return genreName.replace(/Beat|Groove|Blast|Break|Swing|Drop/, sectionName);
+    }
+
     function loadDrumPreset(name) {
         const steps = parseInt(document.getElementById('drumSteps')?.value || 16);
         _drumState = {};
-        DRUM_ROWS.forEach(s => _drumState[s] = new Array(steps).fill(false));
+        DRUM_ROWS.forEach(s => _drumState[s] = new Array(steps).fill(0));
+        // Auto-set the track name to match the genre + section
+        const nameField = document.getElementById('drumTrackName');
+        if (nameField) nameField.value = _presetTrackName(name);
 
-        if (name === 'basic') {
-            [0,8].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
+        // Fallback: if no specific section pattern, load the base genre
+        const baseName = name.replace(/_verse|_chorus|_bridge|_intro|_outro|_fill|_buildup|_breakdown/, '');
+
+        if (name === 'basic' || name === 'rock') {
+            // Rock — Bonham "When the Levee Breaks" / Dave Grohl
+            _setHits('kick', [0,6,8,10], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('snare', [2,6,10,14], steps, 0.25); // ghost notes
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.8);
+            _setHits('crash', [0], steps, 0.8);
+            _setHits('ride', [0,2,4,6,8,10,12,14], steps, 0.3); // soft ride under hats
+
+        // ═══ HIP-HOP SECTIONS ═══ (boom bap techniques)
+        } else if (name === 'hiphop_verse') {
+            // Laid-back verse — off-grid kick, alternating hat velocity
+            _setHits('kick', [0,5,8,10], steps, 0.7);
+            _setHits('snare', [4,12], steps, 0.7);
+            for(let i=0;i<steps;i+=2) _setHits('hihat', [i], steps, i%4===0?0.8:0.5); // accented alternation
+            _setHits('hihat_open', [14], steps, 0.6);
+        } else if (name === 'hiphop_chorus') {
+            // Driving chorus — clap layer, open hats for energy
+            _setHits('kick', [0,5,8,10], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('clap', [4,12], steps, 0.7);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.8);
+            _setHits('hihat_open', [6,14], steps, 0.8);
+            _setHits('crash', [0], steps, 0.6);
+        } else if (name === 'hiphop_bridge') {
+            // Stripped — rim clicks, quarter hats, space
+            _setHits('kick', [0,8], steps, 0.5);
+            _setHits('rim', [4,12], steps, 0.5);
+            _setHits('hihat', [0,4,8,12], steps, 0.4);
+        } else if (name === 'hiphop_intro') {
+            // Building — hats only, sparse kick entry
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.4);
+            _setHits('kick', [0], steps, 0.5);
+        } else if (name === 'hiphop_outro') {
+            // Fading — sparse, quarter notes
+            _setHits('kick', [0,8], steps, 0.5);
+            _setHits('snare', [4], steps, 0.5);
+            _setHits('hihat', [0,4,8,12], steps, 0.3);
+        } else if (name === 'hiphop_fill') {
+            // Snare roll with crash reset
+            _setHits('snare', [8,9,10,11,12,13,14,15], steps, 0.3);
+            _setHits('snare', [12,14], steps, 0.7);
+            _setHits('kick', [0], steps, 0.8);
+            _setHits('crash', [0], steps, 0.5);
+        } else if (name === 'hiphop_buildup') {
+            // Hi-hat roll crescendo
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, 0.3 + (i/steps)*0.5);
+            _setHits('kick', [0,4,8,12], steps, 0.6);
+        } else if (name === 'hiphop_breakdown') {
+            // Half-time, sparse
+            _setHits('kick', [0,10], steps, 0.6);
+            _setHits('snare', [8], steps, 0.6);
+            _setHits('hihat', [0,4,8,12], steps, 0.3);
+
+        // ═══ FUNK SECTIONS ═══ (syncopation + ghost notes)
+        } else if (name === 'funk_verse') {
+            // Pocket funk verse — ghost snares carry the groove
+            _setHits('kick', [0,6,10], steps, 0.7);
+            _setHits('snare', [4,12], steps, 0.7);
+            _setHits('snare', [1,3,7,9,13,15], steps, 0.2); // ghost notes
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.6);
+        } else if (name === 'funk_chorus') {
+            // Full 16th hat funk — Stubblefield-inspired intensity
+            _setHits('kick', [0,6,9,10,15], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('snare', [1,3,6,7,9,10,13,15], steps, 0.25);
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, i%2===0?0.8:0.4);
+            _setHits('hihat_open', [7,15], steps, 0.8);
+        } else if (name === 'funk_bridge') {
+            // Stripped back — rim clicks, sparse
+            _setHits('kick', [0,8], steps, 0.6);
+            _setHits('rim', [4,12], steps, 0.6);
+            _setHits('hihat', [0,4,8,12], steps, 0.5);
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.3);
+        } else if (name === 'funk_intro') {
+            // Hi-hat 16ths building, kick drops in
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, 0.4);
+            _setHits('kick', [0], steps, 0.5);
+        } else if (name === 'funk_outro') {
+            _setHits('kick', [0,6,10], steps, 0.5);
+            _setHits('snare', [4,12], steps, 0.5);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.4);
+        } else if (name === 'funk_fill') {
+            // Syncopated snare fill with ghost notes
+            _setHits('snare', [0,3,5,6,8,10,12,14], steps, 0.6);
+            _setHits('snare', [1,4,7,9,11,13], steps, 0.2);
+            _setHits('kick', [0,12], steps, 0.8);
+            _setHits('crash', [0], steps, 0.7);
+        } else if (name === 'funk_buildup') {
+            for(let i=0;i<steps;i++) _setHits('snare', [i], steps, 0.2 + (i/steps)*0.6);
+            _setHits('kick', [0,4,8,12], steps, 0.7);
+        } else if (name === 'funk_breakdown') {
+            // Just kick and ghost snares — the groove naked
+            _setHits('kick', [0,6,10], steps, 0.7);
+            _setHits('snare', [1,3,5,7,9,11,13,15], steps, 0.2);
+
+        // ═══ JAZZ SECTIONS ═══ (ride-driven, comping)
+        } else if (name === 'jazz_verse') {
+            // Medium swing — ride spang-a-lang with feathered kick
+            _setHits('ride', [0,3,4,6,8,11,12,14], steps, 0.7);
+            _setHits('kick', [3,9,14], steps, 0.2);
+            _setHits('hihat_pedal', [4,12], steps, 0.6);
+        } else if (name === 'jazz_chorus') {
+            // More active comping — snare accents, ride bell
+            _setHits('ride', [0,3,4,6,8,11,12,14], steps, 0.8);
+            _setHits('ride_bell', [0,8], steps, 0.5);
+            _setHits('snare', [6,14], steps, 0.5);
+            _setHits('kick', [3,9], steps, 0.3);
+            _setHits('hihat_pedal', [4,12], steps, 0.7);
+        } else if (name === 'jazz_bridge') {
+            // Brushes on snare, soft ride
+            _setHits('ride', [0,4,8,12], steps, 0.4);
+            _setHits('snare', [2,6,10,14], steps, 0.15);
+            _setHits('kick', [0,8], steps, 0.15);
+            _setHits('hihat_pedal', [4,12], steps, 0.5);
+        } else if (name === 'jazz_intro') {
+            // Just ride and foot hat — setting time
+            _setHits('ride', [0,3,4,6,8,11,12,14], steps, 0.5);
+            _setHits('hihat_pedal', [4,12], steps, 0.6);
+        } else if (name === 'jazz_outro') {
+            _setHits('ride', [0,4,8,12], steps, 0.4);
+            _setHits('kick', [0], steps, 0.3);
+            _setHits('splash', [0], steps, 0.3);
+        } else if (name === 'jazz_fill') {
+            // Snare press roll into crash
+            for(let i=0;i<12;i++) _setHits('snare', [i], steps, 0.2 + (i/12)*0.4);
+            _setHits('kick', [12], steps, 0.6);
+            _setHits('crash', [12], steps, 0.5);
+        } else if (name === 'jazz_buildup') {
+            // Increasing snare comps, kick bombs
+            _setHits('ride', [0,3,4,6,8,11,12,14], steps, 0.8);
+            _setHits('snare', [6,10,14], steps, 0.5);
+            _setHits('kick', [5,13], steps, 0.6);
+            _setHits('hihat_pedal', [4,12], steps, 0.7);
+        } else if (name === 'jazz_breakdown') {
+            // Trading fours — sparse, conversational
+            _setHits('ride', [0,4,8,12], steps, 0.4);
+            _setHits('snare', [6], steps, 0.4);
+            _setHits('kick', [0], steps, 0.2);
+
+        // ═══ EDM SECTIONS ═══ (four-on-the-floor)
+        } else if (name === 'edm_verse') {
+            // Minimal house — offbeat hats, four-on-the-floor
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('hihat', [2,6,10,14], steps, 0.7);
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.3);
+        } else if (name === 'edm_chorus') {
+            // Full house — clap, open hats, shaker
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('clap', [4,12], steps, 0.8);
+            _setHits('hihat_open', [2,6,10,14], steps, 0.8);
+            _setHits('shaker', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], steps, 0.3);
+            _setHits('crash', [0], steps, 0.7);
+        } else if (name === 'edm_bridge') {
+            _setHits('kick', [0,8], steps, 0.5);
+            _setHits('clap', [4,12], steps, 0.4);
+            _setHits('shaker', [0,4,8,12], steps, 0.3);
+        } else if (name === 'edm_intro') {
+            // Building — just kick and shaker
+            _setHits('kick', [0,4,8,12], steps, 0.5);
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.3);
+        } else if (name === 'edm_outro') {
+            _setHits('kick', [0,4,8,12], steps, 0.5);
+            _setHits('hihat', [2,6,10,14], steps, 0.4);
+        } else if (name === 'edm_fill') {
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('clap', [12,13,14,15], steps, 0.6);
+            _setHits('crash', [0], steps, 0.8);
+        } else if (name === 'edm_buildup') {
+            // Festival snare roll crescendo
+            for(let i=0;i<steps;i++) _setHits('snare', [i], steps, 0.2 + (i/steps)*0.7);
+            _setHits('kick', [0,4,8,12], steps, 0.7);
+        } else if (name === 'edm_breakdown') {
+            // Stripped — just kick pulse
+            _setHits('kick', [0,8], steps, 0.5);
+
+        // ═══ TRAP SECTIONS ═══ (808s + rolling hats)
+        } else if (name === 'trap_verse') {
+            // Sparse 808 pattern, rolling hats
+            _setHits('kick', [0,7,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.7);
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, i%2===0?0.6:0.3);
+        } else if (name === 'trap_chorus') {
+            // Heavy drop — 808 sub, clap layer, full hat rolls
+            _setHits('kick', [0,3,7,8,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('clap', [4,12], steps, 0.7);
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, i%2===0?0.8:0.4);
+            _setHits('hihat_open', [3,11], steps, 0.7);
+        } else if (name === 'trap_bridge') {
+            _setHits('kick', [0,8], steps, 0.6);
+            _setHits('rim', [4,12], steps, 0.4);
+            _setHits('hihat', [0,4,8,12], steps, 0.3);
+        } else if (name === 'trap_intro') {
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, 0.3);
+        } else if (name === 'trap_outro') {
+            _setHits('kick', [0], steps, 0.6);
+            _setHits('hihat', [0,4,8,12], steps, 0.3);
+        } else if (name === 'trap_fill') {
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, 0.3 + (i/steps)*0.5);
+            _setHits('snare', [12,14], steps, 0.7);
+            _setHits('kick', [0], steps, 0.8);
+        } else if (name === 'trap_buildup') {
+            for(let i=0;i<steps;i++) _setHits('snare', [i], steps, 0.2 + (i/steps)*0.6);
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, 0.3 + (i/steps)*0.4);
+        } else if (name === 'trap_breakdown') {
+            _setHits('kick', [0,8], steps, 0.8);
+            _setHits('hihat', [0,4,8,12], steps, 0.3);
+
         } else if (name === 'hiphop') {
-            [0,6,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
-            if(steps>14) _drumState.hihat_open[14] = true;
+            // Boom Bap — J Dilla / DJ Premier
+            _setHits('kick', [0,5,9,10], steps, 0.8);
+            _setHits('kick', [5], steps, 0.6); // lazy, behind the beat
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('snare', [7,15], steps, 0.25); // ghost
+            _setHits('clap', [4,12], steps, 0.8); // layered with snare
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.8);
+            _setHits('hihat_open', [6,14], steps, 0.8);
+
         } else if (name === 'reggae') {
-            [6,14].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            [0,4,8,12].forEach(s => { if(s<steps) _drumState.hihat[s] = true; });
-            if(steps>2) _drumState.rim[2] = true;
-            if(steps>10) _drumState.rim[10] = true;
+            // One Drop — Sly Dunbar / Carlton Barrett (Bob Marley)
+            // Beat 1 is EMPTY — that's reggae
+            _setHits('kick', [6,14], steps, 0.8);
+            _setHits('rim', [6,14], steps, 0.7); // cross-stick with kick
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.8);
+            _setHits('hihat_pedal', [4,12], steps, 0.5); // foot chick on 2 and 4
+
         } else if (name === 'funk') {
-            [0,3,6,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            for(let i=0;i<steps;i++) _drumState.hihat[i] = true;
-            if(steps>14) _drumState.hihat_open[14] = true;
-            if(steps>7) _drumState.snare[7] = true; // ghost note
+            // Clyde Stubblefield "Funky Drummer" — most sampled beat ever
+            _setHits('kick', [0,6,9,10,15], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('snare', [1,3,6,7,9,10,13,15], steps, 0.25); // ghost notes ARE the funk
+            _setHits('hihat', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], steps, 0.7); // all 16ths
+            _setHits('hihat_open', [7,15], steps, 0.8);
+
         } else if (name === 'edm') {
-            [0,4,8,12].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [4,12].forEach(s => { if(s<steps) _drumState.clap[s] = true; });
-            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
-            [2,6,10,14].forEach(s => { if(s<steps) _drumState.hihat_open[s] = true; });
+            // Four-on-the-floor — House/Techno standard
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('clap', [4,12], steps, 0.8); // clap, not snare
+            _setHits('hihat', [2,6,10,14], steps, 0.8); // offbeat 8ths — THE house signature
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.5);
+            _setHits('shaker', [1,3,5,7,9,11,13,15], steps, 0.3);
+            _setHits('crash', [0], steps, 0.6); // downbeat accent
+
         } else if (name === 'jazz') {
-            [0,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [6].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            // swing ride pattern: 0, 3, 4, 7, 8, 11, 12, 15 (triplet feel)
-            [0,3,4,7,8,11,12,15].forEach(s => { if(s<steps) _drumState.hihat[s] = true; });
+            // Swing ride — Art Blakey / Tony Williams
+            _setHits('ride', [0,3,4,6,8,11,12,14], steps, 0.8); // spang-a-lang
+            _setHits('ride_bell', [0,8], steps, 0.3); // subtle bell accent on 1 and 3
+            _setHits('kick', [3,9,14], steps, 0.2); // feathered — barely audible
+            _setHits('snare', [6,14], steps, 0.5); // comping, not backbeat
+            _setHits('hihat_pedal', [4,12], steps, 0.7); // foot chick on 2 and 4
+
         } else if (name === 'latin') {
-            [0,6,10].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            [0,2,4,6,8,10,12,14].forEach(s => { if(s<steps) _drumState.hihat[s] = true; });
-            [3,7,11,15].forEach(s => { if(s<steps) _drumState.rim[s] = true; });
-            [0,8].forEach(s => { if(s<steps) _drumState.tom_mid[s] = true; });
+            // Bossa Nova — Milton Banana / Airto Moreira
+            _setHits('kick', [0,5,8,10,14], steps, 0.7);
+            _setHits('rim', [3,6,9,12,15], steps, 0.6); // cross-stick clave
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.5);
+            _setHits('hihat', [1,3,5,7,9,11,13,15], steps, 0.2); // whisper 16ths
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.4);
+            _setHits('splash', [0], steps, 0.3); // soft splash accent
+
+        // ═══ METAL SECTIONS ═══ (from real recordings)
+        } else if (name === 'metal_verse') {
+            // Thrash gallop verse — down-up-up kick pattern, tight hats
+            _setHits('kick', [0,4,6,8,12,14], steps, 0.8); // gallop pattern
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.8);
+        } else if (name === 'metal_chorus') {
+            // Full thrash blast — 16th kick barrage, 8th snare
+            _setHits('double_kick', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], steps, 0.8);
+            _setHits('snare', [0,2,4,6,8,10,12,14], steps, 0.8); // 8th blast
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7);
+            _setHits('crash', [0], steps, 0.8);
+        } else if (name === 'metal_bridge') {
+            // Half-time — atmospheric, china
+            _setHits('kick', [0,10], steps, 0.8);
+            _setHits('snare', [8], steps, 0.8);
+            _setHits('china', [0,8], steps, 0.7);
+            _setHits('hihat', [0,4,8,12], steps, 0.5);
+        } else if (name === 'metal_intro') {
+            // Building double kick into full pattern
+            _setHits('double_kick', [0,4,6,8,12,14], steps, 0.6);
+            _setHits('snare', [12], steps, 0.7);
+            _setHits('ride', [0,4,8,12], steps, 0.5);
+        } else if (name === 'metal_outro') {
+            // Slowing blast, final crash
+            _setHits('double_kick', [0,2,4,6,8,10,12,14], steps, 0.7);
+            _setHits('snare', [4,12], steps, 0.7);
+            _setHits('crash', [0], steps, 0.8);
+        } else if (name === 'metal_fill') {
+            // Blast into descending toms into crash+china
+            _setHits('double_kick', [0,1,2,3,4,5,6,7], steps, 0.8);
+            _setHits('snare', [0,1,2,3], steps, 0.7);
+            _setHits('tom_high', [4,5,6], steps, 0.8);
+            _setHits('tom_mid', [7,8,9], steps, 0.8);
+            _setHits('tom_low', [10,11], steps, 0.8);
+            _setHits('kick', [12], steps, 0.8);
+            _setHits('crash', [12], steps, 0.8);
+            _setHits('china', [12], steps, 0.8);
+        } else if (name === 'metal_buildup') {
+            // Accelerating double kick into blast
+            _setHits('double_kick', [0,4,6,8,9,10,11,12,13,14,15], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.7);
+            _setHits('china', [0], steps, 0.6);
+        } else if (name === 'metal_breakdown') {
+            // Groove metal breakdown — china on quarters, syncopated gallop kick
+            _setHits('kick', [0,3,6,8,11,14], steps, 0.8); // syncopated gallop
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('china', [0,4,8,12], steps, 0.8); // china on quarters — Adler signature
+            _setHits('tom_low', [6,14], steps, 0.4);
+
         } else if (name === 'metal') {
-            // double kick
-            for(let i=0;i<steps;i++) _drumState.kick[i] = true;
-            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
+            // Thrash — Dave Lombardo "Angel of Death" / Lars Ulrich
+            _setHits('double_kick', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('ride', [0,2,4,6,8,10,12,14], steps, 0.8); // 8th ride — Lombardo
+            _setHits('crash', [0], steps, 0.8);
+            _setHits('china', [12], steps, 0.7); // china accent on beat 4
+
         } else if (name === 'rnb') {
-            [0,5,8,13].forEach(s => { if(s<steps) _drumState.kick[s] = true; });
-            [4,12].forEach(s => { if(s<steps) _drumState.snare[s] = true; });
-            for(let i=0;i<steps;i+=2) _drumState.hihat[i] = true;
-            [1,3,5,7,9,11,13,15].forEach(s => { if(s<steps) _drumState.hihat[s] = true; }); // all 16ths
+            // Neo-Soul — Questlove / Chris Dave
+            _setHits('kick', [0,5,9,10], steps, 0.7);
+            _setHits('kick', [5,10], steps, 0.5); // extra soft on off-beats
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('snare', [2,7,10,14], steps, 0.2); // ghost notes — essential
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7); // slightly lazy 8ths
+            _setHits('hihat_open', [7,11], steps, 0.7); // slinky R&B feel
+            _setHits('rim', [14], steps, 0.3); // ghost pickup
+
+        // ═══ ROCK SECTIONS ═══ (from real recordings)
+        } else if (name === 'rock_verse') {
+            // Classic rock pocket — steady 8th hats, syncopated kick (Rudd-style)
+            _setHits('kick', [0,6,8,10], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7);
+
+        } else if (name === 'rock_chorus') {
+            // Explosive chorus — ride the crash instead of hats (Grohl-style energy)
+            _setHits('kick', [0,6,8,14], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('crash', [0,2,4,6,8,10,12,14], steps, 0.8); // crash ride on 8ths
+
+        } else if (name === 'rock_bridge') {
+            // Bridge — stripped back, ride cymbal, space
+            _setHits('kick', [0,10], steps, 0.6);
+            _setHits('snare', [8], steps, 0.7);
+            _setHits('ride', [0,2,4,6,8,10,12,14], steps, 0.5);
+
+        } else if (name === 'rock_intro') {
+            // Double kick shuffle intro — Van Halen-style build
+            _setHits('double_kick', [0,2,3,4,6,7,8,10,11,12,14,15], steps, 0.7);
+            _setHits('hihat', [0,4,8,12], steps, 0.5);
+
+        } else if (name === 'rock_outro') {
+            // Outro — ride, fading energy
+            _setHits('kick', [0,8], steps, 0.5);
+            _setHits('snare', [4,12], steps, 0.5);
+            _setHits('ride', [0,4,8,12], steps, 0.5);
+            _setHits('crash', [0], steps, 0.6);
+
+        } else if (name === 'rock_fill') {
+            // Classic tom fill — descending pairs, crash landing
+            _setHits('tom_high', [0,2], steps, 0.8);
+            _setHits('tom_mid', [4,6], steps, 0.8);
+            _setHits('tom_low', [8,10], steps, 0.8);
+            _setHits('kick', [12], steps, 0.8);
+            _setHits('snare', [12], steps, 0.8);
+            _setHits('crash', [12], steps, 0.8);
+
+        } else if (name === 'rock_buildup') {
+            // Snare roll crescendo into crash
+            for(let i=0;i<steps;i++) _setHits('snare', [i], steps, 0.3 + (i/steps)*0.5);
+            _setHits('kick', [0,4,8,12], steps, 0.7);
+            _setHits('crash', [15], steps, 0.8);
+
+        } else if (name === 'rock_breakdown') {
+            // Half-time breakdown — heavy, sparse, china accent
+            _setHits('kick', [0,10], steps, 0.8);
+            _setHits('snare', [8], steps, 0.8);
+            _setHits('hihat', [0,4,8,12], steps, 0.5);
+            _setHits('china', [0], steps, 0.7);
+
+        } else if (name === 'rock_halftime') {
+            // Half-time rock — Radiohead, Tool, Deftones (half-time feel at normal BPM)
+            _setHits('kick', [0,10], steps, 0.8);
+            _setHits('snare', [8], steps, 0.8); // snare on 3 only (half-time)
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7);
+            _setHits('hihat_open', [14], steps, 0.7);
+            _setHits('crash', [0], steps, 0.7);
+
+        // ═══ POP SECTIONS ═══
+        } else if (name === 'pop_verse') {
+            _setHits('kick', [0,8], steps, 0.6);
+            _setHits('snare', [4,12], steps, 0.6);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.5);
+        } else if (name === 'pop_chorus') {
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('clap', [4,12], steps, 0.6);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7);
+            _setHits('crash', [0], steps, 0.7);
+        } else if (name === 'pop_bridge') {
+            _setHits('kick', [0,8], steps, 0.5);
+            _setHits('clap', [4,12], steps, 0.5);
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.4);
+        } else if (name === 'pop_intro') {
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.4);
+            _setHits('kick', [0,8], steps, 0.4);
+        } else if (name === 'pop_outro') {
+            _setHits('kick', [0,4,8,12], steps, 0.5);
+            _setHits('clap', [4,12], steps, 0.4);
+            _setHits('shaker', [0,4,8,12], steps, 0.3);
+        } else if (name === 'pop_fill') {
+            _setHits('snare', [0,2], steps, 0.6);
+            _setHits('tom_high', [4,5], steps, 0.6);
+            _setHits('tom_mid', [6,7,8], steps, 0.7);
+            _setHits('kick', [12], steps, 0.8);
+            _setHits('crash', [12], steps, 0.8);
+        } else if (name === 'pop_buildup') {
+            for(let i=0;i<steps;i++) _setHits('snare', [i], steps, 0.2 + (i/steps)*0.6);
+            _setHits('kick', [0,4,8,12], steps, 0.6);
+        } else if (name === 'pop_breakdown') {
+            _setHits('kick', [0,8], steps, 0.4);
+            _setHits('rim', [4,12], steps, 0.4);
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.3);
+
+        } else if (name === 'pop') {
+            // Modern Pop — Max Martin, four-on-the-floor meets live drums
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('clap', [4,12], steps, 0.6); // layered clap
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7);
+            _setHits('hihat_open', [14], steps, 0.6);
+
+        } else if (name === 'trap') {
+            // Trap — 808 patterns, rolling hi-hats, sparse kick
+            _setHits('kick', [0,7,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('clap', [4,12], steps, 0.7);
+            // Rolling hi-hats — all 16ths with accent pattern
+            for(let i=0;i<steps;i++) _setHits('hihat', [i], steps, i%2===0 ? 0.7 : 0.3);
+            _setHits('hihat_open', [3,11], steps, 0.7);
+
+        } else if (name === 'lofi') {
+            // Lo-Fi Hip Hop — Nujabes, J Dilla influenced, lazy swing
+            _setHits('kick', [0,5,8], steps, 0.6);
+            _setHits('snare', [4,12], steps, 0.5);
+            _setHits('snare', [10], steps, 0.2); // ghost
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.4);
+            _setHits('rim', [4,12], steps, 0.4);
+            _setHits('shaker', [0,4,8,12], steps, 0.2);
+
+        } else if (name === 'disco') {
+            // Disco — four-on-floor, open hats on every upbeat
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('hihat', [0,4,8,12], steps, 0.5);
+            _setHits('hihat_open', [2,6,10,14], steps, 0.8); // upbeat open hats = disco
+            _setHits('tom_low', [14,15], steps, 0.4); // pickup fill
+
+        } else if (name === 'dnb') {
+            // Drum & Bass — breakbeat pattern at 170+ BPM
+            _setHits('kick', [0,10], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('snare', [6,14], steps, 0.3); // ghost snares
+            _setHits('hihat', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], steps, 0.5); // all 16ths
+            _setHits('hihat', [0,4,8,12], steps, 0.8); // accent on quarters
+            _setHits('hihat_open', [2,10], steps, 0.6);
+            _setHits('crash', [0], steps, 0.6);
+
+        } else if (name === 'jazz_brushes') {
+            // Jazz brushes — sweeping texture, very soft
+            _setHits('ride', [0,3,4,6,8,11,12,14], steps, 0.5);
+            _setHits('kick', [0,6], steps, 0.15); // feathered
+            _setHits('snare', [2,6,10,14], steps, 0.15); // brush sweeps (ghost)
+            _setHits('hihat_pedal', [4,12], steps, 0.5);
+            _setHits('rim', [8], steps, 0.3);
+
+        } else if (name === 'afrobeat') {
+            // Afrobeat — Tony Allen (Fela Kuti) polyrhythmic grooves
+            _setHits('kick', [0,5,10,14], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.7);
+            _setHits('snare', [2,7,10], steps, 0.25); // ghost
+            _setHits('hihat', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], steps, 0.5); // 16ths
+            _setHits('hihat_open', [3,7,11,15], steps, 0.7); // offbeat opens
+            _setHits('tom_high', [6,14], steps, 0.5);
+            _setHits('cowbell', [0,4,8,12], steps, 0.4);
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.3);
+
+        } else if (name === 'punk') {
+            // Punk — Ramones, fast and simple, all gas
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.8);
+            _setHits('crash', [0], steps, 0.8);
+
+        } else if (name === 'shuffle') {
+            // Blues shuffle — triplet feel (approximate in 16th grid)
+            _setHits('kick', [0,6,8], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('hihat', [0,3,4,7,8,11,12,15], steps, 0.7); // triplet pattern
+            _setHits('hihat_open', [7,15], steps, 0.6);
+            _setHits('ride', [0,3,4,7,8,11,12,15], steps, 0.3); // soft ride underneath
+
+        } else if (name === 'gospel') {
+            // Gospel — linear drumming, toms and fills, driving energy
+            _setHits('kick', [0,3,6,8,11,14], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('snare', [2,6,10,14], steps, 0.2); // ghost snares
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7);
+            _setHits('hihat_open', [7,15], steps, 0.7);
+            _setHits('tom_high', [3,11], steps, 0.4);
+            _setHits('tom_mid', [6,14], steps, 0.3);
+            _setHits('crash', [0,8], steps, 0.6);
+
+        // ═══ INDIE / SINGER-SONGWRITER STYLES ═══
+        } else if (name === 'indie_folk' || name === 'indie_folk_verse') {
+            // Indie/Folk — Bon Iver, Iron & Wine, Fleet Foxes style
+            // Brushes on snare, soft kick, shaker texture, minimal
+            _setHits('kick', [0,10], steps, 0.5);
+            _setHits('snare', [4,12], steps, 0.3); // soft brush sweeps
+            _setHits('snare', [2,6,8,14], steps, 0.12); // ghost brush
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.3);
+            _setHits('hihat_pedal', [4,12], steps, 0.4);
+        } else if (name === 'indie_folk_chorus') {
+            _setHits('kick', [0,6,8,10], steps, 0.6);
+            _setHits('snare', [4,12], steps, 0.5);
+            _setHits('snare', [2,10], steps, 0.15);
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.4);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.3);
+            _setHits('crash', [0], steps, 0.4);
+        } else if (name === 'indie_folk_bridge') {
+            _setHits('kick', [0], steps, 0.3);
+            _setHits('shaker', [0,4,8,12], steps, 0.2);
+        } else if (name === 'indie_folk_intro') {
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.2);
+        } else if (name === 'indie_folk_outro') {
+            _setHits('kick', [0,8], steps, 0.3);
+            _setHits('shaker', [0,4,8,12], steps, 0.2);
+            _setHits('rim', [4], steps, 0.3);
+        } else if (name === 'indie_folk_fill') {
+            _setHits('tom_mid', [8,10,12], steps, 0.4);
+            _setHits('tom_low', [13,14], steps, 0.4);
+            _setHits('kick', [0], steps, 0.5);
+            _setHits('crash', [0], steps, 0.3);
+        } else if (name === 'indie_folk_buildup') {
+            for(let i=0;i<steps;i++) _setHits('shaker', [i], steps, 0.15 + (i/steps)*0.3);
+            _setHits('kick', [0,8], steps, 0.4);
+        } else if (name === 'indie_folk_breakdown') {
+            _setHits('rim', [4,12], steps, 0.3);
+            _setHits('hihat_pedal', [0,4,8,12], steps, 0.3);
+
+        } else if (name === 'acoustic' || name === 'acoustic_verse') {
+            // Acoustic — percussive guitar style, cajón-like
+            // Kick is body hit, snare is slap, minimal kit
+            _setHits('kick', [0,8], steps, 0.6);
+            _setHits('rim', [4,12], steps, 0.6); // cross-stick = acoustic snare
+            _setHits('shaker', [0,2,4,6,8,10,12,14], steps, 0.25);
+        } else if (name === 'acoustic_chorus') {
+            _setHits('kick', [0,6,8], steps, 0.7);
+            _setHits('snare', [4,12], steps, 0.5);
+            _setHits('rim', [4,12], steps, 0.3);
+            _setHits('shaker', [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], steps, 0.2);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.3);
+        } else if (name === 'acoustic_bridge') {
+            _setHits('kick', [0], steps, 0.4);
+            _setHits('rim', [8], steps, 0.4);
+        } else if (name === 'acoustic_intro') {
+            _setHits('rim', [0,4,8,12], steps, 0.3);
+        } else if (name === 'acoustic_outro') {
+            _setHits('kick', [0], steps, 0.3);
+            _setHits('shaker', [0,4,8,12], steps, 0.15);
+        } else if (name === 'acoustic_fill') {
+            _setHits('rim', [0,2,4], steps, 0.4);
+            _setHits('tom_mid', [6,8], steps, 0.3);
+            _setHits('kick', [12], steps, 0.5);
+        } else if (name === 'acoustic_buildup') {
+            for(let i=0;i<steps;i++) _setHits('rim', [i], steps, 0.15 + (i/steps)*0.35);
+        } else if (name === 'acoustic_breakdown') {
+            _setHits('kick', [0,8], steps, 0.3);
+
+        } else if (name === 'singer_songwriter' || name === 'singer_songwriter_verse') {
+            // Singer-Songwriter — serve the vocal, stay out of the way
+            // Soft, breathing, dynamic, human
+            _setHits('kick', [0,10], steps, 0.4);
+            _setHits('snare', [4,12], steps, 0.25); // very soft
+            _setHits('snare', [2,6,10,14], steps, 0.1); // whisper ghosts
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.3);
+            _setHits('hihat_pedal', [4,12], steps, 0.4);
+        } else if (name === 'singer_songwriter_chorus') {
+            // Open up — let the emotion through
+            _setHits('kick', [0,6,8,10], steps, 0.6);
+            _setHits('snare', [4,12], steps, 0.6);
+            _setHits('snare', [2,10], steps, 0.15);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.5);
+            _setHits('hihat_open', [6,14], steps, 0.4);
+            _setHits('crash', [0], steps, 0.5);
+        } else if (name === 'singer_songwriter_bridge') {
+            // Strip to almost nothing — voice carries
+            _setHits('kick', [0], steps, 0.3);
+            _setHits('rim', [8], steps, 0.3);
+            _setHits('hihat_pedal', [4,12], steps, 0.3);
+        } else if (name === 'singer_songwriter_intro') {
+            // Just a pulse — listener enters
+            _setHits('hihat_pedal', [0,4,8,12], steps, 0.3);
+        } else if (name === 'singer_songwriter_outro') {
+            _setHits('kick', [0], steps, 0.25);
+            _setHits('ride', [0,4,8,12], steps, 0.2);
+        } else if (name === 'singer_songwriter_fill') {
+            _setHits('tom_mid', [8,10], steps, 0.3);
+            _setHits('tom_low', [12,14], steps, 0.3);
+            _setHits('kick', [0], steps, 0.4);
+            _setHits('crash', [0], steps, 0.3);
+        } else if (name === 'singer_songwriter_buildup') {
+            for(let i=8;i<steps;i++) _setHits('snare', [i], steps, 0.1 + ((i-8)/(steps-8))*0.3);
+            _setHits('kick', [0,8], steps, 0.4);
+        } else if (name === 'singer_songwriter_breakdown') {
+            // Just breathing room
+            _setHits('hihat_pedal', [4,12], steps, 0.25);
+
+        } else if (name === 'country' || name === 'country_verse') {
+            // Country — train beat, steady, driving
+            _setHits('kick', [0,4,8,12], steps, 0.7);
+            _setHits('snare', [4,12], steps, 0.7);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.6);
+        } else if (name === 'country_chorus') {
+            _setHits('kick', [0,4,8,12], steps, 0.8);
+            _setHits('snare', [4,12], steps, 0.8);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.7);
+            _setHits('crash', [0], steps, 0.6);
+            _setHits('ride', [0,2,4,6,8,10,12,14], steps, 0.3);
+        } else if (name === 'country_bridge') {
+            _setHits('kick', [0,8], steps, 0.5);
+            _setHits('rim', [4,12], steps, 0.5);
+            _setHits('hihat', [0,4,8,12], steps, 0.4);
+        } else if (name === 'country_intro') {
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.4);
+            _setHits('kick', [0,8], steps, 0.4);
+        } else if (name === 'country_outro') {
+            _setHits('kick', [0,4,8,12], steps, 0.5);
+            _setHits('snare', [4,12], steps, 0.5);
+            _setHits('ride', [0,4,8,12], steps, 0.3);
+        } else if (name === 'country_fill') {
+            _setHits('snare', [0,2], steps, 0.6);
+            _setHits('tom_high', [4,6], steps, 0.6);
+            _setHits('tom_mid', [8,10], steps, 0.6);
+            _setHits('kick', [12], steps, 0.7);
+            _setHits('crash', [12], steps, 0.7);
+        } else if (name === 'country_buildup') {
+            for(let i=0;i<steps;i++) _setHits('snare', [i], steps, 0.3 + (i/steps)*0.4);
+            _setHits('kick', [0,4,8,12], steps, 0.6);
+        } else if (name === 'country_breakdown') {
+            _setHits('kick', [0,8], steps, 0.5);
+            _setHits('rim', [4,12], steps, 0.5);
+
+        } else if (name === 'waltz' || name === 'waltz_verse') {
+            // Waltz — 3/4 time feel (in 16 steps: beats on 0, 5, 11 roughly)
+            _setHits('kick', [0], steps, 0.6);
+            _setHits('hihat', [5,11], steps, 0.5); // beats 2 and 3
+            _setHits('snare', [5], steps, 0.4);
+        } else if (name === 'waltz_chorus') {
+            _setHits('kick', [0], steps, 0.7);
+            _setHits('snare', [5,11], steps, 0.5);
+            _setHits('hihat', [0,5,11], steps, 0.6);
+            _setHits('crash', [0], steps, 0.5);
+        } else if (name === 'waltz_bridge') {
+            _setHits('kick', [0], steps, 0.4);
+            _setHits('ride', [0,5,11], steps, 0.4);
+        } else if (name === 'waltz_intro') {
+            _setHits('hihat', [0,5,11], steps, 0.3);
+        } else if (name === 'waltz_outro') {
+            _setHits('kick', [0], steps, 0.3);
+            _setHits('ride', [0,5,11], steps, 0.25);
+        } else if (name === 'waltz_fill') {
+            _setHits('tom_high', [0,2], steps, 0.5);
+            _setHits('tom_mid', [5,7], steps, 0.5);
+            _setHits('tom_low', [11,13], steps, 0.5);
+        } else if (name === 'waltz_buildup') {
+            for(let i=0;i<steps;i++) _setHits('snare', [i], steps, 0.15 + (i/steps)*0.35);
+        } else if (name === 'waltz_breakdown') {
+            _setHits('rim', [0,5,11], steps, 0.3);
+
+        } else if (name === 'ballad' || name === 'ballad_verse') {
+            // Ballad — slow, emotional, every hit matters
+            _setHits('kick', [0,8], steps, 0.4);
+            _setHits('snare', [4,12], steps, 0.3);
+            _setHits('hihat', [0,4,8,12], steps, 0.25); // quarter notes only
+            _setHits('ride', [0,2,4,6,8,10,12,14], steps, 0.15); // soft shimmer
+        } else if (name === 'ballad_chorus') {
+            // Swell — this is where the tears come
+            _setHits('kick', [0,6,8], steps, 0.6);
+            _setHits('snare', [4,12], steps, 0.6);
+            _setHits('snare', [2,10], steps, 0.15);
+            _setHits('hihat', [0,2,4,6,8,10,12,14], steps, 0.4);
+            _setHits('hihat_open', [14], steps, 0.4);
+            _setHits('crash', [0], steps, 0.5);
+        } else if (name === 'ballad_bridge') {
+            // Stripped — just the heartbeat
+            _setHits('kick', [0,8], steps, 0.3);
+            _setHits('hihat_pedal', [4,12], steps, 0.25);
+        } else if (name === 'ballad_intro') {
+            _setHits('ride', [0,4,8,12], steps, 0.15);
+        } else if (name === 'ballad_outro') {
+            _setHits('kick', [0], steps, 0.25);
+            _setHits('ride', [0,4], steps, 0.15);
+            _setHits('crash', [0], steps, 0.2);
+        } else if (name === 'ballad_fill') {
+            _setHits('tom_mid', [8,10,12], steps, 0.35);
+            _setHits('tom_low', [13,14,15], steps, 0.35);
+            _setHits('crash', [0], steps, 0.4);
+        } else if (name === 'ballad_buildup') {
+            for(let i=4;i<steps;i++) _setHits('snare', [i], steps, 0.1 + ((i-4)/(steps-4))*0.35);
+            _setHits('kick', [0,8], steps, 0.4);
+        } else if (name === 'ballad_breakdown') {
+            _setHits('kick', [0], steps, 0.2);
+
+        } else if (baseName && baseName !== name) {
+            // Fallback: load the base genre pattern for unimplemented sections
+            loadDrumPreset(baseName);
+            return;
+        }
+
+        // For multi-bar patterns (32/48/64/128 steps), tile the base pattern
+        // across all bars first, then add variations in the final bar
+        if (steps > 16) {
+            // First: tile the bar 1 pattern (steps 0-15) across all subsequent bars
+            DRUM_ROWS.forEach(sound => {
+                if (!_drumState[sound]) return;
+                const bar1 = _drumState[sound].slice(0, 16);
+                for (let bar = 1; bar < Math.floor(steps / 16); bar++) {
+                    for (let i = 0; i < 16 && (bar * 16 + i) < steps; i++) {
+                        if (bar1[i] > 0) {
+                            _drumState[sound][bar * 16 + i] = bar1[i];
+                        }
+                    }
+                }
+            });
+
+            // Now add variations — makes it feel alive, not just a loop
+            const totalBars = Math.floor(steps / 16);
+
+            // Add human variations so it doesn't sound copy-pasted
+            for (let bar = 1; bar < totalBars; bar++) {
+                const barStart = bar * 16;
+
+                // Every even bar: add ghost snare variation
+                if (bar % 2 === 1) {
+                    _setHits('snare', [barStart + 2, barStart + 6, barStart + 10], steps, 0.2);
+                }
+
+                // Every 4th bar: open hat energy shift
+                if (bar % 4 === 3) {
+                    _setHits('hihat_open', [barStart + 6, barStart + 14], steps, 0.5);
+                    _setHits('kick', [barStart + 10], steps, 0.6);
+                }
+
+                // Bar before a 4-bar boundary: crash accent
+                if (bar % 4 === 0 && bar > 0) {
+                    _setHits('crash', [barStart], steps, 0.6);
+                }
+            }
+
+            // Second-to-last bar: push energy
+            if (totalBars >= 3) {
+                const shiftBar = (totalBars - 2) * 16;
+                _setHits('hihat_open', [shiftBar + 6, shiftBar + 14], steps, 0.5);
+                _setHits('kick', [shiftBar + 10], steps, 0.6);
+            }
+
+            // Last bar: fill leading into the next section
+            if (totalBars >= 2) {
+                const lastBar = (totalBars - 1) * 16;
+                const fillStart = lastBar + 12;
+
+                // Clear hats during fill
+                for (let i = fillStart; i < Math.min(fillStart + 4, steps); i++) {
+                    if (_drumState.hihat) _drumState.hihat[i] = 0;
+                    if (_drumState.ride) _drumState.ride[i] = 0;
+                }
+
+                // Descending tom fill
+                _setHits('tom_high', [fillStart], steps, 0.6);
+                _setHits('tom_mid', [fillStart + 1], steps, 0.6);
+                _setHits('tom_low', [fillStart + 2, fillStart + 3], steps, 0.7);
+
+                // Crash on last step
+                if (lastBar + 15 < steps) _setHits('crash', [lastBar + 15], steps, 0.5);
+            }
         }
 
         // Rebuild grid with the state already set — DON'T reset in buildDrumGrid
         _buildDrumGridFromState(steps);
+    }
+
+    // ═══ QUICK NOTE PLAYER (for scale ref + chord builder) ═══
+    function playQuickNote(midi, dur) {
+        dur = dur || 0.5;
+        // Try to use the instrument panel's selected instrument
+        if (_instFamily && _instModel) {
+            const audio = new Audio(`/api/instrument/play/${_instFamily}/${_instModel}/${midi}?duration=${dur}&velocity=0.6`);
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+            return;
+        }
+        // Fallback: triangle wave
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + dur);
+    }
+
+    // ═══ COPY/PASTE/DUPLICATE ═══
+    // _clipboard already declared above
+
+    function copyRegion() {
+        const t = getActiveTrack();
+        if (!t) { showStatus('Select a track first'); return; }
+        _clipboard = { trackId: t.id, engineId: t.engineId, name: t.name };
+        showStatus(`Copied "${t.name}"`);
+    }
+
+    function pasteRegion() {
+        if (!_clipboard) { showStatus('Nothing to paste — copy a track first (Ctrl+C)'); return; }
+        const pos = _engine_position_seconds || 0;
+        fetch(`/api/track/${_clipboard.engineId}/duplicate`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({offset_seconds: pos})
+        }).then(r => r.json()).then(d => {
+            if (d.ok) { showStatus(`Pasted "${_clipboard.name}"`); refreshTracks(); reloadAllWaveforms(); }
+            else showStatus(d.error || 'Paste failed');
+        }).catch(() => {
+            // Fallback: duplicate as new track
+            addTrack(_clipboard.name + ' (copy)');
+            showStatus(`Duplicated "${_clipboard.name}"`);
+        });
+    }
+
+    function duplicateTrack(uiId) {
+        const t = tracks.find(tr => tr.id === uiId);
+        if (!t || t.engineId === null) return;
+        fetch(`/api/track/${t.engineId}/duplicate`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+            .then(r => r.json()).then(d => {
+                if (d.ok) { showStatus(`Duplicated "${t.name}"`); refreshTracks(); reloadAllWaveforms(); }
+            });
+    }
+
+    // ═══ VOCAL TUNING ═══
+    function applyVocalTuning() {
+        const active = getActiveTrack();
+        if (!active || active.engineId === null) { showStatus('Select a vocal track first'); return; }
+        const strength = parseInt(document.getElementById('tuneStrength')?.value || 50);
+        const key = document.getElementById('tuneKey')?.value || 'C';
+        const speed = parseInt(document.getElementById('tuneSpeed')?.value || 30);
+        showStatus(`Applying pitch correction (${strength}%, key: ${key})...`);
+        fetch('/api/effects/vocal-tune', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({track_id: active.engineId, strength: strength/100, key, speed_ms: speed})
+        }).then(r=>r.json()).then(d => {
+            showStatus(d.ok ? `Vocal tuning applied (${strength}%)` : (d.error || 'Failed'));
+            if (d.ok) reloadAllWaveforms();
+        }).catch(() => showStatus('Vocal tuning not yet available — coming soon'));
+    }
+
+    // ═══ TEMPO MAPPING ═══
+    let _tempoMap = [{beat:0, bpm:120}];
+    function addTempoPoint() {
+        const beat = parseInt(document.getElementById('tempoMapBeat')?.value || 0);
+        const bpm = parseInt(document.getElementById('tempoMapBpm')?.value || 120);
+        _tempoMap.push({beat, bpm});
+        _tempoMap.sort((a,b) => a.beat - b.beat);
+        // Remove duplicates at same beat
+        _tempoMap = _tempoMap.filter((t,i) => i === 0 || t.beat !== _tempoMap[i-1].beat);
+        renderTempoMap();
+        showStatus(`Tempo change: ${bpm} BPM at beat ${beat}`);
+    }
+    function renderTempoMap() {
+        const el = document.getElementById('tempoMapList');
+        if (!el) return;
+        el.innerHTML = _tempoMap.map((t,i) =>
+            `<div style="padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
+                <span>Beat ${t.beat}: <strong style="color:var(--teal);">${t.bpm} BPM</strong></span>
+                ${i > 0 ? `<span onclick="_tempoMap.splice(${i},1);renderTempoMap()" style="cursor:pointer;color:var(--red);font-size:10px;">remove</span>` : '<span style="font-size:9px;color:var(--text-muted);">start</span>'}
+            </div>`
+        ).join('');
+    }
+
+    // ═══ PROJECT TEMPLATES ═══
+    function loadProjectTemplate(type) {
+        fetch('/api/session/reset', {method:'POST'}).then(() => {
+            if (type === 'songwriting') {
+                showPanel('chords'); setTimeout(() => showPanel('lyrics_editor'), 500);
+                showStatus('Songwriting session ready — build chords, write lyrics, compose');
+            } else if (type === 'band') {
+                ['Drums','Bass','Guitar','Vocals'].forEach((name, i) => {
+                    setTimeout(() => addTrack(name), i * 200);
+                });
+                showStatus('Band session ready — 4 tracks configured');
+            } else if (type === 'beat') {
+                showPanel('drums');
+                showStatus('Beat making session ready — open Drum Machine, Synth, or Pad');
+            } else if (type === 'podcast') {
+                ['Host','Guest','Music Bed'].forEach((name, i) => {
+                    setTimeout(() => addTrack(name), i * 200);
+                });
+                showStatus('Podcast session ready — record Host and Guest');
+            } else if (type === 'mixing') {
+                showStatus('Mixing session — import your stems with Open File');
+                showPanel('open_file');
+            } else if (type === 'orchestral') {
+                showPanel('score');
+                showStatus('Orchestral session — open Score, add parts for each instrument');
+            }
+        });
+    }
+
+    // ═══ SPECTRUM ANALYZER + OSCILLOSCOPE ═══
+    let _specCtx = null, _specAnalyser = null, _specSource = null, _specRaf = null, _specType = 'bars';
+
+    function startSpectrum() {
+        if (_specCtx) return;
+        _specCtx = new (window.AudioContext || window.webkitAudioContext)();
+        _specAnalyser = _specCtx.createAnalyser();
+        _specAnalyser.fftSize = 2048;
+        navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
+            _specSource = _specCtx.createMediaStreamSource(stream);
+            _specSource.connect(_specAnalyser);
+            drawSpectrum();
+        }).catch(() => { showStatus('Microphone access needed for spectrum analyzer'); _specCtx = null; });
+    }
+
+    function stopSpectrum() {
+        if (_specRaf) cancelAnimationFrame(_specRaf);
+        if (_specSource) { try { _specSource.disconnect(); } catch(e) {} }
+        if (_specCtx) { try { _specCtx.close(); } catch(e) {} }
+        _specCtx = null; _specAnalyser = null; _specSource = null;
+    }
+
+    function updateSpectrumType() { _specType = document.getElementById('spectrumType')?.value || 'bars'; }
+
+    function drawSpectrum() {
+        if (!_specAnalyser) return;
+        _specRaf = requestAnimationFrame(drawSpectrum);
+        const canvas = document.getElementById('spectrumCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (_specType === 'scope') {
+            // Oscilloscope — waveform display
+            const data = new Float32Array(_specAnalyser.fftSize);
+            _specAnalyser.getFloatTimeDomainData(data);
+            ctx.strokeStyle = '#2dd4a8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            const step = w / data.length;
+            for (let i = 0; i < data.length; i++) {
+                const y = h / 2 + data[i] * h / 2;
+                i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * step, y);
+            }
+            ctx.stroke();
+            // Center line
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 0.5;
+            ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+        } else {
+            // Frequency spectrum (bars or line)
+            const data = new Uint8Array(_specAnalyser.frequencyBinCount);
+            _specAnalyser.getByteFrequencyData(data);
+            const binCount = data.length;
+
+            if (_specType === 'line') {
+                ctx.strokeStyle = '#9b59b6';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let i = 0; i < binCount; i++) {
+                    // Log scale for frequency axis
+                    const x = Math.log(i + 1) / Math.log(binCount) * w;
+                    const y = h - (data[i] / 255) * h;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                // Fill underneath
+                ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+                ctx.fillStyle = 'rgba(155,89,182,0.1)'; ctx.fill();
+            } else {
+                // Bars — log-spaced frequency bands
+                const numBars = 64;
+                const barW = w / numBars - 1;
+                for (let i = 0; i < numBars; i++) {
+                    const startBin = Math.floor(Math.pow(i / numBars, 2) * binCount);
+                    const endBin = Math.floor(Math.pow((i + 1) / numBars, 2) * binCount);
+                    let sum = 0, count = 0;
+                    for (let b = startBin; b < endBin && b < binCount; b++) { sum += data[b]; count++; }
+                    const val = count > 0 ? sum / count / 255 : 0;
+                    const barH = val * h;
+                    // Color gradient: teal (low) → violet (mid) → red (high)
+                    const hue = 160 - i * 2.5;
+                    ctx.fillStyle = `hsl(${hue}, 70%, ${40 + val * 30}%)`;
+                    ctx.fillRect(i * (barW + 1), h - barH, barW, barH);
+                }
+            }
+        }
+    }
+
+    // ═══ LYRICS EDITOR ═══
+    function exportLyrics(format) {
+        const text = document.getElementById('lyricsText')?.value || '';
+        if (!text.trim()) { showStatus('Write some lyrics first'); return; }
+        let content = text;
+        let filename = 'lyrics.txt';
+        if (format === 'lrc') {
+            // Simple LRC — each line gets a timestamp based on position
+            const lines = text.split('\n').filter(l => l.trim());
+            const bpm = parseFloat(document.getElementById('bpmDisplay')?.textContent) || 120;
+            const beatSec = 60 / bpm;
+            content = lines.map((line, i) => {
+                const sec = i * beatSec * 4; // rough: one line per bar
+                const min = Math.floor(sec / 60);
+                const s = (sec % 60).toFixed(2);
+                return `[${String(min).padStart(2,'0')}:${s.padStart(5,'0')}]${line}`;
+            }).join('\n');
+            filename = 'lyrics.lrc';
+        }
+        const blob = new Blob([content], {type:'text/plain'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+    }
+
+    // ═══ PRACTICE MODE ═══
+    function setPracticeSpeed(pct) {
+        const val = parseInt(pct);
+        document.getElementById('practiceSpeed').value = val;
+        document.getElementById('practiceSpeedLabel').textContent = val + '%';
+        fetch('/api/transport/speed', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({rate: val / 100})
+        });
+    }
+
+    // ═══ CHORD PROGRESSION BUILDER ═══
+    let _chordProgression = []; // array of {root, quality, numeral}
+    let _chordDiatonic = [];
+
+    function loadChordKey() {
+        const key = document.getElementById('chordKey')?.value || 'C';
+        fetch('/api/theory/analyze-key', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({key})
+        }).then(r=>r.json()).then(d => {
+            _chordDiatonic = d.diatonic_chords || [];
+            const palette = document.getElementById('chordPalette');
+            if (!palette) return;
+            palette.innerHTML = _chordDiatonic.map((c,i) => {
+                const display = c.root + (c.quality === 'minor' ? 'm' : c.quality === 'diminished' ? 'dim' : '');
+                const color = c.quality === 'major' ? 'var(--teal)' : c.quality === 'minor' ? 'var(--violet-glow)' : 'var(--red)';
+                return `<button onclick="addChordToProgression(${i})" style="padding:6px 12px;background:var(--bg-card);border:2px solid ${color};color:${color};border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;" title="${c.numeral} — ${c.root} ${c.quality}">
+                    <div style="font-size:8px;color:var(--text-muted);margin-bottom:2px;">${c.numeral}</div>${display}</button>`;
+            }).join('');
+        });
+    }
+
+    function addChordToProgression(idx) {
+        if (idx < _chordDiatonic.length) {
+            const c = _chordDiatonic[idx];
+            _chordProgression.push(c);
+            renderChordProgressionUI();
+            // Play the chord through the selected instrument (or triangle fallback)
+            (c.notes || []).forEach(midi => playQuickNote(midi, 0.8));
+        }
+    }
+
+    function renderChordProgressionUI() {
+        const el = document.getElementById('chordProgression');
+        if (!el) return;
+        if (_chordProgression.length === 0) {
+            el.innerHTML = '<span style="color:var(--text-muted);font-size:10px;">Click chords above to build a progression...</span>';
+            return;
+        }
+        el.innerHTML = _chordProgression.map((c, i) => {
+            const display = c.root + (c.quality === 'minor' ? 'm' : c.quality === 'diminished' ? 'dim' : '');
+            return `<span style="padding:4px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--text);cursor:pointer;" onclick="_chordProgression.splice(${i},1);renderChordProgressionUI()" title="Click to remove">${c.numeral}: ${display}</span>`;
+        }).join('');
+    }
+
+    function clearChordProgression() {
+        _chordProgression = [];
+        renderChordProgressionUI();
+    }
+
+    function loadCommonProgression(name) {
+        const key = document.getElementById('chordKey')?.value || 'C';
+        fetch('/api/theory/analyze-key', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({key})
+        }).then(r=>r.json()).then(d => {
+            _chordDiatonic = d.diatonic_chords || [];
+            const progs = d.progressions || {};
+            const indices = {pop:[0,4,5,3],rock:[0,3,4],blues:[0,0,0,0,3,3,0,0,4,3,0,4],jazz_251:[1,4,0],fifties:[0,5,3,4],andalusian:[5,4,3,0],sad:[0,5,2,4]};
+            const idxs = indices[name] || indices.pop;
+            _chordProgression = idxs.map(i => _chordDiatonic[i % _chordDiatonic.length]).filter(Boolean);
+            renderChordProgressionUI();
+            // Refresh palette too
+            loadChordKey();
+        });
+    }
+
+    function playChordProgression() {
+        if (!_chordProgression.length) return;
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const rawBpm = parseFloat(document.getElementById('bpmDisplay')?.textContent);
+        const bpm = isFinite(rawBpm) && rawBpm > 0 ? rawBpm : 120;
+        const beatDur = 60 / bpm;
+        const chordDur = beatDur * 2; // half note per chord
+
+        _chordProgression.forEach((c, i) => {
+            const startTime = ctx.currentTime + i * chordDur;
+            (c.notes || []).forEach(midi => {
+                const freq = 440 * Math.pow(2, (midi - 69) / 12);
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.12, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + chordDur * 0.9);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(startTime); osc.stop(startTime + chordDur);
+            });
+        });
+    }
+
+    function renderChordProgression() {
+        if (!_chordProgression.length) { showStatus('Build a progression first'); return; }
+        // Send to score editor as notes
+        _scoreParts = [{ clef: 'treble', name: 'Chords', notes: [] }];
+        _activePartIndex = 0;
+        _chordProgression.forEach((c, i) => {
+            (c.notes || []).forEach(midi => {
+                const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+                const note = noteNames[midi % 12];
+                const octave = Math.floor(midi / 12) - 1;
+                _scoreParts[0].notes.push({ note, octave, midi, beat: i * 4, duration: 1 }); // whole note per chord
+            });
+        });
+        showPanel('score');
+        setTimeout(renderScore, 200);
+        showStatus(`Sent ${_chordProgression.length} chords to Score editor`);
+    }
+
+    // ═══ SCALE REFERENCE ═══
+    function showScale() {
+        const key = document.getElementById('scaleKey')?.value || 'C';
+        const scaleType = document.getElementById('scaleType')?.value || 'major';
+        const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+        const scales = {major:[0,2,4,5,7,9,11],minor:[0,2,3,5,7,8,10],dorian:[0,2,3,5,7,9,10],phrygian:[0,1,3,5,7,8,10],lydian:[0,2,4,6,7,9,11],mixolydian:[0,2,4,5,7,9,10],harmonic_minor:[0,2,3,5,7,8,11],melodic_minor:[0,2,3,5,7,9,11],major_pentatonic:[0,2,4,7,9],minor_pentatonic:[0,3,5,7,10],blues:[0,3,5,6,7,10]};
+        const intervals = scales[scaleType] || scales.major;
+        const rootIdx = noteNames.indexOf(key);
+
+        // Scale notes
+        const scaleNotes = intervals.map(i => noteNames[(rootIdx + i) % 12]);
+        const display = document.getElementById('scaleDisplay');
+        if (display) {
+            display.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;">${scaleNotes.map((n,i) =>
+                `<span style="padding:4px 10px;background:${i===0?'var(--teal)':'var(--bg-card)'};border:1px solid ${i===0?'var(--teal)':'var(--border)'};border-radius:4px;font-size:13px;color:${i===0?'#000':'var(--text)'};">${n}</span>`
+            ).join('')}</div>`;
+        }
+
+        // Visual keyboard
+        const kb = document.getElementById('scaleKeyboard');
+        if (kb) {
+            const isBlack = [0,1,0,1,0,0,1,0,1,0,1,0];
+            let html = '';
+            for (let i = 0; i < 24; i++) {
+                const noteIdx = i % 12;
+                const inScale = scaleNotes.includes(noteNames[noteIdx]);
+                const isRoot = noteNames[noteIdx] === key;
+                const black = isBlack[noteIdx];
+                const bg = isRoot ? '#2dd4a8' : inScale ? (black ? '#4a3a7a' : '#e8e0f8') : (black ? '#222' : '#888');
+                const textColor = isRoot ? '#000' : inScale ? (black ? '#fff' : '#333') : (black ? '#555' : '#666');
+                const w = black ? '3%' : '4.17%';
+                const ht = black ? '55%' : '100%';
+                const z = black ? '2' : '1';
+                const margin = black ? '-1.5% 0 0 -1.5%' : '0';
+                const label = inScale ? noteNames[noteIdx] : '';
+                const midi = 60 + i; // C4 + offset
+                const clickable = inScale ? `onmousedown="playQuickNote(${midi})" style="cursor:pointer;` : `style="cursor:default;`;
+                html += `<div ${clickable}width:${w};height:${ht};background:${bg};border:1px solid #333;border-radius:0 0 3px 3px;display:flex;align-items:flex-end;justify-content:center;z-index:${z};position:relative;margin:${margin};font-size:7px;color:${textColor};padding-bottom:2px;">${label}</div>`;
+            }
+            kb.innerHTML = html;
+        }
+
+        // Scale info
+        const info = document.getElementById('scaleInfo');
+        if (info) {
+            const moods = {major:'Happy, bright, resolved',minor:'Sad, dark, introspective',dorian:'Jazzy, soulful, minor with bright 6th',phrygian:'Spanish, exotic, dark',lydian:'Dreamy, floating, bright',mixolydian:'Bluesy, dominant, rock',harmonic_minor:'Dramatic, Middle Eastern, classical',melodic_minor:'Jazz, sophisticated',major_pentatonic:'Simple, folk, country, happy',minor_pentatonic:'Blues, rock, universal',blues:'Gritty, expressive, the blue note'};
+            info.innerHTML = `<strong style="color:var(--teal);">Mood:</strong> ${moods[scaleType] || ''}<br><strong style="color:var(--teal);">Notes:</strong> ${scaleNotes.join(' - ')}<br><strong style="color:var(--teal);">Use for:</strong> ${scaleType === 'blues' ? 'Soloing over blues/rock progressions' : scaleType.includes('pentatonic') ? 'Soloing — always sounds good, hard to hit a wrong note' : 'Melody and harmony in ' + (moods[scaleType]||'').split(',')[0].toLowerCase() + ' contexts'}`;
+        }
     }
 
     function popOutDrumMachine() {
@@ -4005,8 +5886,8 @@
                 <button onclick="document.getElementById('drumOverlay').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer;">&times;</button>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
-                ${['Rock','Hip-Hop','Funk','EDM','Jazz','Reggae','Latin','Metal','R&B'].map(g =>
-                    `<button onclick="loadDrumPreset('${g.toLowerCase().replace(/[^a-z]/g,'')}');rebuildDrumOverlay()" style="padding:6px 14px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer;font-size:11px;">${g}</button>`
+                ${[['Rock','basic'],['Half-Time','rock_halftime'],['Pop','pop'],['Boom Bap','hiphop'],['Trap','trap'],['Lo-Fi','lofi'],['Funk','funk'],['Disco','disco'],['House','edm'],['D&B','dnb'],['Jazz','jazz'],['Brushes','jazz_brushes'],['Reggae','reggae'],['Bossa','latin'],['Afrobeat','afrobeat'],['Metal','metal'],['Punk','punk'],['Shuffle','shuffle'],['Gospel','gospel'],['R&B','rnb']].map(([label,id]) =>
+                    `<button onclick="loadDrumPreset('${id}');rebuildDrumOverlay()" style="padding:6px 14px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);border-radius:20px;cursor:pointer;font-size:11px;">${label}</button>`
                 ).join('')}
             </div>
             <div id="drumOverlayGrid" style="flex:1;overflow:auto;"></div>
@@ -4399,14 +6280,14 @@
         const grid = document.getElementById('drumGrid');
         if (!grid) return;
         grid.innerHTML = DRUM_ROWS.map(sound => {
-            if (!_drumState[sound]) _drumState[sound] = new Array(steps).fill(false);
+            if (!_drumState[sound]) _drumState[sound] = new Array(steps).fill(0);
             const cells = Array.from({length: steps}, (_, i) => {
-                const on = _drumState[sound][i];
+                const vel = _drumState[sound][i] || 0;
                 const beatBorder = i % 4 === 0 ? 'border-left:2px solid var(--border-light);' : '';
-                return `<div class="drum-cell" data-sound="${sound}" data-step="${i}" onclick="toggleDrumCell(this)" style="width:${Math.max(14, 240/steps)}px; height:16px; background:${on?'var(--violet)':'var(--bg-deep)'}; border:1px solid var(--border); border-radius:2px; cursor:pointer; ${beatBorder}" title="${DRUM_LABELS[sound]} step ${i+1}"></div>`;
+                return `<div class="drum-cell" data-sound="${sound}" data-step="${i}" onclick="toggleDrumCell(this)" oncontextmenu="ghostDrumCell(this,event)" style="width:${Math.max(14, 240/steps)}px; height:16px; background:${_drumCellColor(vel)}; border:1px solid var(--border); border-radius:2px; cursor:pointer; ${beatBorder}" title="${DRUM_LABELS[sound]} step ${i+1} (right-click=ghost)"></div>`;
             }).join('');
             return `<div style="display:flex; gap:2px; align-items:center; margin-bottom:2px;">
-                <span style="font-size:9px; color:var(--text-muted); width:36px; text-align:right; margin-right:4px;">${DRUM_LABELS[sound]}</span>
+                <span style="font-size:9px; color:var(--text-muted); width:44px; text-align:right; margin-right:4px;">${DRUM_LABELS[sound]}</span>
                 ${cells}
             </div>`;
         }).join('');
@@ -4418,6 +6299,8 @@
         _origShowPanel(name, btn);
         if (name === 'drums') setTimeout(buildDrumGrid, 100);
         if (name === 'piano_roll') setTimeout(buildPianoRoll, 100);
+        if (name === 'chords') setTimeout(loadChordKey, 100);
+        if (name === 'scale_ref') setTimeout(showScale, 100);
     };
 
     // ═══ RESIZABLE PANELS ═══
@@ -6009,8 +7892,10 @@
                 <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
                     <label style="font-size:10px;color:var(--text-dim);min-width:30px;">Amp</label>
                     <select id="instGuitarAmp" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
-                        <option value="">Default</option><option value="clean">Clean</option><option value="crunch">Crunch</option>
-                        <option value="overdrive">Overdrive</option><option value="high_gain">High Gain</option><option value="fuzz">Fuzz</option>
+                        <option value="">Default</option><option value="clean">Clean (Fender Twin)</option><option value="crunch">Crunch (Marshall JCM800)</option>
+                        <option value="overdrive">Overdrive (TS808)</option><option value="high_gain">High Gain (Mesa IIC+)</option>
+                        <option value="mesa_rectifier">Mesa Dual Rectifier</option><option value="5150">Peavey 5150 / EVH</option>
+                        <option value="metal">Metal (TS808 → High Gain)</option><option value="fuzz">Fuzz (Fuzz Face)</option>
                     </select>
                     <label style="font-size:10px;color:var(--text-dim);min-width:30px;">Drive</label>
                     <input type="range" id="instDrive" min="0" max="100" value="30" style="width:60px;">
@@ -6186,11 +8071,14 @@
         else if (e.ctrlKey && e.code === 'Equal') { e.preventDefault(); zoomIn(); }
         else if (e.ctrlKey && e.code === 'Minus') { e.preventDefault(); zoomOut(); }
         else if (e.ctrlKey && e.code === 'Digit0') { e.preventDefault(); zoomToFit(); }
+        else if (e.ctrlKey && e.code === 'KeyC') { e.preventDefault(); copyRegion(); }
+        else if (e.ctrlKey && e.code === 'KeyV') { e.preventDefault(); pasteRegion(); }
+        else if (e.ctrlKey && e.code === 'KeyD') { e.preventDefault(); const at = getActiveTrack(); if (at) duplicateTrack(at.id); }
         else if (e.code === 'Delete') { deleteSelection(); }
     });
     // ═══ TOOLTIPS — positioned by JS to avoid clipping ═══
     document.addEventListener('mouseover', e => {
-        const tip = e.target.closest('.help-tip');
+        const tip = e.target.closest('[data-tip]');
         if (!tip) return;
         const text = tip.getAttribute('data-tip');
         if (!text) return;
@@ -6208,7 +8096,7 @@
         el.style.left = left + 'px';
     });
     document.addEventListener('mouseout', e => {
-        if (e.target.closest('.help-tip')) document.getElementById('tooltip').style.display = 'none';
+        if (e.target.closest('[data-tip]')) document.getElementById('tooltip').style.display = 'none';
     });
     </script>
     <div id="tooltip"></div>
