@@ -1024,51 +1024,65 @@ async def play_instrument_direct(family: str, model: str, note: int,
 
 
 def _render_instrument(family, model, midi_note, duration, velocity, params):
-    """Render a single instrument note — shared by preview and play endpoints."""
+    """Render a single instrument note — shared by preview and play endpoints.
+
+    Every note passes through the humanize engine so no two notes
+    ever sound exactly the same. This is the difference between
+    a synth patch and a living instrument.
+    """
+    audio = None
+
     if family == "guitar":
         from sozawen.physical_guitar import synthesize_guitar_note
         amp = params.pop("amp", "")
         drive = float(params.pop("drive", 0.3))
-        return synthesize_guitar_note(
+        audio = synthesize_guitar_note(
             440 * 2**((midi_note-69)/12), duration, 44100,
             body_profile=model or "taylor_dreadnought", velocity=velocity,
             amp=amp, drive=drive, **params)
     elif family == "bass":
         from sozawen.physical_bass import synthesize_bass_note
-        return synthesize_bass_note(
+        audio = synthesize_bass_note(
             440 * 2**((midi_note-69)/12), duration, 44100,
             body_profile=model or "precision", velocity=velocity, **params)
     elif family == "piano":
         from sozawen.physical_piano import synthesize_piano_note
-        return synthesize_piano_note(
+        audio = synthesize_piano_note(
             midi_note, duration, 44100, velocity,
             piano_model=model or "steinway_d", **params)
     elif family == "keys":
         from sozawen.physical_keys import synthesize_keys_note
-        return synthesize_keys_note(
+        audio = synthesize_keys_note(
             midi_note, duration, 44100, velocity,
             instrument=model or "rhodes_mark1", **params)
     elif family == "strings":
         from sozawen.physical_strings import synthesize_string_note
-        return synthesize_string_note(
+        audio = synthesize_string_note(
             midi_note, duration, 44100, velocity,
             instrument=model or "violin", **params)
     elif family == "brass":
         from sozawen.physical_brass import synthesize_brass_note
-        return synthesize_brass_note(
+        audio = synthesize_brass_note(
             midi_note, duration, 44100, velocity,
             instrument=model or "trumpet", **params)
     elif family == "winds":
         from sozawen.physical_woodwinds import synthesize_wind_note
-        return synthesize_wind_note(
+        audio = synthesize_wind_note(
             midi_note, duration, 44100, velocity,
             instrument=model or "alto_sax", **params)
     elif family == "percussion":
         from sozawen.physical_percussion import synthesize_percussion_note
-        return synthesize_percussion_note(
+        audio = synthesize_percussion_note(
             model or "timpani", midi_note, duration, 44100, velocity, **params)
     else:
         raise ValueError(f"Unknown instrument family: {family}")
+
+    # Humanize — no two notes ever sound exactly the same
+    from sozawen.humanize import humanize_audio, get_instrument_type
+    inst_type = get_instrument_type(model or "")
+    audio = humanize_audio(audio, velocity=velocity, sr=44100, instrument_type=inst_type)
+
+    return audio
 
 
 @api.post("/api/instrument/preview")

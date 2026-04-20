@@ -962,8 +962,19 @@ def render_drum_pattern(pattern, sr=44100, bpm=120):
             else:
                 continue
 
-        sample = cache[sound_name]
-        start = int(beat * beat_sec * sr)
+        sample = cache[sound_name].copy()
+
+        # Per-hit humanization — no two hits identical
+        # Micro pitch variation (±5 cents)
+        pitch_shift = np.random.uniform(-5, 5) / 1200
+        # Amplitude variation (±8%)
+        amp_var = 1.0 + np.random.uniform(-0.08, 0.08)
+        # Tiny timing jitter (±0.5ms) — the human behind the sticks
+        timing_jitter = int(np.random.uniform(-0.0005, 0.0005) * sr)
+
+        sample = sample * amp_var
+
+        start = max(0, int(beat * beat_sec * sr) + timing_jitter)
         end = min(start + len(sample), total_samples)
         audio[start:end] += sample[:end-start] * vel
 
