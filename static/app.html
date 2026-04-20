@@ -1527,10 +1527,19 @@
                 <button class="btn btn-secondary" style="width:100%; margin-top:6px; font-size:10px;" onclick="autoMapChannels()">Auto-Map All Inputs to Tracks</button>
                 <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Select your interface, choose which input this track records from, then Arm. Each track can record from a different input — guitar on 1, vocals on 2.</p>`,
 
-            stem_split: `<h3>Separate ${h('Splits your audio into individual parts. The program detects what approach works best and handles the details.')}</h3>
-                <div id="channelInfo" style="font-size:11px; color:var(--teal); padding:6px 0 4px; margin-bottom:4px;">Analyzing your audio...</div>
+            stem_split: `<h3>Separate ${h('Splits your audio into individual parts — from 4 standard stems up to 9 channels. Each part becomes its own track.')}</h3>
+                <div id="channelInfo" style="font-size:11px; color:var(--teal); padding:6px 0 4px; margin-bottom:4px;">Select a mode and separate.</div>
+                <div class="field"><label>Mode ${h('Standard 4-stem uses AI (requires AI pack). 9-channel uses spectral analysis — no AI needed, works on any machine.')}</label>
+                    <select id="sepMode">
+                        <option value="multi9">9 Channels (spectral — no AI required)</option>
+                        <option value="standard4">4 Stems (AI — requires AI pack)</option>
+                    </select></div>
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:8px;line-height:1.6;">
+                    <strong style="color:var(--teal);">9 Channels:</strong> Vocals, Kick/Bass Drum, Snare/Toms, Cymbals/Hi-hats, Bass, Guitar/Keys (Low), Guitar/Keys (Mid), Strings/Brass/Winds, Air/Ambience<br>
+                    <strong style="color:var(--violet-glow);">4 Stems:</strong> Vocals, Drums, Bass, Other (requires torch + demucs)
+                </div>
                 <div id="splitOptions"></div>
-                <div class="field"><label>Quality ${h('High is more accurate but slower. Fast gives a quick preview you can refine later.')}</label>
+                <div class="field"><label>Quality ${h('High is more accurate but slower. Fast gives a quick preview.')}</label>
                     <select id="sepQuality"><option value="high">High — best results</option><option value="fast">Fast — quick preview</option></select></div>
                 <button class="btn btn-primary" style="width:100%" onclick="runSmartSplit()">Separate</button>
                 <div id="splitProgress" style="display:none; margin-top:8px;">
@@ -1539,7 +1548,7 @@
                     </div>
                     <div id="splitProgressText" style="font-size:10px; color:var(--text-dim); margin-top:4px;">Starting...</div>
                 </div>
-                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Each part becomes its own track that you can mix, edit, and export independently.</p>`,
+                <p style="font-size:10px; color:var(--text-muted); margin-top:8px;">Each part becomes its own track. 9-channel runs in the background — you can navigate away and it keeps working.</p>`,
 
             lyrics: `<h3>Lyric Transcription ${h('Listens to the vocals and writes out the words with timestamps. Works best on isolated vocal tracks — try Stem Split first.')}</h3>
                 <div class="field"><label>Language ${h('The language of the vocals. Auto-detect works for most cases. Selecting the specific language improves accuracy.')}</label>
@@ -2690,6 +2699,7 @@
     }
 
     function runSmartSplit() {
+        const sepMode = document.getElementById('sepMode')?.value || 'multi9';
         const mode = document.getElementById('splitMode')?.value || 'full';
         const track = getActiveTrack();
         if (!track || !track.file) { showStatus('Load a track first'); return; }
@@ -2699,6 +2709,44 @@
         const progBar = document.getElementById('splitProgressBar');
         const progText = document.getElementById('splitProgressText');
         if (prog) prog.style.display = 'block';
+
+        // 9-channel spectral separation (no AI)
+        if (sepMode === 'multi9') {
+            if (progText) progText.textContent = 'Analyzing frequencies — 9-channel separation...';
+            // Get file path from track
+            const filePath = track.file || '';
+            fetch('/api/separate/multi', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({file_path: filePath})
+            }).then(r=>r.json()).then(d => {
+                if (d.ok) {
+                    if (progText) progText.textContent = 'Separation running in background...';
+                    // Poll status
+                    const pollId = setInterval(() => {
+                        fetch('/api/separate/status').then(r=>r.json()).then(s => {
+                            if (!s.running) {
+                                clearInterval(pollId);
+                                if (prog) prog.style.display = 'none';
+                                if (s.result) {
+                                    showStatus(`Separated into ${s.result.stems} channels`);
+                                    refreshTracks();
+                                    reloadAllWaveforms();
+                                } else if (s.error) {
+                                    showStatus('Separation failed: ' + s.error);
+                                }
+                            } else {
+                                if (progText) progText.textContent = s.progress || 'Working...';
+                                if (progBar) progBar.style.width = '50%';
+                            }
+                        });
+                    }, 1500);
+                } else {
+                    if (prog) prog.style.display = 'none';
+                    showStatus(d.error || 'Separation failed');
+                }
+            });
+            return;
+        }
 
         if (mode === 'channels') {
             if (progText) progText.textContent = 'Splitting channels...';
