@@ -120,15 +120,33 @@ def spectral_mask_separation(audio, sr=44100):
     logger.info("  HPSS: separating harmonic/percussive...")
     harmonic, percussive = hpss(audio, sr)
 
-    # Step 2: Split percussive into kick/snare region vs cymbals
-    perc_bands = frequency_band_split(percussive, sr)
-    channels['kick_bass_drum'] = perc_bands['sub'] + perc_bands['bass']
-    channels['snare_toms'] = perc_bands['low_mid'] + perc_bands['mid']
-    channels['cymbals_hats'] = perc_bands['upper_mid'] + perc_bands['high']
+    # Use filtfilt (zero-phase) to prevent DC transients from IIR filters
+    from scipy.signal import filtfilt
 
-    # Step 3: Split harmonic into bass vs everything else
-    harm_bands = frequency_band_split(harmonic, sr)
-    channels['bass'] = harm_bands['sub'] + harm_bands['bass']
+    # Step 2: Split percussive into kick/snare region vs cymbals
+    # Kick: very low (20-120Hz)
+    b, a = butter(4, 120 / (sr/2), btype='low')
+    kick = filtfilt(b, a, percussive).astype(np.float32)
+    kick -= np.mean(kick)  # remove any DC
+    channels['kick_bass_drum'] = kick
+
+    # Snare/toms: mid percussive (120-4000Hz)
+    b, a = butter(3, [120 / (sr/2), 4000 / (sr/2)], btype='band')
+    snare = filtfilt(b, a, percussive).astype(np.float32)
+    snare -= np.mean(snare)
+    channels['snare_toms'] = snare
+
+    # Cymbals: high percussive (4000Hz+)
+    b, a = butter(3, 4000 / (sr/2), btype='high')
+    cymbals = filtfilt(b, a, percussive).astype(np.float32)
+    cymbals -= np.mean(cymbals)
+    channels['cymbals_hats'] = cymbals
+
+    # Step 3: Bass — harmonic low end (30-300Hz)
+    b, a = butter(4, 300 / (sr/2), btype='low')
+    bass = filtfilt(b, a, harmonic).astype(np.float32)
+    bass -= np.mean(bass)  # critical — prevents DC saturation
+    channels['bass'] = bass
 
     # Step 4: Vocal detection using spectral characteristics
     # Vocals have strong energy in 300-3500Hz with formant structure
