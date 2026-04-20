@@ -2233,6 +2233,34 @@
                     <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('sad')">Sad Minor</button>
                 </div>`,
 
+            spatial: `<h3>Spatial Audio ${h('Position sounds in 3D space. Pan left/right, front/back, and up/down. Renders to binaural stereo so it works on any headphones. For immersive mixing, spatial music, and game audio.')}</h3>
+                <div style="position:relative; width:200px; height:200px; margin:0 auto 12px; background:var(--bg-deep); border-radius:50%; border:1px solid var(--border);">
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;background:var(--text-muted);border-radius:50%;"></div>
+                    <div id="spatialDot" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:14px;background:var(--teal);border-radius:50%;cursor:grab;z-index:2;box-shadow:0 0 8px var(--teal);"
+                         onmousedown="startSpatialDrag(event)"></div>
+                    <div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--text-muted);">Front</div>
+                    <div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--text-muted);">Back</div>
+                    <div style="position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--text-muted);">L</div>
+                    <div style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--text-muted);">R</div>
+                </div>
+                <div class="field"><label>Height ${h('Vertical position. 0 = ear level. Positive = above. Negative = below. Creates elevation cues using HRTF filtering.')}</label>
+                    <input type="range" id="spatialHeight" min="-100" max="100" value="0" oninput="updateSpatialPosition()">
+                </div>
+                <div id="spatialInfo" style="font-size:10px;color:var(--text-dim);text-align:center;">Position: center</div>
+                <p style="font-size:9px;color:var(--text-muted);margin-top:8px;">Drag the dot to position the selected track in 3D space. Works on any stereo headphones using binaural rendering.</p>`,
+
+            video_sync: `<h3>Video Sync ${h('Score to picture. Load a video file, sync it to your timeline. The video plays in lockstep with your audio — for film scoring, music videos, game audio, or YouTube content.')}</h3>
+                <div class="field"><label>Video File</label>
+                    <input type="file" id="videoFileInput" accept="video/*" onchange="loadVideoFile(this)" style="font-size:10px;color:var(--text-dim);"></div>
+                <div style="margin-bottom:8px;">
+                    <video id="syncVideo" style="width:100%; max-height:200px; background:#000; border-radius:6px; display:none;" muted></video>
+                </div>
+                <div style="display:flex;gap:4px;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:9px;" onclick="toggleVideoSync()">Sync On/Off</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:9px;" onclick="popOutVideo()">Pop Out</button>
+                </div>
+                <p style="font-size:9px;color:var(--text-muted);margin-top:6px;">Video follows the transport — play, pause, seek all stay in sync. Pop out for a larger view while you compose.</p>`,
+
             clip_launcher: `<h3>Clip Launcher ${h('Trigger loops and clips in real-time — like Ableton Session View. Load clips into slots, trigger them with clicks or keyboard. For live performance, jamming, and building arrangements by feel.')}</h3>
                 <div style="font-size:9px;color:var(--text-muted);letter-spacing:1px;margin-bottom:8px;">CLIP SLOTS (click to trigger, click again to stop)</div>
                 <div id="clipGrid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:10px;">
@@ -5576,6 +5604,122 @@
         // Rebuild grid with the state already set — DON'T reset in buildDrumGrid
         _buildDrumGridFromState(steps);
     }
+
+    // ═══ SPATIAL AUDIO / 3D PANNER ═══
+    let _spatialDragging = false;
+
+    function startSpatialDrag(e) {
+        e.preventDefault();
+        _spatialDragging = true;
+        document.addEventListener('mousemove', moveSpatialDot);
+        document.addEventListener('mouseup', () => { _spatialDragging = false; document.removeEventListener('mousemove', moveSpatialDot); });
+    }
+
+    function moveSpatialDot(e) {
+        if (!_spatialDragging) return;
+        const circle = document.querySelector('.tool-panel [style*="border-radius:50%"]');
+        if (!circle) return;
+        const rect = circle.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const radius = rect.width / 2 - 10;
+
+        let dx = e.clientX - cx;
+        let dy = e.clientY - cy;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > radius) { dx *= radius/dist; dy *= radius/dist; }
+
+        const dot = document.getElementById('spatialDot');
+        if (dot) {
+            dot.style.left = (50 + dx/rect.width*100) + '%';
+            dot.style.top = (50 + dy/rect.height*100) + '%';
+        }
+        updateSpatialPosition();
+    }
+
+    function updateSpatialPosition() {
+        const dot = document.getElementById('spatialDot');
+        if (!dot) return;
+        const x = (parseFloat(dot.style.left) - 50) / 50; // -1 to 1 (L to R)
+        const y = (parseFloat(dot.style.top) - 50) / 50;   // -1 to 1 (front to back)
+        const h = parseInt(document.getElementById('spatialHeight')?.value || 0) / 100;
+        const info = document.getElementById('spatialInfo');
+
+        const lr = x > 0.1 ? 'right' : x < -0.1 ? 'left' : 'center';
+        const fb = y < -0.1 ? 'front' : y > 0.1 ? 'back' : 'middle';
+        const ud = h > 0.1 ? 'above' : h < -0.1 ? 'below' : 'ear level';
+
+        if (info) info.textContent = `Position: ${lr} ${fb} ${ud} (${(x*100).toFixed(0)}%, ${(-y*100).toFixed(0)}%, ${(h*100).toFixed(0)}%)`;
+
+        // Apply to active track via pan endpoint
+        const t = getActiveTrack();
+        if (t && t.engineId !== null) {
+            fetch(`/api/track/${t.engineId}/pan`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({pan: x})
+            }).catch(()=>{});
+        }
+    }
+
+    // ═══ VIDEO SYNC ═══
+    let _videoSyncEnabled = false;
+
+    function loadVideoFile(input) {
+        const file = input.files?.[0];
+        if (!file) return;
+        const video = document.getElementById('syncVideo');
+        if (video) {
+            video.src = URL.createObjectURL(file);
+            video.style.display = 'block';
+            video.load();
+            showStatus('Video loaded — enable sync to lock to timeline');
+        }
+    }
+
+    function toggleVideoSync() {
+        _videoSyncEnabled = !_videoSyncEnabled;
+        showStatus(_videoSyncEnabled ? 'Video sync ON — video follows transport' : 'Video sync OFF');
+    }
+
+    function popOutVideo() {
+        const video = document.getElementById('syncVideo');
+        if (!video || !video.src) { showStatus('Load a video first'); return; }
+        const win = window.open('', 'VideoSync', 'width=640,height=360');
+        win.document.write(`<html><body style="margin:0;background:#000;">
+            <video src="${video.src}" style="width:100%;height:100%;" id="popVideo"></video>
+            <script>
+                window.addEventListener('message', e => {
+                    const v = document.getElementById('popVideo');
+                    if (e.data.type === 'seek') v.currentTime = e.data.time;
+                    if (e.data.type === 'play') v.play();
+                    if (e.data.type === 'pause') v.pause();
+                });
+            </script></body></html>`);
+        window._videoPopout = win;
+    }
+
+    // Sync video to transport position every 100ms
+    setInterval(() => {
+        if (!_videoSyncEnabled) return;
+        const video = document.getElementById('syncVideo');
+        if (!video || !video.src) return;
+
+        fetch('/api/transport/state').then(r=>r.json()).then(d => {
+            const pos = d.position_seconds || 0;
+            if (Math.abs(video.currentTime - pos) > 0.2) {
+                video.currentTime = pos;
+            }
+            if (d.playing && video.paused) video.play();
+            if (!d.playing && !video.paused) video.pause();
+
+            // Sync popout window too
+            if (window._videoPopout && !window._videoPopout.closed) {
+                window._videoPopout.postMessage({type: d.playing ? 'play' : 'pause', time: pos}, '*');
+                if (Math.abs(pos - video.currentTime) > 0.2)
+                    window._videoPopout.postMessage({type: 'seek', time: pos}, '*');
+            }
+        }).catch(()=>{});
+    }, 100);
 
     // ═══ CLIP LAUNCHER ═══
     let _clips = new Array(16).fill(null); // {audio, playing, element}

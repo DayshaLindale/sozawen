@@ -263,6 +263,76 @@ async def export_midi(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@api.get("/api/plugins/scan")
+async def scan_vst_plugins():
+    """Scan for VST3 plugins on the system."""
+    import glob
+    vst3_paths = [
+        "C:/Program Files/Common Files/VST3",
+        "C:/Program Files (x86)/Common Files/VST3",
+        str(Path.home() / ".vst3"),
+    ]
+
+    plugins = []
+    for search_path in vst3_paths:
+        for vst_file in glob.glob(f"{search_path}/**/*.vst3", recursive=True):
+            name = Path(vst_file).stem
+            plugins.append({
+                "name": name,
+                "path": vst_file,
+                "type": "VST3",
+                "loaded": False,
+            })
+
+    return JSONResponse({
+        "plugins": plugins,
+        "count": len(plugins),
+        "scan_paths": vst3_paths,
+        "note": "VST3 plugin loading requires the native bridge (coming soon). Plugins are detected but not yet loadable as inserts."
+    })
+
+@api.post("/api/sheet/export-pdf")
+async def export_score_pdf(request: Request):
+    """Export the score as a printable PDF."""
+    data = await request.json()
+    events = data.get("events", [])
+    parts = data.get("parts", [])
+    key = data.get("key", "C")
+    time_sig = data.get("time_sig", "4/4")
+
+    try:
+        from sozawen.sheet_music import render_notation_svg, render_orchestral_score
+
+        if parts and len(parts) > 1:
+            svg = render_orchestral_score(parts, key=key, time_sig=time_sig, width=800)
+        else:
+            svg = render_notation_svg(events, key=key, time_sig=time_sig, width=800)
+
+        # Wrap SVG in a printable HTML document
+        html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Score - Sozawen</title>
+<style>
+    @page {{ margin: 1in; size: letter landscape; }}
+    body {{ margin: 0; padding: 20px; background: white; }}
+    svg {{ background: white !important; }}
+    .footer {{ text-align: center; font-size: 10px; color: #999; margin-top: 20px; font-family: serif; }}
+</style>
+</head><body>
+{svg.replace('#1a1a2e', 'white').replace('#555', '#ccc').replace('#888', '#666').replace('#2dd4a8', '#333').replace('#aaa', '#555').replace('#ccc', '#666').replace('#c48dff', '#555')}
+<div class="footer">Composed in Sozawen &mdash; sozawen.com</div>
+</body></html>"""
+
+        output_path = str(BASE_DIR / "temp" / "score_export.html")
+        Path(output_path).parent.mkdir(exist_ok=True)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(html)
+
+        return JSONResponse({"ok": True, "path": output_path,
+                            "message": "Score exported as printable HTML. Open in browser and use Print (Ctrl+P) to save as PDF."})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @api.post("/api/effects/warp")
 async def warp_audio(request: Request):
     """Time-stretch audio without pitch change. Fit to a new tempo."""
