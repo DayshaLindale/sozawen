@@ -263,6 +263,218 @@ async def export_midi(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@api.post("/api/effects/warp")
+async def warp_audio(request: Request):
+    """Time-stretch audio without pitch change. Fit to a new tempo."""
+    import asyncio
+    data = await request.json()
+    track_id = data.get("track_id")
+    target_bpm = data.get("target_bpm")
+    rate = data.get("rate")  # direct rate override
+
+    if not track_id or track_id not in _engine.tracks:
+        return JSONResponse({"error": "Track not found"}, status_code=400)
+
+    track = _engine.tracks[track_id]
+    if not track.regions:
+        return JSONResponse({"error": "Empty track"}, status_code=400)
+
+    try:
+        def _do_warp():
+            import numpy as np
+            from sozawen.warp import time_stretch, fit_to_tempo
+            region = track.regions[0]
+            region._ensure_cached()
+            if region._cache is None:
+                return False
+            audio = region._cache
+            sr = region.sample_rate or 44100
+            mono = audio.mean(axis=1) if audio.ndim > 1 else audio
+
+            if target_bpm and _engine.bpm:
+                warped = fit_to_tempo(mono, _engine.bpm, target_bpm, sr)
+            elif rate:
+                warped = time_stretch(mono, float(rate), sr)
+            else:
+                return False
+
+            stereo = np.column_stack([warped, warped])
+            output_path = str(BASE_DIR / "temp" / f"warped_{track_id}.wav")
+            sf.write(output_path, stereo, sr)
+            track.regions.clear()
+            track.add_region(output_path, source_type="generated")
+            return True
+
+        ok = await asyncio.get_event_loop().run_in_executor(None, _do_warp)
+        if ok:
+            return JSONResponse({"ok": True})
+        return JSONResponse({"error": "Warp failed"}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/effects/vocal-tune")
+async def apply_vocal_tuning(request: Request):
+    """Apply pitch correction to a vocal track."""
+    import asyncio
+    data = await request.json()
+    track_id = data.get("track_id")
+    strength = float(data.get("strength", 0.5))
+    key = data.get("key", "C")
+    speed_ms = int(data.get("speed_ms", 30))
+
+    if not track_id or track_id not in _engine.tracks:
+        return JSONResponse({"error": "Track not found"}, status_code=400)
+
+    track = _engine.tracks[track_id]
+    if not track.regions:
+        return JSONResponse({"error": "Empty track"}, status_code=400)
+
+    try:
+        def _do_tune():
+            import numpy as np
+            from sozawen.vocal_tune import tune_audio
+            region = track.regions[0]
+            region._ensure_cached()
+            if region._cache is None:
+                return False
+            audio = region._cache
+            sr = region.sample_rate or 44100
+            mono = audio.mean(axis=1) if audio.ndim > 1 else audio
+            tuned = tune_audio(mono, sr=sr, strength=strength, key=key, speed_ms=speed_ms)
+            # Write back
+            stereo = np.column_stack([tuned, tuned])
+            output_path = str(BASE_DIR / "temp" / f"tuned_{track_id}.wav")
+            sf.write(output_path, stereo, sr)
+            track.regions.clear()
+            track.add_region(output_path, source_type="generated")
+            return True
+
+        ok = await asyncio.get_event_loop().run_in_executor(None, _do_tune)
+        if ok:
+            return JSONResponse({"ok": True, "message": f"Pitch corrected ({int(strength*100)}% strength, key: {key})"})
+        return JSONResponse({"error": "Could not process audio"}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@api.post("/api/audio-to-drums")
+async def audio_to_drums(request: Request):
+    """Detect beats and transients in audio, generate a drum pattern.
+
+    Analyzes the rhythmic content and creates a pattern that matches
+    the groove of the source audio.
+    """
+    import asyncio
+    data = await request.json()
+    track_id = data.get("track_id")
+
+    if not track_id or track_id not in _engine.tracks:
+        return JSONResponse({"error": "Track not found"}, status_code=400)
+
+    track = _engine.tracks[track_id]
+    if not track.regions:
+        return JSONResponse({"error": "Empty track"}, status_code=400)
+
+    try:
+        def _detect_beats():
+            import numpy as np
+            region = track.regions[0]
+            region._ensure_cached()
+            if region._cache is None:
+                return None
+
+            audio = region._cache
+            if audio.ndim > 1:
+                audio = audio.mean(axis=1)
+
+            sr = region.sample_rate or 44100
+
+            # Onset detection using spectral flux
+            hop = 512
+            n_fft = 2048
+            n_frames = (len(audio) - n_fft) // hop
+
+            if n_frames < 10:
+                return None
+
+            prev_spec = None
+            onset_strength = []
+
+            for i in range(n_frames):
+                frame = audio[i * hop: i * hop + n_fft]
+                spec = np.abs(np.fft.rfft(frame * np.hanning(n_fft)))
+
+                if prev_spec is not None:
+                    # Spectral flux — only positive changes (onsets, not offsets)
+                    flux = np.sum(np.maximum(0, spec - prev_spec))
+                    onset_strength.append(flux)
+                else:
+                    onset_strength.append(0)
+
+                prev_spec = spec
+
+            onset_strength = np.array(onset_strength)
+
+            # Normalize
+            if np.max(onset_strength) > 0:
+                onset_strength /= np.max(onset_strength)
+
+            # Peak picking — find onset times
+            threshold = 0.3
+            min_gap = int(0.05 * sr / hop)  # minimum 50ms between onsets
+            peaks = []
+            for i in range(1, len(onset_strength) - 1):
+                if (onset_strength[i] > threshold and
+                    onset_strength[i] > onset_strength[i-1] and
+                    onset_strength[i] > onset_strength[i+1]):
+                    if not peaks or (i - peaks[-1]) > min_gap:
+                        peaks.append(i)
+
+            # Convert to beat positions
+            bpm = _engine.bpm or 120
+            beat_sec = 60.0 / bpm
+            step_sec = beat_sec / 4  # 16th note resolution
+
+            pattern = []
+            for peak_frame in peaks:
+                time_sec = peak_frame * hop / sr
+                step = round(time_sec / step_sec)
+                beat = step * 0.25
+
+                # Classify by frequency content at onset
+                frame_start = peak_frame * hop
+                frame = audio[frame_start:frame_start + n_fft] if frame_start + n_fft < len(audio) else audio[frame_start:]
+                if len(frame) < 256:
+                    continue
+                spec = np.abs(np.fft.rfft(frame[:min(len(frame), n_fft)]))
+                freqs = np.fft.rfftfreq(min(len(frame), n_fft), 1/sr)
+
+                # Energy in frequency bands
+                low_energy = np.sum(spec[freqs < 200])
+                mid_energy = np.sum(spec[(freqs >= 200) & (freqs < 2000)])
+                high_energy = np.sum(spec[freqs >= 2000])
+                total = low_energy + mid_energy + high_energy + 1e-10
+
+                vel = float(onset_strength[peak_frame])
+
+                if low_energy / total > 0.5:
+                    pattern.append({"sound": "kick", "beat": beat, "velocity": vel})
+                elif high_energy / total > 0.4:
+                    pattern.append({"sound": "hihat", "beat": beat, "velocity": vel * 0.7})
+                else:
+                    pattern.append({"sound": "snare", "beat": beat, "velocity": vel})
+
+            return pattern
+
+        pattern = await asyncio.get_event_loop().run_in_executor(None, _detect_beats)
+
+        if pattern is None or len(pattern) == 0:
+            return JSONResponse({"error": "No beats detected"}, status_code=400)
+
+        return JSONResponse({"ok": True, "pattern": pattern, "hits": len(pattern),
+                            "message": f"Detected {len(pattern)} hits — use in drum machine"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @api.post("/api/upload")
 async def upload_file(request: Request):
     """Accept file upload from browser drag-and-drop."""

@@ -2233,6 +2233,24 @@
                     <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('sad')">Sad Minor</button>
                 </div>`,
 
+            clip_launcher: `<h3>Clip Launcher ${h('Trigger loops and clips in real-time — like Ableton Session View. Load clips into slots, trigger them with clicks or keyboard. For live performance, jamming, and building arrangements by feel.')}</h3>
+                <div style="font-size:9px;color:var(--text-muted);letter-spacing:1px;margin-bottom:8px;">CLIP SLOTS (click to trigger, click again to stop)</div>
+                <div id="clipGrid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:10px;">
+                    ${Array.from({length:16}, (_,i) => `
+                        <div class="clip-slot" id="clip-${i}" onclick="toggleClip(${i})"
+                             style="height:40px; background:var(--bg-deep); border:1px solid var(--border); border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:9px; color:var(--text-muted); transition:all 0.15s;"
+                             ondragover="event.preventDefault();this.style.borderColor='var(--teal)'" ondragleave="this.style.borderColor='var(--border)'"
+                             ondrop="event.preventDefault();this.style.borderColor='var(--border)';loadClipFromDrop(${i},event)">
+                            ${i < 4 ? ['Kick','Snare','Hat','Crash'][i] : 'Empty'}
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="display:flex;gap:4px;margin-bottom:8px;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:9px;" onclick="stopAllClips()">Stop All</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:9px;" onclick="clearAllClips()">Clear All</button>
+                </div>
+                <p style="font-size:9px;color:var(--text-muted);">Drag audio files onto slots to load. Click to trigger/stop. Build grooves by layering clips in real-time. Keyboard: 1-9 triggers slots.</p>`,
+
             hardware: `<h3>Hardware ${h('Everything plugged into your computer. Audio interfaces, MIDI keyboards, controllers, external EQ boards, compressors, pedals — Sozawen sees them all and can route audio through them.')}</h3>
                 <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="scanHardware()">Scan for Devices</button>
                 <div id="hardwareList" style="font-size:11px;color:var(--text-dim);line-height:1.8;">Scanning...</div>
@@ -5559,6 +5577,64 @@
         _buildDrumGridFromState(steps);
     }
 
+    // ═══ CLIP LAUNCHER ═══
+    let _clips = new Array(16).fill(null); // {audio, playing, element}
+    let _clipAudios = {};
+
+    function toggleClip(slot) {
+        const el = document.getElementById(`clip-${slot}`);
+        if (!el) return;
+        if (_clipAudios[slot]) {
+            // Stop
+            _clipAudios[slot].pause();
+            _clipAudios[slot].currentTime = 0;
+            delete _clipAudios[slot];
+            el.style.background = 'var(--bg-deep)';
+            el.style.borderColor = 'var(--border)';
+        } else if (_clips[slot]) {
+            // Play — loop
+            const audio = new Audio(_clips[slot]);
+            audio.loop = true;
+            audio.play().catch(()=>{});
+            _clipAudios[slot] = audio;
+            el.style.background = 'var(--teal)';
+            el.style.borderColor = 'var(--teal)';
+            el.style.color = '#000';
+        }
+    }
+
+    function stopAllClips() {
+        Object.keys(_clipAudios).forEach(slot => {
+            _clipAudios[slot].pause();
+            delete _clipAudios[slot];
+            const el = document.getElementById(`clip-${slot}`);
+            if (el) { el.style.background = 'var(--bg-deep)'; el.style.borderColor = 'var(--border)'; el.style.color = 'var(--text-muted)'; }
+        });
+    }
+
+    function clearAllClips() {
+        stopAllClips();
+        _clips = new Array(16).fill(null);
+        for (let i = 0; i < 16; i++) {
+            const el = document.getElementById(`clip-${i}`);
+            if (el) el.textContent = 'Empty';
+        }
+    }
+
+    function loadClipFromDrop(slot, event) {
+        const files = event.dataTransfer.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+            const url = URL.createObjectURL(file);
+            _clips[slot] = url;
+            const el = document.getElementById(`clip-${slot}`);
+            if (el) {
+                el.textContent = file.name.replace(/\.[^.]+$/, '').substring(0, 10);
+                el.style.borderColor = 'var(--violet)';
+            }
+        }
+    }
+
     // ═══ HARDWARE INSERTS ═══
     function createHwInsert() {
         const track = getActiveTrack();
@@ -6128,7 +6204,7 @@
         });
     }
 
-    function connectMidi() {
+    function connectMidiFromPanel() {
         const sel = document.getElementById('midiDeviceSelect');
         const device = sel?.value;
         if (!device) return;

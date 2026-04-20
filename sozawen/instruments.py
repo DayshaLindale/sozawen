@@ -315,6 +315,8 @@ def _cymbal_modal_bank(t, modes, sr=44100, velocity=0.8):
     4. Proper excitation envelope (not impulse)
     5. Double-decay envelope (fast initial + slow sustain)
     6. Radiation sway modulation on high-frequency content
+    7. NONLINEAR MODE COUPLING — modes exchange energy (Touze/Chaigne)
+    8. STATE-DEPENDENT — spectrum evolves over time, not static
 
     modes: list of (freq_hz, amplitude, base_decay, jitter)
     """
@@ -374,6 +376,35 @@ def _cymbal_modal_bank(t, modes, sr=44100, velocity=0.8):
             mode_b *= sway
 
         result += mode_a + mode_b
+
+    # ═══ NONLINEAR MODE COUPLING (Touze/Chaigne) ═══
+    # Energy cascades from low modes to high modes when amplitude is high.
+    # This creates the "wash" that builds up on repeated/hard hits.
+    # The spectrum EVOLVES over time — it's not static.
+    if velocity > 0.4 and len(modes) > 2:
+        # Coupling strength scales with velocity (soft=linear, hard=chaotic)
+        coupling = 0.05 + velocity * 0.15
+
+        # Energy cascade: low-frequency energy feeds into high-frequency noise
+        # This simulates wave turbulence in the cymbal plate
+        cascade_delay = int(0.05 * sr)  # cascade starts ~50ms after impact
+        if n > cascade_delay:
+            # Measure the low-frequency energy over time
+            block = min(2048, n)
+            for i in range(cascade_delay, n - block, block):
+                segment = result[i:i + block]
+                energy = np.sqrt(np.mean(segment ** 2))
+
+                if energy > 0.01:
+                    # Generate high-frequency noise proportional to low energy
+                    # This is the spectral broadening from nonlinear coupling
+                    hf_noise = np.random.randn(block).astype(np.float64)
+                    hf_noise *= energy * coupling * np.exp(-(i / sr) * 2.0)
+                    # Bandpass to upper cymbal range
+                    from scipy.signal import butter, lfilter
+                    b, a = butter(2, [3000 / (sr/2), min(12000, sr/2-1) / (sr/2)], btype='band')
+                    hf_noise = lfilter(b, a, hf_noise).astype(np.float64)
+                    result[i:i + block] += hf_noise * 0.3
 
     return result.astype(np.float32)
 
