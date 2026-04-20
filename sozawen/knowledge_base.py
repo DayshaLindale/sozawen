@@ -1054,6 +1054,234 @@ For recording: use equal temperament (your tuner) unless you're specifically goi
 
 **The truth:** The gear ceiling stopped mattering years ago. An entry-level interface and a decent mic with Sozawen can make a record that sounds as good as what came out of Abbey Road in the 1960s. The difference is the performance, the songs, and the time you put in. Not the price tag."""
     },
+
+    # ═══════════════════════════════════════════════════════════════
+    # RELEASING YOUR MUSIC
+    # ═══════════════════════════════════════════════════════════════
+
+    "release_guide": {
+        "title": "How to Release on Spotify, Apple Music & More",
+        "category": "Releasing",
+        "content": """Your song is done. Now what? Here's the complete step-by-step to get your music on every streaming platform.
+
+**Step 1: Master your track**
+- Target **-14 LUFS integrated** for Spotify (they normalize to this)
+- Target **-16 LUFS** for Apple Music
+- True peak must be below **-1 dBTP** (prevents distortion on playback)
+- Export as **WAV, 44.1kHz, 16-bit** (the universal standard)
+- Use Sozawen's Loudness meter and Limiter to hit these targets
+
+**Step 2: Choose a distributor**
+Distributors get your music onto streaming platforms. You keep your rights.
+
+| Service | Cost | Keeps royalties? | Best for |
+|---------|------|-----------------|----------|
+| **DistroKid** | $22.99/year | 100% to you | Most indie artists |
+| **TuneCore** | $9.99/single | 100% to you | Single releases |
+| **CD Baby** | $9.95/single (one-time) | 91% to you | Set-and-forget |
+| **Amuse** | Free tier available | 100% on free | Budget-conscious |
+| **LANDR** | $9.99/year | 100% to you | Also offers mastering |
+
+**Step 3: Prepare your metadata**
+- **Song title** — exactly as you want it displayed
+- **Artist name** — consistent across all releases
+- **Genre** — pick primary and secondary
+- **Release date** — set 2-4 weeks out (gives time for playlist consideration)
+- **ISRC code** — your distributor usually generates this (unique identifier per track)
+- **UPC/EAN** — for albums/EPs (distributor provides)
+
+**Step 4: Cover art**
+- **Minimum 3000x3000 pixels**, square, RGB, JPG or PNG
+- No blurry images, no screenshots, no copyrighted images
+- Simple is better — look at how your favorite artists do it
+- Canva.com (free) or hire someone on Fiverr ($5-25)
+
+**Step 5: Register for royalties**
+- **ASCAP** or **BMI** (US) — collects performance royalties when your song plays on radio, TV, or in venues. Free to join.
+- **SoundExchange** — collects digital performance royalties (streaming). Free.
+- **Your distributor** handles mechanical royalties from streams.
+
+**Step 6: Upload and release**
+- Upload your WAV to your distributor
+- Fill in metadata, upload cover art
+- Set release date (Friday is industry standard)
+- Submit to Spotify for playlist consideration (through Spotify for Artists — do this AT LEAST 7 days before release)
+
+**Step 7: Promote**
+- Share on every platform you're on
+- Send to friends, family, local music communities
+- Submit to independent playlist curators (SubmitHub, PlaylistPush)
+- Post a behind-the-scenes story about making the song — people connect with the process
+
+**You own everything.** Your song is automatically copyrighted the moment you create it. Registration with the US Copyright Office ($65) provides additional legal protection but isn't required."""
+    },
+
+    "copyright": {
+        "title": "Copyright, Publishing & Protecting Your Music",
+        "category": "Releasing",
+        "content": """Your music is yours. Here's what you need to know to protect it.
+
+**Automatic copyright:** The moment you record or write down your song, it's copyrighted. You don't need to register, file paperwork, or pay anyone. It's yours by law.
+
+**BUT registration helps:** Registering with the U.S. Copyright Office ($65 per work at copyright.gov) gives you:
+- Legal proof of ownership with a specific date
+- The ability to sue for statutory damages (up to $150,000 per infringement)
+- Without registration, you can only sue for actual damages (what you lost)
+
+**The two copyrights in every song:**
+1. **Composition copyright** — the melody and lyrics (the SONG itself). This is yours as the songwriter.
+2. **Sound recording copyright** — the specific recording (the MASTER). This is yours as the artist/producer.
+
+If you wrote it AND recorded it in Sozawen, you own BOTH. That's 100% ownership.
+
+**Publishing:**
+- Publishing = the business of your compositions
+- A publisher shops your songs for sync licensing (TV, film, ads, games)
+- You can self-publish (keep 100%) or sign with a publisher (they take 15-50% but open doors)
+- Register with ASCAP or BMI as both a **writer** AND a **publisher** to collect all royalties
+
+**Performance Rights Organizations (PROs):**
+- **ASCAP** — free to join, collects when your music is played publicly
+- **BMI** — free to join, same function
+- **SESAC** — invitation only
+- You only join ONE. They don't compete — they all collect from the same places.
+- International: PRS (UK), GEMA (Germany), SACEM (France), JASRAC (Japan)
+
+**Sync licensing** (TV, film, games, ads):
+- This is where real money is for indie artists
+- A 30-second placement in a TV show can pay $1,000-50,000+
+- Submit to sync libraries: Musicbed, Artlist, Epidemic Sound, or hire a sync agent
+- Having clean, well-mastered tracks with clear ownership makes you attractive
+
+**Sozawen instruments are copyright-free:**
+All 62 instruments in Sozawen are synthesized from math. No samples, no licensed content, no royalty obligations. The sounds you create are 100% yours. This is by design — we built it this way so nothing stands between you and ownership.
+
+**Protect your lyrics:**
+Save your lyrics with a date. Email them to yourself (creates a timestamp). Better yet, register the full song with the Copyright Office. The $65 is worth the peace of mind."""
+    },
+
+    "export_platforms": {
+        "title": "Export Settings for Every Platform",
+        "category": "Releasing",
+        "content": """Different platforms have different requirements. Here are the exact settings for each:
+
+**Spotify:**
+- Format: WAV or FLAC
+- Sample rate: 44.1 kHz
+- Bit depth: 16-bit or 24-bit
+- Loudness target: **-14 LUFS integrated**
+- True peak: **-1 dBTP** maximum
+- Spotify normalizes everything to -14 LUFS — if yours is louder, they turn it down. If quieter, they leave it (won't turn up).
+
+**Apple Music:**
+- Format: WAV or AIFF
+- Sample rate: 44.1 kHz (or up to 192 kHz for spatial audio)
+- Loudness target: **-16 LUFS integrated**
+- True peak: **-1 dBTP**
+- Apple Music also supports Dolby Atmos and lossless
+
+**YouTube:**
+- Format: WAV or FLAC (YouTube re-encodes anyway)
+- Loudness target: **-14 LUFS**
+- True peak: **-1 dBTP**
+
+**SoundCloud:**
+- Format: WAV or FLAC (for best quality; they transcode to 128kbps for free, 256kbps for Go+)
+- Loudness: no normalization — louder = louder
+
+**CD/Physical:**
+- Format: WAV
+- Sample rate: 44.1 kHz
+- Bit depth: 16-bit
+- Loudness: **-9 to -12 LUFS** (CDs don't normalize)
+- True peak: **-0.3 dBTP**
+
+**In Sozawen:** Use the Export tool. Set the format, sample rate, and bit depth. Check LUFS with the Loudness meter. Adjust the Limiter until you hit the target. Export. Done.
+
+**Pro tip:** Always master at **-14 LUFS** first. This works for Spotify, YouTube, and most platforms. If you need a louder version for CD or SoundCloud, make a separate master."""
+    },
+
+    "collaboration": {
+        "title": "Collaborating with Other Musicians",
+        "category": "Releasing",
+        "content": """Music is better together. Here's how to collaborate using Sozawen.
+
+**Sharing your project:**
+1. Use **Export → Project File (.sozawen)** to save your entire session
+2. The project file includes all track references, effects settings, markers, and arrangement
+3. Send it to your collaborator — they open it in Sozawen and pick up where you left off
+
+**Sharing stems:**
+1. Use **Export → All Stems (ZIP)** to export each track as a separate WAV
+2. Your collaborator can import these into ANY DAW — not just Sozawen
+3. Label your stems clearly: "Vocals_Lead.wav", "Guitar_Rhythm.wav", "Drums_Full.wav"
+
+**Remote collaboration workflow:**
+1. You record guitar and vocals, export stems
+2. Send to your bassist — they import your stems, record bass, export their stem back
+3. You import their bass stem into your project
+4. Repeat with drummer, keys player, etc.
+5. Final mix happens in one session with all stems
+
+**Splits and credits:**
+- Agree on songwriting splits BEFORE the song is finished
+- Standard: lyrics writer gets 50%, music writer gets 50%
+- If you co-write both: split evenly or by contribution
+- Put it in writing — even a text message is better than nothing
+- Register all writers with your PRO (ASCAP/BMI)
+
+**Finding collaborators:**
+- Join the Sozawen Discord — musicians looking to collaborate
+- BandLab, Kompoz, SoundBetter — online collaboration platforms
+- Local open mics, music schools, church worship teams
+- Reddit: r/MusicInTheMaking, r/BedroomBands
+
+**The golden rule:** Communicate early, communicate often. Disagreements about credits after a song blows up are how friendships end. Agree on everything upfront."""
+    },
+
+    "lyrics_protection": {
+        "title": "Protecting Your Lyrics & Songwriting",
+        "category": "Releasing",
+        "content": """Your words are yours the moment you write them. Here's how to make sure they stay that way.
+
+**Automatic protection:**
+Under US copyright law (and most international law via the Berne Convention), your lyrics are copyrighted the instant you write them down or record them. No registration required. No © symbol needed. It's automatic.
+
+**But proof matters:**
+If someone steals your lyrics, you need to PROVE you wrote them first. Here's how:
+
+**Method 1: Poor man's copyright (free)**
+- Email your lyrics to yourself. The email timestamp proves you had them on that date.
+- Save the email. Don't delete it.
+- This isn't as strong as registration but it's better than nothing.
+
+**Method 2: Copyright registration ($65)**
+- Go to copyright.gov → Register → Literary Work (for lyrics) or Sound Recording (for the full song)
+- Upload your lyrics document or audio file
+- Takes 2-6 months to process but your protection backdates to the filing date
+- This gives you the legal standing to sue for statutory damages
+
+**Method 3: Sozawen's Lyrics Editor**
+- Write your lyrics in the Lyrics Editor tool
+- Export as .txt — the file's creation date is your timestamp
+- Save it somewhere safe (cloud backup, email to yourself)
+
+**What copyright DOESN'T protect:**
+- A chord progression (you can't copyright I-V-vi-IV)
+- A song title (titles can't be copyrighted)
+- A general idea or theme ("a song about heartbreak")
+- A groove or rhythm
+- What IS protected: your specific melody, your specific lyrics, your specific arrangement
+
+**If someone steals your song:**
+1. Document the infringement (screenshots, links)
+2. File a DMCA takedown with the platform (Spotify, YouTube, etc.)
+3. Contact a music attorney if the infringement is significant
+4. Having a copyright registration makes this process much stronger
+
+**Best practice:**
+Every time you write a song, save the lyrics with a date. Keep a running document. Back it up. Your words are worth protecting — they're the most personal thing you'll ever create."""
+    },
 }
 
 

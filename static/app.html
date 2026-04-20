@@ -1785,9 +1785,18 @@
                     <select><option>44100 Hz — CD standard</option><option>48000 Hz — video standard</option><option>96000 Hz — high resolution</option></select></div>
                 <div class="field"><label>Dithering ${h('Adds very quiet noise when converting bit depth. Sounds better than truncation. Use when going from 24-bit to 16-bit.')}</label>
                     <select><option>Off</option><option>Triangular (TPDF) — recommended</option><option>Shaped — least audible</option></select></div>
-                <button class="btn btn-primary" style="width:100%">Export Mix</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:6px;">Export All Stems</button>
-                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Export Selection Only</button>`,
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:6px;letter-spacing:1px;">QUICK EXPORT FOR PLATFORMS</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="exportForPlatform('spotify')" data-tip="WAV 44.1kHz/16-bit, -14 LUFS, -1dBTP. The Spotify standard.">Spotify</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="exportForPlatform('apple')" data-tip="WAV 44.1kHz/16-bit, -16 LUFS, -1dBTP. Apple Music standard.">Apple Music</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="exportForPlatform('youtube')" data-tip="WAV 48kHz/16-bit, -14 LUFS. YouTube re-encodes but starts from the best source.">YouTube</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="exportForPlatform('soundcloud')" data-tip="WAV 44.1kHz/16-bit. SoundCloud doesn't normalize — your master is what they hear.">SoundCloud</button>
+                    <button class="btn btn-secondary" style="font-size:8px;padding:3px 7px;" onclick="exportForPlatform('cd')" data-tip="WAV 44.1kHz/16-bit, -9 to -12 LUFS, -0.3dBTP. CD standard — louder than streaming.">CD</button>
+                </div>
+                <button class="btn btn-primary" style="width:100%" onclick="exportMix()">Export Mix</button>
+                <button class="btn btn-secondary" style="width:100%; margin-top:6px;" onclick="exportAllStems()">Export All Stems</button>
+                <button class="btn btn-secondary" style="width:100%; margin-top:4px;">Export Selection Only</button>
+                <p style="font-size:9px;color:var(--text-muted);margin-top:8px;">After exporting, see the <strong style="color:var(--teal);cursor:pointer;" onclick="searchLearn('release');showPanel('learn')">Release Guide</strong> in Learn for how to get on Spotify, Apple Music, and more.</p>`,
 
             analyze: `<h3>Analysis ${h('Detects key, tempo, loudness, and other characteristics of your audio.')}</h3>
                 <div id="analysisResults" style="font-size:12px; color:var(--text-dim);">Analyzing...</div>`,
@@ -3564,6 +3573,30 @@
         }).catch(() => {
             const thinking = document.getElementById('bandmateThinking');
             if (thinking) thinking.textContent = 'Could not reach the bandmate. Is Ollama running?';
+        });
+    }
+
+    // ═══ PLATFORM EXPORT PRESETS ═══
+    function exportForPlatform(platform) {
+        const presets = {
+            spotify:    {format:'wav', sample_rate:44100, bit_depth:16, lufs:-14, peak:-1},
+            apple:      {format:'wav', sample_rate:44100, bit_depth:16, lufs:-16, peak:-1},
+            youtube:    {format:'wav', sample_rate:48000, bit_depth:16, lufs:-14, peak:-1},
+            soundcloud: {format:'wav', sample_rate:44100, bit_depth:16, lufs:null, peak:-0.3},
+            cd:         {format:'wav', sample_rate:44100, bit_depth:16, lufs:-10, peak:-0.3},
+        };
+        const p = presets[platform] || presets.spotify;
+        showStatus(`Exporting for ${platform} (${p.format} ${p.sample_rate}Hz, ${p.lufs ? p.lufs+' LUFS' : 'no normalization'})...`);
+        fetch('/api/export', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({format:p.format, sample_rate:p.sample_rate, bit_depth:p.bit_depth})
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                showStatus(`Exported for ${platform}: ${d.path}`);
+                showDialog(`Exported for ${platform}!\n\nFile: ${d.path}\n\n${p.lufs ? 'Target: '+p.lufs+' LUFS, peak '+p.peak+'dBTP' : 'No loudness normalization'}\n\nSee the Release Guide in Learn for next steps.`, 'alert');
+            } else {
+                showStatus(d.error || 'Export failed');
+            }
         });
     }
 
