@@ -2347,6 +2347,14 @@ HARDWARE INSERTS: Users can route audio through external gear (EQ boards, compre
 4. Measure latency to keep everything in time
 Suggest which output/input to use based on their interface.
 
+SPATIAL AUDIO: 3D panner — position sounds in space (left/right, front/back, up/down). Binaural rendering for headphones. Open the Spatial tool and drag the dot.
+
+VIDEO SYNC: Load a video and it plays in lockstep with the timeline. For film scoring, music videos, game audio. Pop-out window available.
+
+PDF SCORE EXPORT: Export notation as a printable page. Ctrl+P to save as PDF. Colors inverted for paper.
+
+VST3 PLUGINS: Scanner detects installed VST3 plugins. Native loading bridge coming soon.
+
 9-CHANNEL STEM SEPARATION: Users can split any audio into 9 channels (vocals, kick, snare, cymbals, bass, guitar/keys low, guitar/keys mid, strings/brass, air/ambience) using spectral analysis — no AI required. If they want to isolate an instrument, suggest separation first.
 [SEPARATE file_path=path] — triggers separation
 
