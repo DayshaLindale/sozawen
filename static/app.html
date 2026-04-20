@@ -3061,6 +3061,22 @@
     }).catch(()=>{});
 
     setInterval(refreshContext, 2000);
+
+    // Check for updates on startup (silent, non-intrusive)
+    setTimeout(() => {
+        fetch('/api/update/check').then(r=>r.json()).then(d => {
+            if (d.latest && !d.up_to_date) {
+                const bar = document.createElement('div');
+                bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:linear-gradient(135deg,var(--violet),var(--teal));color:#fff;padding:8px 16px;font-size:11px;display:flex;align-items:center;justify-content:space-between;z-index:500;';
+                bar.innerHTML = `<span>Sozawen ${d.latest} is available (you have ${d.current}). ${d.release_name || ''}</span>
+                    <div style="display:flex;gap:8px;">
+                        ${d.download_url ? `<a href="${d.download_url}" style="color:#fff;font-weight:600;text-decoration:underline;">Download</a>` : ''}
+                        <span onclick="this.parentElement.parentElement.remove()" style="cursor:pointer;opacity:0.7;">Dismiss</span>
+                    </div>`;
+                document.body.appendChild(bar);
+            }
+        }).catch(()=>{});
+    }, 5000);
     try { refreshContext(); } catch(e) { console.error('Context init error:', e); }
 
     // Fallback: if tools don't load in 3 seconds, show them manually

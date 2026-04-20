@@ -1040,6 +1040,41 @@ async def export_audio(request: Request):
 # INPUT DEVICES — for recording
 # ═══════════════════════════════════════════════════════════════════
 
+APP_VERSION = "1.0.0"
+
+@api.get("/api/version")
+async def get_version():
+    """Current app version."""
+    return JSONResponse({"version": APP_VERSION})
+
+@api.get("/api/update/check")
+async def check_for_updates():
+    """Check GitHub for the latest release version."""
+    try:
+        import requests as req
+        r = req.get("https://api.github.com/repos/DayshaLindale/sozawen/releases/latest",
+                     timeout=5, headers={"Accept": "application/vnd.github.v3+json"})
+        if r.status_code == 200:
+            data = r.json()
+            latest = data.get("tag_name", "").lstrip("v")
+            download_url = ""
+            for asset in data.get("assets", []):
+                if asset["name"].endswith(".exe"):
+                    download_url = asset["browser_download_url"]
+                    break
+            is_current = latest == APP_VERSION
+            return JSONResponse({
+                "current": APP_VERSION,
+                "latest": latest,
+                "up_to_date": is_current,
+                "download_url": download_url,
+                "release_notes": data.get("body", ""),
+                "release_name": data.get("name", ""),
+            })
+        return JSONResponse({"current": APP_VERSION, "up_to_date": True, "error": "Could not check"})
+    except Exception as e:
+        return JSONResponse({"current": APP_VERSION, "up_to_date": True, "error": str(e)})
+
 @api.get("/api/hardware")
 async def list_all_hardware():
     """Unified hardware scanner — shows everything plugged in."""
