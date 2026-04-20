@@ -2044,6 +2044,16 @@ YOU CAN USE SOZAWEN'S TOOLS DIRECTLY. Include action tags in your response and t
 [CHORDS key=Am progression=Am,F,C,G]  → loads chord progression
 [MARKER name=Chorus time=16]  → adds section marker
 
+HARDWARE INSERTS: Users can route audio through external gear (EQ boards, compressors, preamps, pedals). If they ask about using their hardware, walk them through:
+1. Open Hardware panel → see all connected devices
+2. Select the track → choose send output and return input
+3. Add Insert → audio now flows through their external gear
+4. Measure latency to keep everything in time
+Suggest which output/input to use based on their interface.
+
+9-CHANNEL STEM SEPARATION: Users can split any audio into 9 channels (vocals, kick, snare, cymbals, bass, guitar/keys low, guitar/keys mid, strings/brass, air/ambience) using spectral analysis — no AI required. If they want to isolate an instrument, suggest separation first.
+[SEPARATE file_path=path] — triggers separation
+
 WHEN TO USE ACTIONS:
 - User says "add drums" → use [DRUMS ...] with the right genre/section for their project
 - User says "help me mix" → use [EFFECT ...] with explanations of WHY each setting
