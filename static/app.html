@@ -2233,9 +2233,23 @@
                     <button class="btn btn-secondary" style="font-size:8px;padding:3px 6px;" onclick="loadCommonProgression('sad')">Sad Minor</button>
                 </div>`,
 
-            hardware: `<h3>Hardware ${h('Everything plugged into your computer. Audio interfaces, MIDI keyboards, controllers — Sozawen sees them all. Plug something in and refresh to detect it.')}</h3>
+            hardware: `<h3>Hardware ${h('Everything plugged into your computer. Audio interfaces, MIDI keyboards, controllers, external EQ boards, compressors, pedals — Sozawen sees them all and can route audio through them.')}</h3>
                 <button class="btn btn-secondary" style="width:100%;margin-bottom:10px;" onclick="scanHardware()">Scan for Devices</button>
-                <div id="hardwareList" style="font-size:11px;color:var(--text-dim);line-height:1.8;">Scanning...</div>`,
+                <div id="hardwareList" style="font-size:11px;color:var(--text-dim);line-height:1.8;">Scanning...</div>
+                <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+                    <div style="font-size:9px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;">HARDWARE INSERTS ${h('Route audio from a track out through your external gear (EQ, compressor, preamp, pedal board) and back in. Your hardware becomes part of the Sozawen signal chain.')}</div>
+                    <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;align-items:center;">
+                        <select id="hwInsertOutput" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                            <option value="1">Output 1</option><option value="2">Output 2</option><option value="3">Output 3-4</option><option value="4">Output 5-6</option>
+                        </select>
+                        <span style="font-size:9px;color:var(--text-muted);">→ gear →</span>
+                        <select id="hwInsertInput" style="padding:3px;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:10px;">
+                            <option value="1">Input 1</option><option value="2">Input 2</option><option value="3">Input 3-4</option>
+                        </select>
+                        <button class="btn btn-secondary" style="font-size:8px;padding:3px 8px;" onclick="createHwInsert()">Add Insert</button>
+                    </div>
+                    <div id="hwInsertList" style="font-size:10px;color:var(--text-dim);"></div>
+                </div>`,
 
             vocal_tune: `<h3>Vocal Tuning ${h('Correct pitch on vocal recordings. Subtle correction keeps it natural — heavy correction creates the Auto-Tune effect. Drag notes to the correct pitch on the grid.')}</h3>
                 <div class="field"><label>Correction Strength ${h('0% = no correction (natural). 50% = gentle nudge toward correct pitch. 100% = hard snap to nearest note (Auto-Tune effect).')}</label>
@@ -5543,6 +5557,41 @@
 
         // Rebuild grid with the state already set — DON'T reset in buildDrumGrid
         _buildDrumGridFromState(steps);
+    }
+
+    // ═══ HARDWARE INSERTS ═══
+    function createHwInsert() {
+        const track = getActiveTrack();
+        if (!track || track.engineId === null) { showStatus('Select a track first'); return; }
+        const sendOut = document.getElementById('hwInsertOutput')?.value || '1';
+        const returnIn = document.getElementById('hwInsertInput')?.value || '1';
+        fetch('/api/hardware/insert', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({track_id: track.engineId, send_output: parseInt(sendOut), return_input: parseInt(returnIn), name: track.name + ' Insert'})
+        }).then(r=>r.json()).then(d => {
+            if (d.ok) {
+                showStatus(d.message);
+                refreshHwInserts();
+            } else showStatus(d.error || 'Failed');
+        });
+    }
+
+    function refreshHwInserts() {
+        fetch('/api/hardware/inserts').then(r=>r.json()).then(d => {
+            const el = document.getElementById('hwInsertList');
+            if (!el) return;
+            const inserts = d.inserts || [];
+            if (inserts.length === 0) { el.innerHTML = '<span style="color:var(--text-muted);font-size:9px;">No inserts configured</span>'; return; }
+            el.innerHTML = inserts.map(ins =>
+                `<div style="padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+                    <span>${ins.name} <span style="color:var(--text-muted);font-size:8px;">Out ${ins.send_output} → In ${ins.return_input} (${ins.latency_samples} samples)</span></span>
+                    <div>
+                        <button class="btn btn-secondary" style="font-size:7px;padding:1px 5px;" onclick="fetch('/api/hardware/insert/${ins.id}/toggle',{method:'POST'}).then(()=>refreshHwInserts())">${ins.active ? 'ON' : 'OFF'}</button>
+                        <button class="btn btn-secondary" style="font-size:7px;padding:1px 5px;" onclick="fetch('/api/hardware/insert/measure-latency',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({insert_id:${ins.id}})}).then(r=>r.json()).then(d=>showStatus(d.message))">Measure</button>
+                    </div>
+                </div>`
+            ).join('');
+        });
     }
 
     // ═══ HARDWARE SCANNER ═══

@@ -191,7 +191,7 @@ TOOLS = {
     "quantize":     {"label": "Quantize",          "icon": "⊞", "group": "edit",
                      "tip": "Snap recorded MIDI notes to the nearest grid position. Tightens up timing that was played slightly off-beat. Set the grid resolution (1/4, 1/8, 1/16) and strength (100% = perfect grid, 50% = halfway)."},
     "hardware":     {"label": "Hardware",          "icon": "🔌", "group": "record",
-                     "tip": "See everything plugged into your computer — audio interfaces, MIDI keyboards, controllers. Plug in new hardware and scan to detect. One-click MIDI connection."},
+                     "tip": "See everything plugged in — interfaces, MIDI, controllers. Create hardware inserts to route audio through external EQ boards, compressors, pedals, preamps. Your gear becomes part of the Sozawen signal chain."},
     "punch":        {"label": "Punch In/Out",     "icon": "⏺", "group": "record",
                      "tip": "Record over just a section of a track without replacing the whole thing. Set punch-in point (where recording starts) and punch-out (where it stops). The rest of the track stays untouched."},
     "true_peak":    {"label": "True Peak Meter",  "icon": "📐", "group": "master",

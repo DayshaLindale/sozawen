@@ -217,6 +217,11 @@ class AudioEngine:
         self.time_sig_num = 4
         self.time_sig_den = 4
 
+        # Hardware inserts — route audio through external gear
+        # Each insert: {track_id, send_output, return_input, latency_samples, active}
+        self.hardware_inserts = {}
+        self.hw_insert_latency = {}  # measured round-trip per insert
+
         # Output stream
         self._stream = None
         self._input_stream = None

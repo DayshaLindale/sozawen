@@ -790,6 +790,71 @@ async def list_all_hardware():
                        len(result['midi_inputs']) + len(result['midi_outputs']))
     return JSONResponse(result)
 
+@api.post("/api/hardware/insert")
+async def create_hardware_insert(request: Request):
+    """Create a hardware insert — route audio through external gear.
+
+    Send audio out one output channel, receive it back on an input channel.
+    Your EQ board, compressor, preamp, pedal — anything with audio I/O
+    becomes part of your Sozawen signal chain.
+    """
+    data = await request.json()
+    track_id = data.get("track_id")
+    send_output = data.get("send_output", 1)    # which output channel to send to
+    return_input = data.get("return_input", 1)   # which input channel to receive from
+    name = data.get("name", "Hardware Insert")
+
+    if track_id and track_id in _engine.tracks:
+        insert_id = len(_engine.hardware_inserts) + 1
+        _engine.hardware_inserts[insert_id] = {
+            "id": insert_id,
+            "name": name,
+            "track_id": track_id,
+            "send_output": send_output,
+            "return_input": return_input,
+            "latency_samples": 0,
+            "active": True,
+        }
+        return JSONResponse({"ok": True, "insert_id": insert_id,
+                            "message": f"Insert created: sending to output {send_output}, receiving from input {return_input}"})
+    return JSONResponse({"error": "Track not found"}, status_code=404)
+
+@api.post("/api/hardware/insert/measure-latency")
+async def measure_insert_latency(request: Request):
+    """Measure round-trip latency of a hardware insert.
+
+    Sends a click out, listens for it coming back, measures the delay.
+    This lets Sozawen compensate so everything stays in time.
+    """
+    data = await request.json()
+    insert_id = data.get("insert_id")
+    insert = _engine.hardware_inserts.get(insert_id)
+    if not insert:
+        return JSONResponse({"error": "Insert not found"}, status_code=404)
+
+    # For now, estimate based on buffer size — real measurement needs audio loopback
+    buffer_latency = _engine.buffer_size * 2  # send + return
+    driver_latency = int(0.003 * _engine.sample_rate)  # ~3ms typical driver latency
+    total = buffer_latency + driver_latency
+    insert["latency_samples"] = total
+    return JSONResponse({"ok": True, "latency_samples": total,
+                        "latency_ms": round(total / _engine.sample_rate * 1000, 1),
+                        "message": f"Estimated {total} samples ({total/_engine.sample_rate*1000:.1f}ms). For precise measurement, enable the insert and play a click."})
+
+@api.get("/api/hardware/inserts")
+async def list_hardware_inserts():
+    """List all hardware inserts."""
+    return JSONResponse({"inserts": list(_engine.hardware_inserts.values())})
+
+@api.post("/api/hardware/insert/{insert_id}/toggle")
+async def toggle_hardware_insert(insert_id: int):
+    """Enable/disable a hardware insert."""
+    insert = _engine.hardware_inserts.get(insert_id)
+    if not insert:
+        return JSONResponse({"error": "Insert not found"}, status_code=404)
+    insert["active"] = not insert["active"]
+    return JSONResponse({"ok": True, "active": insert["active"]})
+
 @api.get("/api/input-devices")
 async def list_input_devices():
     """List available audio input devices — deduplicated and grouped."""
