@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sozawen — A seat is funded.</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Crimson+Pro:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #08080f;
+            --text: #d8d8e8;
+            --text-dim: #7878a0;
+            --text-muted: #4a4a70;
+            --violet: #9b59b6;
+            --violet-glow: #c084e0;
+            --teal: #2dd4a8;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
+            font-weight: 300;
+        }
+        @keyframes breathe { 0%,100%{opacity:.3} 50%{opacity:.6} }
+        @keyframes glow-pulse { 0%,100%{text-shadow:0 0 30px rgba(155,89,182,.2)} 50%{text-shadow:0 0 60px rgba(155,89,182,.4), 0 0 120px rgba(45,212,168,.15)} }
+        .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(100px); z-index: 0; }
+        .orb-violet {
+            width: 600px; height: 600px; top: -10%; left: -5%;
+            background: radial-gradient(circle, rgba(155,89,182,.12) 0%, transparent 70%);
+            animation: breathe 10s ease-in-out infinite;
+        }
+        .orb-teal {
+            width: 500px; height: 500px; bottom: -10%; right: -5%;
+            background: radial-gradient(circle, rgba(45,212,168,.1) 0%, transparent 70%);
+            animation: breathe 10s ease-in-out infinite 5s;
+        }
+        .wrap { max-width: 560px; text-align: center; position: relative; z-index: 1; }
+        .mark {
+            font-size: 56px; font-weight: 200; letter-spacing: 16px;
+            background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: glow-pulse 6s ease-in-out infinite;
+            margin-bottom: 48px;
+        }
+        h1 {
+            font-family: 'Crimson Pro', serif; font-weight: 200; font-style: italic;
+            font-size: 42px; color: var(--text); margin-bottom: 28px; line-height: 1.3;
+        }
+        .body-copy {
+            font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2;
+            color: var(--text-dim); margin-bottom: 36px;
+        }
+        .body-copy p { margin-bottom: 24px; }
+        .body-copy em { color: var(--text); font-style: normal; }
+        .divider {
+            height: 1px; margin: 48px auto; max-width: 200px;
+            background: linear-gradient(90deg, transparent, var(--violet), var(--teal), transparent);
+            opacity: .5;
+        }
+        .math {
+            background: rgba(255,255,255,.02);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 16px;
+            padding: 32px 24px;
+            font-size: 14px; color: var(--text-dim); line-height: 2;
+        }
+        .math strong { color: var(--teal); font-weight: 400; }
+        .back {
+            display: inline-block; margin-top: 56px; padding: 14px 36px;
+            background: transparent; color: var(--text-dim); text-decoration: none;
+            border: 1px solid rgba(255,255,255,.1); border-radius: 50px;
+            font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+            transition: all .3s;
+        }
+        .back:hover { color: var(--teal); border-color: rgba(45,212,168,.4); }
+        .closing {
+            font-family: 'Crimson Pro', serif; font-style: italic;
+            color: var(--teal); font-size: 16px; margin-top: 40px; opacity: .8;
+            line-height: 1.7;
+        }
+        @media (max-width: 600px) {
+            .mark { font-size: 36px; letter-spacing: 10px; }
+            h1 { font-size: 28px; }
+            .body-copy { font-size: 17px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="orb orb-violet"></div>
+    <div class="orb orb-teal"></div>
+
+    <div class="wrap">
+        <div class="mark">SOZAWEN</div>
+
+        <h1>Because of you, a seat is funded.</h1>
+
+        <div class="body-copy">
+            <p>
+                Somewhere — maybe tonight, maybe next week — a musician who couldn't afford a DAW is going to ask for help.
+            </p>
+            <p>
+                When they do, <em>your $79 is the answer.</em>
+            </p>
+            <p>
+                You don't know their name. Neither do we, yet. But they're already making something, somewhere, and this is the piece they couldn't reach.
+            </p>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="math">
+            One gift = one seat.<br>
+            <strong>You just made it one easier to say yes.</strong>
+        </div>
+
+        <a href="https://sozawen.com" class="back">Back to Sozawen</a>
+
+        <p class="closing">
+            If you'd like to know when a seat is claimed from your gift, email<br>
+            <a href="mailto:dayshalindale@gmail.com" style="color: var(--teal);">dayshalindale@gmail.com</a> and we'll tell you when it happens.
+        </p>
+    </div>
+</body>
+</html>
