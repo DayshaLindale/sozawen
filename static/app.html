@@ -6656,7 +6656,11 @@
             // that modify existing audio (effects, transcription) still require
             // a deliberate click — the user should be in the loop for those.
             const actions = [];
-            const _AUTO_TYPES = new Set(['drums', 'marker', 'chords']);
+            // Tags that auto-fire are safe to run without confirmation: navigate
+            // to a panel, add content, save a snapshot, read-only analysis.
+            // Destructive or long-running tags (effect changes, pitch/time stretch,
+            // stem separation, spatial render) still require an explicit click.
+            const _AUTO_TYPES = new Set(['drums', 'marker', 'chords', 'open', 'mixer', 'analyze', 'lyrics', 'punch', 'vca']);
             const _render = (type, label) => (match, params) => {
                 const idx = actions.length;
                 actions.push({type, params: _parseActionParams(params)});
@@ -6668,6 +6672,17 @@
             response = response.replace(/\[TRANSCRIBE ([^\]]+)\]/g, _render('transcribe', 'Transcribe'));
             response = response.replace(/\[CHORDS ([^\]]+)\]/g, _render('chords', 'Load chords'));
             response = response.replace(/\[MARKER ([^\]]+)\]/g, _render('marker', 'Add marker'));
+            response = response.replace(/\[OPEN ([^\]]+)\]/g, _render('open', 'Open panel'));
+            response = response.replace(/\[MIXER ([^\]]+)\]/g, _render('mixer', 'Save mixer snapshot'));
+            response = response.replace(/\[ANALYZE ([^\]]+)\]/g, _render('analyze', 'Analyze track'));
+            response = response.replace(/\[LYRICS ([^\]]+)\]/g, _render('lyrics', 'Load lyrics'));
+            response = response.replace(/\[PUNCH ([^\]]+)\]/g, _render('punch', 'Set punch in/out'));
+            response = response.replace(/\[VCA ([^\]]+)\]/g, _render('vca', 'Group to VCA'));
+            response = response.replace(/\[SEPARATE ([^\]]+)\]/g, _render('separate', 'Separate stems'));
+            response = response.replace(/\[STRETCH ([^\]]+)\]/g, _render('stretch', 'Stretch track'));
+            response = response.replace(/\[PITCH ([^\]]+)\]/g, _render('pitch', 'Pitch shift'));
+            response = response.replace(/\[QUANTIZE ([^\]]+)\]/g, _render('quantize', 'Quantize MIDI'));
+            response = response.replace(/\[SPATIAL_RENDER ([^\]]+)\]/g, _render('spatial', 'Render spatial mix'));
 
             window._bandmateActions = actions;
             chat.innerHTML += `<div style="color:var(--teal); margin-top:4px;"><strong>Bandmate:</strong> ${response}</div>`;
@@ -6790,6 +6805,128 @@
             _markers.sort((a,b) => a.time - b.time);
             renderMarkers();
             showStatus(`Bandmate added marker: ${name} at ${time}s`);
+
+        } else if (type === 'open') {
+            // Navigate to any tool panel — lightest action, always safe.
+            const tool = p.tool || p.panel || 'bandmate';
+            try { showPanel(tool); showStatus(`Bandmate opened ${tool}`); }
+            catch (e) { showStatus(`Could not open panel '${tool}'`); }
+
+        } else if (type === 'mixer') {
+            // Save mixer snapshot. Non-destructive, no params required.
+            fetch('/api/mixer/snapshot').then(r => r.json()).then(d => {
+                showStatus('Bandmate saved a mixer snapshot');
+            }).catch(() => showStatus('Could not save mixer snapshot'));
+
+        } else if (type === 'analyze') {
+            // Analyze a track for key/BPM/etc. Read-only.
+            const tid = parseInt(p.track || 0);
+            fetch('/api/analyze', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ track_id: tid }),
+            }).then(r => r.json()).then(d => {
+                if (d.error) { showStatus('Analyze failed: ' + d.error); return; }
+                const key = d.key || '?';
+                const bpm = d.bpm ? `${Math.round(d.bpm)} BPM` : '';
+                showStatus(`Bandmate analyzed track ${tid}: ${key} ${bpm}`.trim());
+            }).catch(() => showStatus('Analyze failed'));
+
+        } else if (type === 'lyrics') {
+            // Populate the lyrics editor with a title + text block.
+            const title = p.title || 'Untitled';
+            const text = (p.text || '').replace(/\\n/g, '\n');
+            fetch('/api/lyrics/save', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ title, text }),
+            }).then(r => r.json()).then(d => {
+                if (d.error) { showStatus('Lyrics save failed: ' + d.error); return; }
+                showStatus(`Bandmate wrote lyrics: "${title}"`);
+            }).catch(() => showStatus('Lyrics save failed'));
+
+        } else if (type === 'punch') {
+            // Set punch in/out for recording.
+            const enabled = (p.enabled || 'true') !== 'false';
+            const inBeat = parseFloat(p.in || 0);
+            const outBeat = parseFloat(p.out || 0);
+            fetch('/api/transport/punch', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ enabled, in: inBeat, out: outBeat }),
+            }).then(r => r.json()).then(d => {
+                showStatus(`Bandmate set punch ${inBeat}-${outBeat}, ${enabled ? 'on' : 'off'}`);
+            }).catch(() => showStatus('Punch set failed'));
+
+        } else if (type === 'vca') {
+            // Group child track under a parent VCA.
+            const parent = parseInt(p.parent || 0);
+            const child = parseInt(p.child || 0);
+            if (!child) { showStatus('VCA needs a child track id'); return; }
+            fetch(`/api/track/${child}/vca-parent`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ parent_id: parent || null }),
+            }).then(r => r.json()).then(d => {
+                showStatus(`Bandmate grouped track ${child} under VCA ${parent}`);
+            }).catch(() => showStatus('VCA grouping failed'));
+
+        } else if (type === 'separate') {
+            // Kick off stem separation. Long-running — manual confirm only.
+            const channels = parseInt(p.channels || 9);
+            showStatus('Bandmate starting stem separation…');
+            fetch('/api/separate/multi', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ channels }),
+            }).then(r => r.json()).then(d => {
+                if (d.error) { showStatus('Separate failed: ' + d.error); return; }
+                showStatus(`Bandmate queued stem separation (${channels} channels)`);
+            }).catch(() => showStatus('Separate failed'));
+
+        } else if (type === 'stretch') {
+            // Time-stretch a track without pitch change.
+            const tid = parseInt(p.track || 0);
+            const rate = parseFloat(p.rate || 1.0);
+            fetch('/api/effects/warp', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ track_id: tid, time_ratio: rate, pitch_semitones: 0 }),
+            }).then(r => r.json()).then(d => {
+                if (d.error) { showStatus('Stretch failed: ' + d.error); return; }
+                showStatus(`Bandmate stretched track ${tid} to ${Math.round(rate*100)}%`);
+            }).catch(() => showStatus('Stretch failed'));
+
+        } else if (type === 'pitch') {
+            // Pitch-shift a track without time change.
+            const tid = parseInt(p.track || 0);
+            const semitones = parseFloat(p.semitones || 0);
+            fetch('/api/effects/warp', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ track_id: tid, time_ratio: 1.0, pitch_semitones: semitones }),
+            }).then(r => r.json()).then(d => {
+                if (d.error) { showStatus('Pitch shift failed: ' + d.error); return; }
+                showStatus(`Bandmate pitched track ${tid} by ${semitones} semitones`);
+            }).catch(() => showStatus('Pitch shift failed'));
+
+        } else if (type === 'quantize') {
+            // Quantize MIDI notes on a track to the given grid.
+            const tid = parseInt(p.track || 0);
+            const grid = parseFloat(p.grid || 0.25);
+            const strength = parseFloat(p.strength || 1.0);
+            fetch('/api/midi/quantize', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ track_id: tid, grid, strength }),
+            }).then(r => r.json()).then(d => {
+                if (d.error) { showStatus('Quantize failed: ' + d.error); return; }
+                showStatus(`Bandmate quantized track ${tid} to ${grid}-note grid`);
+            }).catch(() => showStatus('Quantize failed'));
+
+        } else if (type === 'spatial') {
+            // Render spatial (surround) mix. Long-running.
+            const layout = p.layout || '7.1.4';
+            showStatus('Bandmate rendering spatial mix…');
+            fetch('/api/spatial/render', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ layout }),
+            }).then(r => r.json()).then(d => {
+                if (d.error) { showStatus('Spatial render failed: ' + d.error); return; }
+                showStatus(`Bandmate rendered spatial mix (${layout})`);
+            }).catch(() => showStatus('Spatial render failed'));
         }
     }
 
