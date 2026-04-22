@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sozawen — Checkout</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Crimson+Pro:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #08080f;
+            --bg-card: #0f0f1a;
+            --text: #d8d8e8;
+            --text-dim: #7878a0;
+            --text-muted: #4a4a70;
+            --violet: #9b59b6;
+            --violet-glow: #c084e0;
+            --teal: #2dd4a8;
+            --border: rgba(255,255,255,.08);
+            --red: #f87171;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 20px;
+            font-weight: 300;
+            line-height: 1.6;
+        }
+        @keyframes breathe { 0%,100%{opacity:.3} 50%{opacity:.5} }
+        @keyframes glow-pulse { 0%,100%{text-shadow:0 0 30px rgba(155,89,182,.2)} 50%{text-shadow:0 0 60px rgba(155,89,182,.4), 0 0 120px rgba(45,212,168,.15)} }
+        .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(120px); z-index: 0; }
+        .orb-violet {
+            width: 600px; height: 600px; top: -15%; left: -10%;
+            background: radial-gradient(circle, rgba(155,89,182,.1) 0%, transparent 70%);
+            animation: breathe 12s ease-in-out infinite;
+        }
+        .orb-teal {
+            width: 500px; height: 500px; bottom: -10%; right: -8%;
+            background: radial-gradient(circle, rgba(45,212,168,.08) 0%, transparent 70%);
+            animation: breathe 12s ease-in-out infinite 6s;
+        }
+
+        .wrap { max-width: 520px; margin: 40px auto; position: relative; z-index: 1; }
+
+        .mark-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 44px; }
+        .mark {
+            font-size: 24px; font-weight: 200; letter-spacing: 8px;
+            background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: glow-pulse 6s ease-in-out infinite;
+            text-decoration: none;
+        }
+        .mark-back {
+            font-size: 11px; color: var(--text-muted); letter-spacing: 2px;
+            text-transform: uppercase; text-decoration: none; transition: color .3s;
+        }
+        .mark-back:hover { color: var(--teal); }
+
+        h1 {
+            font-family: 'Crimson Pro', serif; font-weight: 200; font-style: italic;
+            font-size: 34px; color: var(--text); margin-bottom: 8px;
+        }
+        .h1-sub {
+            font-size: 14px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 32px;
+        }
+
+        .mode-switch { display: flex; gap: 8px; margin-bottom: 28px; }
+        .mode-btn {
+            flex: 1; padding: 14px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-family: inherit; font-size: 12px; letter-spacing: 1px;
+            text-transform: uppercase; font-weight: 400;
+            transition: all .3s;
+        }
+        .mode-btn:hover { color: var(--text); border-color: rgba(45,212,168,.3); }
+        .mode-btn.active {
+            color: var(--teal);
+            border-color: rgba(45,212,168,.4);
+            background: rgba(45,212,168,.04);
+        }
+        .mode-btn .price { display: block; font-size: 20px; font-weight: 500; color: var(--text); letter-spacing: 0; text-transform: none; margin-top: 4px; }
+
+        .summary {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        .summary-mode { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+        .summary-line { display: flex; justify-content: space-between; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--border); }
+        .summary-line strong { color: var(--text); font-size: 18px; font-weight: 500; }
+
+        #payment-element { margin-bottom: 24px; }
+
+        button#submit {
+            width: 100%; padding: 18px;
+            background: linear-gradient(135deg, var(--violet), var(--teal));
+            color: #fff; border: none; border-radius: 12px;
+            font-family: inherit; font-size: 14px; letter-spacing: 2px;
+            text-transform: uppercase; font-weight: 500;
+            cursor: pointer; transition: transform .2s;
+            position: relative;
+        }
+        button#submit:hover:not(:disabled) { transform: translateY(-1px); }
+        button#submit:disabled { opacity: 0.5; cursor: not-allowed; }
+        button#submit::after {
+            content: ''; position: absolute; inset: -2px; border-radius: 14px;
+            background: linear-gradient(135deg, var(--violet), var(--teal));
+            z-index: -1; filter: blur(18px); opacity: .35;
+        }
+
+        #error-message {
+            color: var(--red); font-size: 13px; margin-top: 14px; min-height: 20px; line-height: 1.6;
+        }
+
+        .trust {
+            margin-top: 28px; text-align: center;
+            font-size: 11px; color: var(--text-muted); letter-spacing: 1px; line-height: 1.8;
+        }
+        .trust a { color: var(--text-dim); text-decoration: underline; text-decoration-color: rgba(255,255,255,.1); }
+        .trust a:hover { color: var(--teal); }
+
+        .loader {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,.15);
+            border-top-color: var(--teal);
+            border-radius: 50%; animation: spin .9s linear infinite;
+            vertical-align: middle; margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 600px) {
+            body { padding: 24px 16px; }
+            .wrap { margin: 0 auto; }
+            h1 { font-size: 26px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="orb orb-violet"></div>
+    <div class="orb orb-teal"></div>
+
+    <div class="wrap">
+        <div class="mark-row">
+            <a href="/" class="mark">SOZAWEN</a>
+            <a href="/" class="mark-back">&larr; Back</a>
+        </div>
+
+        <h1>Checkout</h1>
+        <div class="h1-sub">One-time purchase. Lifetime license. No cloud, no account, no subscription.</div>
+
+        <div class="mode-switch">
+            <button type="button" class="mode-btn active" data-mode="self_purchase" id="btn-self">
+                Buy for yourself
+                <span class="price">$79</span>
+            </button>
+            <button type="button" class="mode-btn" data-mode="gift" id="btn-gift">
+                Pay it forward
+                <span class="price">$79</span>
+            </button>
+        </div>
+
+        <div class="summary">
+            <div class="summary-mode" id="sum-label">Sozawen &mdash; lifetime license</div>
+            <div id="sum-detail">Delivered instantly via download + email with your license key.</div>
+            <div class="summary-line"><span>Total</span><strong>$79.00 USD</strong></div>
+        </div>
+
+        <form id="payment-form">
+            <div id="payment-element">
+                <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                    <span class="loader"></span> Loading payment form&hellip;
+                </div>
+            </div>
+
+            <button id="submit" type="submit" disabled>
+                <span id="submit-label">Pay $79.00</span>
+            </button>
+
+            <div id="error-message"></div>
+        </form>
+
+        <div class="trust">
+            Payments processed by <a href="https://stripe.com" target="_blank">Stripe</a>.
+            We never see your card number.<br>
+            <a href="/static/terms.html">Terms</a> · <a href="/static/privacy.html">Privacy</a> · <a href="/static/eula.html">EULA</a>
+        </div>
+    </div>
+
+    <script>
+    (async function() {
+        const PUB_KEY = 'pk_live_51TP6VBCw8Xz02dMqeQxxgXEc8ITEMrDRcctZFXgRg8kdsqIrDLQTVbcHBHp0UJwK1dwkM1JzaZsb8LkcSlBPnC3d00lSpi926U';
+        const API_BASE = 'https://notare-updates.onrender.com';
+        const stripe = Stripe(PUB_KEY);
+
+        // Determine initial mode from URL param ?mode=gift|self
+        const urlMode = new URLSearchParams(location.search).get('mode');
+        let mode = (urlMode === 'gift') ? 'gift' : 'self_purchase';
+
+        const btnSelf = document.getElementById('btn-self');
+        const btnGift = document.getElementById('btn-gift');
+        const sumLabel = document.getElementById('sum-label');
+        const sumDetail = document.getElementById('sum-detail');
+        const errBox = document.getElementById('error-message');
+        const submitBtn = document.getElementById('submit');
+        const submitLabel = document.getElementById('submit-label');
+        const paymentEl = document.getElementById('payment-element');
+
+        function renderMode() {
+            btnSelf.classList.toggle('active', mode === 'self_purchase');
+            btnGift.classList.toggle('active', mode === 'gift');
+            if (mode === 'gift') {
+                sumLabel.innerHTML = 'Pay it forward &mdash; gift a Sozawen seat';
+                sumDetail.textContent = 'Your $79 funds a free license for a musician who can\'t afford one. You won\'t receive the software yourself.';
+                submitLabel.textContent = 'Gift $79.00';
+            } else {
+                sumLabel.innerHTML = 'Sozawen &mdash; lifetime license';
+                sumDetail.textContent = 'Delivered instantly via download + email with your license key.';
+                submitLabel.textContent = 'Pay $79.00';
+            }
+        }
+        renderMode();
+
+        let elements = null;
+        let clientSecret = null;
+
+        async function initElements() {
+            submitBtn.disabled = true;
+            paymentEl.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;"><span class="loader"></span> Loading payment form&hellip;</div>';
+            errBox.textContent = '';
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/sozawen/create-payment-intent`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ type: mode })
+                });
+                const data = await resp.json();
+                if (!data.client_secret) throw new Error(data.error || 'Could not initialize payment');
+                clientSecret = data.client_secret;
+
+                elements = stripe.elements({
+                    clientSecret,
+                    appearance: {
+                        theme: 'night',
+                        variables: {
+                            colorPrimary: '#2dd4a8',
+                            colorBackground: '#0f0f1a',
+                            colorText: '#d8d8e8',
+                            colorDanger: '#f87171',
+                            fontFamily: 'Inter, system-ui, sans-serif',
+                            borderRadius: '10px',
+                        },
+                        rules: {
+                            '.Input': { border: '1px solid rgba(255,255,255,.1)' },
+                            '.Input:focus': { border: '1px solid rgba(45,212,168,.5)' },
+                            '.Label': { color: '#7878a0', fontSize: '12px', letterSpacing: '1px', textTransform: 'uppercase' },
+                        },
+                    },
+                });
+                paymentEl.innerHTML = '';
+                const pe = elements.create('payment', { layout: 'tabs' });
+                pe.mount('#payment-element');
+                pe.on('ready', () => { submitBtn.disabled = false; });
+            } catch (e) {
+                paymentEl.innerHTML = '';
+                errBox.textContent = 'Could not load payment form: ' + (e.message || e) + '. Refresh to try again.';
+            }
+        }
+        initElements();
+
+        btnSelf.addEventListener('click', () => { if (mode !== 'self_purchase') { mode = 'self_purchase'; renderMode(); initElements(); } });
+        btnGift.addEventListener('click', () => { if (mode !== 'gift') { mode = 'gift'; renderMode(); initElements(); } });
+
+        document.getElementById('payment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!elements) return;
+            submitBtn.disabled = true;
+            submitLabel.innerHTML = '<span class="loader"></span>Processing…';
+            errBox.textContent = '';
+
+            const returnPath = (mode === 'gift') ? '/thank-you-gift.html' : '/thank-you.html';
+            const { error } = await stripe.confirmPayment({
+                elements,
+                confirmParams: {
+                    return_url: `${location.origin}${returnPath}`,
+                },
+            });
+            if (error) {
+                errBox.textContent = error.message || 'Payment could not be completed.';
+                submitBtn.disabled = false;
+                submitLabel.textContent = mode === 'gift' ? 'Gift $79.00' : 'Pay $79.00';
+            }
+            // On success, Stripe redirects — no code after this runs.
+        });
+    })();
+    </script>
+</body>
+</html>

@@ -144,34 +144,51 @@
 
         <script>
         (function() {
+            // Stripe redirects with either session_id (Payment Links legacy)
+            // or payment_intent (embedded Payment Element). Handle both.
             const params = new URLSearchParams(window.location.search);
             const sid = params.get('session_id');
+            const pi = params.get('payment_intent');
             const disp = document.getElementById('keyDisplay');
             const hint = document.getElementById('keyHint');
-            if (!sid) {
-                disp.textContent = 'No session — refresh after payment to see your key.';
+            if (!sid && !pi) {
+                disp.textContent = 'No payment reference — refresh after payment to see your key.';
                 disp.style.color = 'var(--text-muted)';
                 disp.style.fontSize = '14px';
                 return;
             }
-            fetch('https://notare-updates.onrender.com/api/sozawen/key?session_id=' + encodeURIComponent(sid))
-                .then(r => r.json())
-                .then(d => {
-                    if (d.key) {
-                        disp.textContent = d.key;
-                    } else {
-                        disp.textContent = 'Could not retrieve key — ' + (d.error || 'unknown');
-                        disp.style.color = 'var(--text-muted)';
-                        disp.style.fontSize = '14px';
-                        hint.textContent = 'Email dayshalindale@gmail.com with your receipt and we\'ll send it manually.';
-                    }
-                })
-                .catch(() => {
-                    disp.textContent = 'Could not reach the license server right now.';
-                    disp.style.color = 'var(--text-muted)';
-                    disp.style.fontSize = '14px';
-                    hint.textContent = 'Email dayshalindale@gmail.com with your receipt and we\'ll send it manually.';
-                });
+            const qs = pi ? ('payment_intent=' + encodeURIComponent(pi))
+                          : ('session_id=' + encodeURIComponent(sid));
+            // Payment Intent status propagates a few seconds after redirect. Retry briefly.
+            let attempts = 0;
+            function fetchKey() {
+                attempts++;
+                fetch('https://notare-updates.onrender.com/api/sozawen/key?' + qs)
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.key) {
+                            disp.textContent = d.key;
+                        } else if (attempts < 6 && (d.error || '').includes('not succeeded')) {
+                            setTimeout(fetchKey, 2500);
+                        } else {
+                            disp.textContent = 'Could not retrieve key — ' + (d.error || 'unknown');
+                            disp.style.color = 'var(--text-muted)';
+                            disp.style.fontSize = '14px';
+                            hint.textContent = 'Email dayshalindale@gmail.com with your receipt and we\'ll send it manually.';
+                        }
+                    })
+                    .catch(() => {
+                        if (attempts < 4) {
+                            setTimeout(fetchKey, 2500);
+                        } else {
+                            disp.textContent = 'Could not reach the license server right now.';
+                            disp.style.color = 'var(--text-muted)';
+                            disp.style.fontSize = '14px';
+                            hint.textContent = 'Email dayshalindale@gmail.com with your receipt and we\'ll send it manually.';
+                        }
+                    });
+            }
+            fetchKey();
         })();
         </script>
 

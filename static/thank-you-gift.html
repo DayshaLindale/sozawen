@@ -123,19 +123,30 @@
 
         <script>
         (function() {
-            const sid = new URLSearchParams(window.location.search).get('session_id');
+            const params = new URLSearchParams(window.location.search);
+            const sid = params.get('session_id');
+            const pi = params.get('payment_intent');
             const el = document.getElementById('giftConfirm');
-            if (!sid) { el.textContent = ''; return; }
-            fetch('https://notare-updates.onrender.com/api/sozawen/key?session_id=' + encodeURIComponent(sid))
-                .then(r => r.json())
-                .then(d => {
-                    if (d.pool === 'scholarship') {
-                        el.textContent = 'Gift confirmed · ref ' + (d.key || '').slice(-8);
-                    } else {
-                        el.textContent = '';
-                    }
-                })
-                .catch(() => { el.textContent = ''; });
+            if (!sid && !pi) { el.textContent = ''; return; }
+            const qs = pi ? ('payment_intent=' + encodeURIComponent(pi))
+                          : ('session_id=' + encodeURIComponent(sid));
+            let attempts = 0;
+            function fetchConfirm() {
+                attempts++;
+                fetch('https://notare-updates.onrender.com/api/sozawen/key?' + qs)
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.pool === 'scholarship') {
+                            el.textContent = 'Gift confirmed · ref ' + (d.key || '').slice(-8);
+                        } else if (attempts < 4 && (d.error || '').includes('not succeeded')) {
+                            setTimeout(fetchConfirm, 2500);
+                        } else {
+                            el.textContent = '';
+                        }
+                    })
+                    .catch(() => { if (attempts < 3) setTimeout(fetchConfirm, 2500); });
+            }
+            fetchConfirm();
         })();
         </script>
 
