@@ -118,7 +118,26 @@
         <div class="math">
             One gift = one seat.<br>
             <strong>You just made it one easier to say yes.</strong>
+            <div id="giftConfirm" style="margin-top: 18px; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; font-family: 'JetBrains Mono', 'Consolas', monospace;">&hellip;</div>
         </div>
+
+        <script>
+        (function() {
+            const sid = new URLSearchParams(window.location.search).get('session_id');
+            const el = document.getElementById('giftConfirm');
+            if (!sid) { el.textContent = ''; return; }
+            fetch('https://notare-updates.onrender.com/api/sozawen/key?session_id=' + encodeURIComponent(sid))
+                .then(r => r.json())
+                .then(d => {
+                    if (d.pool === 'scholarship') {
+                        el.textContent = 'Gift confirmed · ref ' + (d.key || '').slice(-8);
+                    } else {
+                        el.textContent = '';
+                    }
+                })
+                .catch(() => { el.textContent = ''; });
+        })();
+        </script>
 
         <a href="https://sozawen.com" class="back">Back to Sozawen</a>
 

@@ -600,31 +600,56 @@
         document.body.appendChild(errDiv);
     };
     // ═══ LICENSE CHECK ON STARTUP ═══
+    // Honor-system launch (v1.0.0+): backend always reports valid. This
+    // function stays for future use (if we ever want to surface a soft nudge
+    // for unpaid users), but no modal is shown and nothing blocks music-making.
+    // The license activation UI still exists and works — it's just opt-in, not
+    // gatekept. Matches Reaper's 20-year ship model and the Lindale Doctrine.
     function checkLicense() {
-        fetch('/api/license/status').then(r=>r.json()).then(d => {
-            if (!d.valid) {
-                document.getElementById('licenseModal').style.display = 'flex';
-            }
-        }).catch(() => {
-            // If server can't check, allow use (offline mode)
-        });
+        // intentionally a no-op on startup.
     }
     function activateLicense() {
-        const key = document.getElementById('licenseKeyInput').value.trim();
+        // Validate directly against the Sozawen license server. Bypasses the
+        // Python-side license.py (which still has the old LemonSqueezy code
+        // path from an earlier build) so we don't need a PyInstaller rebuild
+        // to ship working activation. Key format: SOZA-XXXX-XXXX-XXXX.
+        const raw = document.getElementById('licenseKeyInput').value.trim().toUpperCase();
         const msg = document.getElementById('licenseMessage');
-        if (!key) { msg.textContent = 'Enter a license key'; msg.style.color = 'var(--red)'; return; }
-        msg.textContent = 'Activating...'; msg.style.color = 'var(--teal)';
-        fetch('/api/license/activate', {
+        if (!raw) { msg.textContent = 'Enter a license key'; msg.style.color = 'var(--red)'; return; }
+        if (!/^SOZA-[A-Z2-7]{4}-[A-Z2-7]{4}-[A-Z2-7]{4}$/.test(raw)) {
+            msg.textContent = 'Expected format: SOZA-XXXX-XXXX-XXXX';
+            msg.style.color = 'var(--red)';
+            return;
+        }
+        msg.textContent = 'Activating…'; msg.style.color = 'var(--teal)';
+        fetch('https://notare-updates.onrender.com/api/sozawen/validate', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ key })
+            body: JSON.stringify({ key: raw })
         }).then(r=>r.json()).then(d => {
             if (d.valid) {
-                msg.textContent = d.message; msg.style.color = 'var(--teal)';
-                setTimeout(() => { document.getElementById('licenseModal').style.display = 'none'; }, 1000);
+                msg.textContent = d.message || 'License valid — thank you.';
+                msg.style.color = 'var(--teal)';
+                // Cache locally so the Preferences panel can show "Licensed to …"
+                try {
+                    localStorage.setItem('sozawen_license', JSON.stringify({
+                        key: raw,
+                        email: d.email || '',
+                        type: d.type || 'self_purchase',
+                        activated_at: Date.now(),
+                    }));
+                } catch (e) {}
+                setTimeout(() => {
+                    const modal = document.getElementById('licenseModal');
+                    if (modal) modal.style.display = 'none';
+                }, 1000);
             } else {
-                msg.textContent = d.message || 'Invalid key'; msg.style.color = 'var(--red)';
+                msg.textContent = d.message || 'Invalid key';
+                msg.style.color = 'var(--red)';
             }
-        }).catch(() => { msg.textContent = 'Could not connect to license server'; msg.style.color = 'var(--red)'; });
+        }).catch(() => {
+            msg.textContent = 'Could not reach the license server. Check your connection.';
+            msg.style.color = 'var(--red)';
+        });
     }
     // Check license after a short delay (let the UI load first)
     setTimeout(checkLicense, 2000);
@@ -6625,32 +6650,44 @@
             if (thinking) thinking.remove();
             let response = d.response || d.error || 'No response';
 
-            // Parse and execute action tags
+            // Parse action tags out of the response. Tags that are safe to run
+            // without confirmation (drums, markers, chords — they just add
+            // content) are auto-executed once the chat bubble renders. Tags
+            // that modify existing audio (effects, transcription) still require
+            // a deliberate click — the user should be in the loop for those.
             const actions = [];
-            response = response.replace(/\[DRUMS ([^\]]+)\]/g, (match, params) => {
-                actions.push({type:'drums', params: _parseActionParams(params)});
-                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('drums',${actions.length-1})">Apply drums</button>`;
-            });
-            response = response.replace(/\[EFFECT ([^\]]+)\]/g, (match, params) => {
-                actions.push({type:'effect', params: _parseActionParams(params)});
-                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('effect',${actions.length-1})">Apply effect</button>`;
-            });
-            response = response.replace(/\[TRANSCRIBE ([^\]]+)\]/g, (match, params) => {
-                actions.push({type:'transcribe', params: _parseActionParams(params)});
-                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('transcribe',${actions.length-1})">Transcribe</button>`;
-            });
-            response = response.replace(/\[CHORDS ([^\]]+)\]/g, (match, params) => {
-                actions.push({type:'chords', params: _parseActionParams(params)});
-                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('chords',${actions.length-1})">Load chords</button>`;
-            });
-            response = response.replace(/\[MARKER ([^\]]+)\]/g, (match, params) => {
-                actions.push({type:'marker', params: _parseActionParams(params)});
-                return `<button class="btn btn-secondary" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('marker',${actions.length-1})">Add marker</button>`;
-            });
+            const _AUTO_TYPES = new Set(['drums', 'marker', 'chords']);
+            const _render = (type, label) => (match, params) => {
+                const idx = actions.length;
+                actions.push({type, params: _parseActionParams(params)});
+                const auto = _AUTO_TYPES.has(type);
+                return `<button class="btn btn-secondary bandmate-act-btn" data-idx="${idx}" data-type="${type}" style="font-size:9px;padding:2px 8px;margin:2px;" onclick="executeBandmateAction('${type}',${idx}, this)">${auto ? label.replace('Apply ', '').replace('Load ', 'Loading ') + '…' : label}</button>`;
+            };
+            response = response.replace(/\[DRUMS ([^\]]+)\]/g, _render('drums', 'Apply drums'));
+            response = response.replace(/\[EFFECT ([^\]]+)\]/g, _render('effect', 'Apply effect'));
+            response = response.replace(/\[TRANSCRIBE ([^\]]+)\]/g, _render('transcribe', 'Transcribe'));
+            response = response.replace(/\[CHORDS ([^\]]+)\]/g, _render('chords', 'Load chords'));
+            response = response.replace(/\[MARKER ([^\]]+)\]/g, _render('marker', 'Add marker'));
 
             window._bandmateActions = actions;
             chat.innerHTML += `<div style="color:var(--teal); margin-top:4px;"><strong>Bandmate:</strong> ${response}</div>`;
             chat.scrollTop = chat.scrollHeight;
+
+            // Auto-fire safe actions — matches the server-side INSTRUMENT
+            // behavior so the bandmate's promise ("it acts, not just suggests")
+            // is kept end-to-end. 150ms delay lets the DOM paint first.
+            setTimeout(() => {
+                actions.forEach((a, i) => {
+                    if (!_AUTO_TYPES.has(a.type)) return;
+                    const btn = document.querySelector(`.bandmate-act-btn[data-idx="${i}"]`);
+                    try {
+                        executeBandmateAction(a.type, i, btn);
+                        if (btn) { btn.textContent = '✓ ' + a.type.charAt(0).toUpperCase() + a.type.slice(1) + ' applied'; btn.style.opacity = '0.7'; }
+                    } catch (e) {
+                        if (btn) btn.textContent = 'Apply ' + a.type;
+                    }
+                });
+            }, 150);
         }).catch(() => {
             const thinking = document.getElementById('bandmateThinking');
             if (thinking) thinking.textContent = 'Could not reach the bandmate. Is Ollama running?';

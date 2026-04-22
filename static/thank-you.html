@@ -121,10 +121,17 @@
         </p>
 
         <div class="download-card">
-            <h3>Your Download</h3>
+            <h3>Your License Key</h3>
+            <div id="keyDisplay" style="font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 22px; letter-spacing: 3px; color: var(--teal); background: rgba(45,212,168,.06); border: 1px solid rgba(45,212,168,.2); border-radius: 8px; padding: 18px 12px; margin: 12px 0 8px 0; user-select: all; cursor: text;">
+                &hellip;
+            </div>
+            <div id="keyHint" style="font-size: 11px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.6;">
+                Save this key. Open Sozawen → Preferences → Activate License, paste it there.
+            </div>
+
+            <h3 style="margin-top: 28px;">Your Download</h3>
             <p>
-                Sozawen for Windows — lifetime license, yours forever.<br>
-                The download link is in your Stripe receipt email, and the button below.
+                Sozawen for Windows — lifetime license, yours forever.
             </p>
             <a href="https://github.com/DayshaLindale/sozawen/releases/download/v1.0.0/SozawenSetup_v1.0.0.exe" class="btn-download">
                 Download Sozawen
@@ -134,6 +141,39 @@
                 Email <a href="mailto:dayshalindale@gmail.com" style="color: var(--teal);">dayshalindale@gmail.com</a> and I'll send it direct.
             </p>
         </div>
+
+        <script>
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const sid = params.get('session_id');
+            const disp = document.getElementById('keyDisplay');
+            const hint = document.getElementById('keyHint');
+            if (!sid) {
+                disp.textContent = 'No session — refresh after payment to see your key.';
+                disp.style.color = 'var(--text-muted)';
+                disp.style.fontSize = '14px';
+                return;
+            }
+            fetch('https://notare-updates.onrender.com/api/sozawen/key?session_id=' + encodeURIComponent(sid))
+                .then(r => r.json())
+                .then(d => {
+                    if (d.key) {
+                        disp.textContent = d.key;
+                    } else {
+                        disp.textContent = 'Could not retrieve key — ' + (d.error || 'unknown');
+                        disp.style.color = 'var(--text-muted)';
+                        disp.style.fontSize = '14px';
+                        hint.textContent = 'Email dayshalindale@gmail.com with your receipt and we\'ll send it manually.';
+                    }
+                })
+                .catch(() => {
+                    disp.textContent = 'Could not reach the license server right now.';
+                    disp.style.color = 'var(--text-muted)';
+                    disp.style.fontSize = '14px';
+                    hint.textContent = 'Email dayshalindale@gmail.com with your receipt and we\'ll send it manually.';
+                });
+        })();
+        </script>
 
         <a href="https://sozawen.com" class="back">Back to Sozawen</a>
 
