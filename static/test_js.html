@@ -1,9 +1,0 @@
-<html><body><pre id="out"></pre><script>
-try {
-    var out = document.getElementById('out');
-    out.textContent = 'JS works. Testing fetch...\n';
-    fetch('/api/context').then(r=>r.json()).then(d => {
-        out.textContent += 'Context loaded: ' + (d.prominent_tools.length + d.available_tools.length) + ' tools\n';
-    }).catch(e => { out.textContent += 'Fetch error: ' + e + '\n'; });
-} catch(e) { document.body.textContent = 'ERROR: ' + e; }
-</script></body></html>

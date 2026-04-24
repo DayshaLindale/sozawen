@@ -16,8 +16,19 @@ import numpy as np
 from scipy.signal import lfilter, butter
 
 from sozawen.physical_guitar import (
-    karplus_strong, body_resonance,
+    karplus_strong, body_resonance, _tube_stage,
 )
+
+
+def _bass_tube(signal, gain=2.0, bias=0.05):
+    """Asymmetric tube saturation tuned for bass frequencies.
+
+    Uses the guitar tube model (soft/hard blend, asymmetric +/- clip) but with
+    a slight positive bias (0.05V) that emphasises even-order harmonics — the
+    warmth of a real tube biased for maximum second-harmonic content. This is
+    what gives SVT/Ampeg their "thick" character vs a symmetric clipper.
+    """
+    return _tube_stage(signal, gain=gain, bias=bias)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -171,7 +182,8 @@ def amp_model(signal, model="clean_di", sr=44100, drive=0.3):
     if model == "ampeg_svt":
         # Ampeg SVT: tube warmth, mid presence, compression
         # ALWAYS apply tube saturation — SVT is never truly clean
-        output = np.tanh(output * (1.5 + drive * 4)) / (1.2 + drive)
+        # Asymmetric — even-order harmonics give that thick "SVT grunt"
+        output = _bass_tube(output, gain=(1.5 + drive * 4), bias=0.08) / (1.2 + drive)
         # Strong mid boost — SVT signature
         b, a = butter(2, [300 / (sr / 2), 2000 / (sr / 2)], btype='band')
         mid = lfilter(b, a, output) * 0.6
@@ -187,7 +199,8 @@ def amp_model(signal, model="clean_di", sr=44100, drive=0.3):
         # Darkglass: modern aggressive distortion with clean low-end blend
         clean = output.copy()
         # ALWAYS distort — Darkglass is never subtle
-        distorted = np.tanh(output * (2.0 + drive * 6)) * 0.8
+        # Aggressive asymmetric clipping for modern grind
+        distorted = _bass_tube(output, gain=(2.0 + drive * 6), bias=0.02) * 0.8
         # High-pass the distortion (keep clean lows — the Darkglass signature)
         b, a = butter(2, 300 / (sr / 2), btype='high')
         distorted = lfilter(b, a, distorted).astype(np.float32)
@@ -203,7 +216,8 @@ def amp_model(signal, model="clean_di", sr=44100, drive=0.3):
     elif model == "orange":
         # Orange: warm, compressed, grinding mids
         if drive > 0.1:
-            output = np.tanh(output * (1 + drive * 4)) / (1 + drive)
+            # Slight positive bias — Orange's characteristic warmth
+            output = _bass_tube(output, gain=(1 + drive * 4), bias=0.06) / (1 + drive)
         # Low-mid emphasis
         b, a = butter(2, [200 / (sr / 2), 800 / (sr / 2)], btype='band')
         low_mid = lfilter(b, a, output) * 0.4
@@ -212,7 +226,8 @@ def amp_model(signal, model="clean_di", sr=44100, drive=0.3):
     elif model == "mesa":
         # Mesa Boogie: tight low end, aggressive mids, modern
         if drive > 0.1:
-            output = np.tanh(output * (1 + drive * 6)) * 0.8
+            # Mesa runs hotter — stronger cascade, minimal bias for aggression
+            output = _bass_tube(output, gain=(1 + drive * 6), bias=0.0) * 0.8
         # Tight low end (high-pass higher than SVT)
         b, a = butter(2, 50 / (sr / 2), btype='high')
         output = lfilter(b, a, output)

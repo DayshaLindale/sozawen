@@ -800,6 +800,356 @@ def apply_reverse(path):
     return _save(result, sr, path, "reversed")
 
 
+def apply_distortion(path, drive=0.4, bias=0.06, tone=0.5, mode="tube", mix=1.0):
+    """Asymmetric tube / tape / diode saturation.
+
+    modes:
+      tube    — soft/hard asymmetric blend (from physical_guitar._tube_stage);
+                even-order harmonics, warm
+      tape    — symmetric soft-clip with high-frequency rolloff; vintage warmth
+      diode   — TS808-style hard clip at silicon Vf (0.6V); bright, cutting
+      fuzz    — square-wave approach; aggressive
+    drive: 0-1, amount of saturation
+    bias:  0-0.15, DC offset before shaping — adds even-order harmonics
+    tone:  0-1, post-EQ brightness (0 = dark, 1 = bright)
+    mix:   0-1, dry/wet blend
+    """
+    import numpy as np
+    from scipy.signal import butter, lfilter
+    data, sr = _load(path)
+    x = data.astype(np.float64).copy()
+    dry = x.copy()
+
+    gain = 1.0 + drive * 10.0  # 1x..11x pre-gain
+    x = x * gain + bias
+
+    if mode == "tube":
+        # Import the guitar-side tube stage — same math we already ship
+        try:
+            from sozawen.physical_guitar import _tube_stage
+            if x.ndim > 1:
+                x = np.stack([_tube_stage(x[:, c], gain=1.0, bias=0.0) for c in range(x.shape[1])], axis=1)
+            else:
+                x = _tube_stage(x, gain=1.0, bias=0.0)
+        except Exception:
+            # Fallback: asymmetric soft clip
+            pos = np.where(x > 0, np.tanh(x * 2.0) * 0.65, 0)
+            neg = np.where(x < 0, np.tanh(x * 4.0) * 0.30, 0)
+            x = (pos + neg).astype(np.float64)
+    elif mode == "tape":
+        # Symmetric soft clip with tape-like HF rolloff
+        x = np.tanh(x) * 0.9
+        b, a = butter(2, 7500 / (sr / 2), btype="low")
+        x = lfilter(b, a, x, axis=0)
+    elif mode == "diode":
+        # Hard clip at 0.6V (silicon Vf)
+        vf = 0.6
+        x = np.clip(x, -vf, vf)
+        # Gentle HPF — diode circuits sound small without it
+        b, a = butter(1, 80 / (sr / 2), btype="high")
+        x = lfilter(b, a, x, axis=0)
+    elif mode == "fuzz":
+        # Near-square output
+        x = np.sign(x) * np.minimum(np.abs(x) * 2.0, 1.0)
+        x = x * 0.5
+    else:
+        x = np.tanh(x) * 0.8
+
+    # Tone: gentle post-shape brightness
+    if tone < 0.5:
+        # Darker — LPF
+        cutoff = 1000 + tone * 8000  # 0→1kHz, 0.5→5kHz
+        b, a = butter(2, cutoff / (sr / 2), btype="low")
+        x = lfilter(b, a, x, axis=0)
+    elif tone > 0.5:
+        # Brighter — high-shelf boost
+        from sozawen.audio_fx import _biquad_high_shelf
+        try:
+            bf = _biquad_high_shelf(5000, (tone - 0.5) * 6, sr)
+            x = lfilter(bf[0], bf[1], x, axis=0)
+        except Exception:
+            pass
+
+    # Normalize roughly to unity
+    peak = np.max(np.abs(x)) + 1e-9
+    if peak > 1.0:
+        x = x / peak
+
+    # Dry/wet mix
+    wet = np.clip(mix, 0.0, 1.0)
+    mixed = dry[: x.shape[0]] * (1.0 - wet) + x * wet
+
+    return _save(mixed.astype(np.float32), sr, path, f"dist_{mode}")
+
+
+def apply_chorus(path, rate_hz=0.8, depth_ms=5.0, voices=3, mix=0.5):
+    """Classic chorus — multiple slightly-delayed, pitch-modulated copies
+    blended with the dry signal. Adds shimmer and width to guitars, keys,
+    vocals. 3-voice chorus with 5ms max depth is the CE-2 classic.
+    """
+    import numpy as np
+    data, sr = _load(path)
+    x = data.astype(np.float64)
+    dry = x.copy()
+    output = np.zeros_like(x)
+
+    base_delay_samples = int(0.015 * sr)  # 15ms base
+    depth_samples = int(depth_ms / 1000 * sr)
+
+    for v in range(voices):
+        # Each voice gets a slightly different LFO phase and rate
+        lfo_rate = rate_hz * (0.85 + v * 0.15)
+        phase_offset = (v / voices) * 2 * np.pi
+        t = np.arange(len(x)) / sr
+        lfo = np.sin(2 * np.pi * lfo_rate * t + phase_offset)
+        delay_samples = (base_delay_samples + (lfo * depth_samples)).astype(np.int32)
+        # Varying-delay tap (interpolated)
+        for i in range(len(x)):
+            d = delay_samples[i]
+            if d < i:
+                output[i] += x[i - d] / voices
+    wet = output * 0.8
+    return _save(((1 - mix) * dry + mix * wet).astype(np.float32), sr, path, "chorus")
+
+
+def apply_flanger(path, rate_hz=0.3, depth_ms=3.0, feedback=0.5, mix=0.5):
+    """Classic flanger — short modulated delay fed back on itself. Creates
+    the swooshing jet-engine sound. Shorter delays than chorus (1-10ms)
+    and heavy feedback distinguish it.
+    """
+    import numpy as np
+    data, sr = _load(path)
+    x = data.astype(np.float64)
+    dry = x.copy()
+    output = np.zeros_like(x)
+
+    base_delay_samples = int(0.002 * sr)  # 2ms base
+    depth_samples = int(depth_ms / 1000 * sr)
+    t = np.arange(len(x)) / sr
+    lfo = np.sin(2 * np.pi * rate_hz * t)
+    delay_samples = (base_delay_samples + (lfo * depth_samples)).astype(np.int32)
+
+    for i in range(len(x)):
+        d = delay_samples[i]
+        if d < i:
+            output[i] = x[i] + feedback * output[i - d]
+        else:
+            output[i] = x[i]
+    wet = output - x  # subtract dry for pure flange component
+
+    # Peak-normalize
+    peak = np.max(np.abs(wet)) + 1e-9
+    if peak > 0:
+        wet = wet / peak * 0.8
+
+    return _save(((1 - mix) * dry + mix * wet).astype(np.float32), sr, path, "flanger")
+
+
+def apply_phaser(path, rate_hz=0.5, stages=4, depth=0.6, feedback=0.4, mix=0.5):
+    """Phaser — cascaded all-pass filters modulated by an LFO. Creates
+    notches in the spectrum that sweep up and down. Warmer and more organic
+    than flanger.
+    """
+    import numpy as np
+    data, sr = _load(path)
+    x = data.astype(np.float64)
+    dry = x.copy()
+
+    # LFO modulates all-pass center frequency
+    t = np.arange(len(x)) / sr
+    lfo = (np.sin(2 * np.pi * rate_hz * t) + 1) / 2  # 0 to 1
+    f_min, f_max = 200.0, 2000.0
+    cf = f_min + lfo * (f_max - f_min) * depth
+
+    # Cascaded first-order all-pass
+    ap_out = x.copy()
+    fb_state = np.zeros_like(x)
+    for _stage in range(stages):
+        # Per-sample coefficient from frequency
+        w0 = 2 * np.pi * cf / sr
+        alpha = (1 - np.tan(w0 / 2)) / (1 + np.tan(w0 / 2))
+        # Simple first-order all-pass: y[n] = -alpha*x[n] + x[n-1] + alpha*y[n-1]
+        # Need per-sample coeffs — do it in a loop
+        y = np.zeros_like(ap_out)
+        x_prev = 0.0; y_prev = 0.0
+        for i in range(len(ap_out)):
+            # Feedback on first stage only
+            xin = ap_out[i]
+            if _stage == 0 and i > 0:
+                xin = xin + feedback * fb_state[i - 1]
+            y[i] = -alpha[i] * xin + x_prev + alpha[i] * y_prev
+            x_prev = xin; y_prev = y[i]
+        ap_out = y
+        if _stage == 0:
+            fb_state = y
+
+    return _save(((1 - mix) * dry + mix * ap_out).astype(np.float32), sr, path, "phaser")
+
+
+def _split_bands(audio, sr, crossovers):
+    """Split audio into N+1 bands using cascaded LR-style butter filters.
+
+    crossovers: list of N crossover frequencies in Hz (e.g. [200, 2000, 5000] → 4 bands)
+    Returns: list of (N+1) band arrays, same shape as audio.
+    """
+    import numpy as _np
+    from scipy.signal import butter as _butter, sosfiltfilt as _sosfilt
+    bands = []
+    prev_cut = 0
+    for cut in crossovers + [None]:
+        if prev_cut == 0 and cut is not None:
+            # Lowest band: LPF below first crossover
+            sos = _butter(4, cut / (sr / 2), btype="low", output="sos")
+            bands.append(_sosfilt(sos, audio, axis=0))
+        elif cut is None:
+            # Highest band: HPF above last crossover
+            sos = _butter(4, prev_cut / (sr / 2), btype="high", output="sos")
+            bands.append(_sosfilt(sos, audio, axis=0))
+        else:
+            # Middle bands: BPF between prev_cut and cut
+            sos = _butter(4, [prev_cut / (sr / 2), cut / (sr / 2)], btype="band", output="sos")
+            bands.append(_sosfilt(sos, audio, axis=0))
+        prev_cut = cut if cut is not None else prev_cut
+    return bands
+
+
+def apply_multiband_eq(path, crossovers=None, band_gains_db=None):
+    """4-band multi-band EQ. Splits into Low / LowMid / HiMid / High via 3
+    crossovers, applies independent gain per band, sums back.
+
+    crossovers:  list of 3 freqs (Hz). Default [200, 1200, 5000]
+    band_gains_db: list of 4 gains in dB. Default [0, 0, 0, 0]
+    """
+    import numpy as _np
+    data, sr = _load(path)
+    if crossovers is None:
+        crossovers = [200.0, 1200.0, 5000.0]
+    if band_gains_db is None:
+        band_gains_db = [0.0, 0.0, 0.0, 0.0]
+    # Ensure correct lengths
+    crossovers = sorted(float(c) for c in crossovers[:3])
+    band_gains_db = list(band_gains_db[:4]) + [0.0] * max(0, 4 - len(band_gains_db))
+
+    bands = _split_bands(data.astype(_np.float64), sr, crossovers)
+    out = _np.zeros_like(data, dtype=_np.float64)
+    for b, gain_db in zip(bands, band_gains_db):
+        gain = 10 ** (float(gain_db) / 20.0)
+        out += b * gain
+
+    return _save(out.astype(_np.float32), sr, path, "mband_eq")
+
+
+def apply_multiband_compressor(path, crossovers=None, band_settings=None):
+    """4-band multi-band compressor. Splits audio, compresses each band
+    independently, sums back. Essential for taming problem frequencies
+    (e.g. compress 200-800 Hz on a muddy mix without touching the highs).
+
+    crossovers:    list of 3 freqs (Hz). Default [200, 1200, 5000]
+    band_settings: list of 4 dicts with {threshold_db, ratio, attack_ms, release_ms, makeup_db}.
+                   Default: gentle 3:1 compression on all bands.
+    """
+    import numpy as _np
+    import tempfile as _tempfile, os as _os
+    data, sr = _load(path)
+    if crossovers is None:
+        crossovers = [200.0, 1200.0, 5000.0]
+    crossovers = sorted(float(c) for c in crossovers[:3])
+
+    default_band = {"threshold_db": -20.0, "ratio": 3.0, "attack_ms": 10,
+                    "release_ms": 100, "makeup_db": 0.0}
+    if band_settings is None:
+        band_settings = [dict(default_band) for _ in range(4)]
+    while len(band_settings) < 4:
+        band_settings.append(dict(default_band))
+
+    bands = _split_bands(data.astype(_np.float64), sr, crossovers)
+    processed = []
+    tmp_files = []
+    try:
+        for band_audio, cfg in zip(bands, band_settings):
+            # Write the band to a temp WAV, run the existing compressor, read back
+            tmp_in = _tempfile.mktemp(suffix=".wav")
+            tmp_files.append(tmp_in)
+            import soundfile as _sf
+            _sf.write(tmp_in, band_audio.astype(_np.float32), sr)
+            out_path = apply_compressor(
+                tmp_in,
+                threshold_db=float(cfg.get("threshold_db", -20)),
+                ratio=float(cfg.get("ratio", 3.0)),
+                attack_ms=int(cfg.get("attack_ms", 10)),
+                release_ms=int(cfg.get("release_ms", 100)),
+                makeup_db=float(cfg.get("makeup_db", 0.0)),
+            )
+            tmp_files.append(out_path)
+            compressed, _ = _load(out_path)
+            # Align length
+            n = min(compressed.shape[0], band_audio.shape[0])
+            processed.append(compressed[:n].astype(_np.float64))
+        # Sum processed bands
+        min_len = min(p.shape[0] for p in processed)
+        out = _np.zeros((min_len,) + (data.shape[1:] if data.ndim > 1 else ()),
+                        dtype=_np.float64)
+        for p in processed:
+            out += p[:min_len]
+    finally:
+        for f in tmp_files:
+            try: _os.unlink(f)
+            except Exception: pass
+
+    return _save(out.astype(_np.float32), sr, path, "mband_comp")
+
+
+def apply_tremolo(path, rate_hz=5.0, depth=0.7, shape="sine"):
+    """Tremolo — amplitude modulation. Classic guitar-amp tremolo (wobble)
+    or Leslie-style tremolo.
+
+    shape: sine, triangle, square
+    """
+    import numpy as np
+    data, sr = _load(path)
+    x = data.astype(np.float64)
+    t = np.arange(len(x)) / sr
+
+    if shape == "square":
+        lfo = np.sign(np.sin(2 * np.pi * rate_hz * t))
+    elif shape == "triangle":
+        lfo = 2 * np.abs(2 * (t * rate_hz - np.floor(t * rate_hz + 0.5))) - 1
+    else:
+        lfo = np.sin(2 * np.pi * rate_hz * t)
+
+    # Depth 0 = no modulation, 1 = full AM from 0 to 2x
+    envelope = 1.0 - depth * (1.0 - (lfo + 1) / 2)  # 1-depth..1
+    if x.ndim > 1:
+        envelope = envelope[:, None]
+    out = x * envelope
+    return _save(out.astype(np.float32), sr, path, f"tremolo_{shape}")
+
+
+def apply_parallel_compression(path, ratio=8.0, threshold_db=-28.0, blend=0.3,
+                                attack_ms=5, release_ms=80):
+    """New York / parallel compression — run a heavily compressed copy in parallel
+    and blend with the dry signal. Fattens drums, vocals, and full mixes without
+    losing dynamics.
+
+    blend: 0.0 = dry only, 1.0 = compressed only. 0.3 is classic NYC.
+    """
+    import numpy as np
+    data, sr = _load(path)
+    dry = data.copy()
+    # Reuse the standard compressor, but with aggressive settings
+    compressed_path = apply_compressor(path,
+                                       threshold_db=threshold_db,
+                                       ratio=ratio,
+                                       attack_ms=attack_ms,
+                                       release_ms=release_ms,
+                                       makeup_db=6.0)
+    comp, _ = _load(compressed_path)
+    # Align lengths
+    n = min(dry.shape[0], comp.shape[0])
+    mixed = dry[:n] * (1.0 - blend) + comp[:n] * blend
+    return _save(mixed.astype(np.float32), sr, path, "parallel_comp")
+
+
 # ═══════════════════════════════════════════════════════════════════
 # MEASUREMENT — LUFS via pyloudnorm (MIT license, clean)
 # ═══════════════════════════════════════════════════════════════════

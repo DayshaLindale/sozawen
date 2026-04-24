@@ -409,6 +409,177 @@ def _cymbal_modal_bank(t, modes, sr=44100, velocity=0.8):
     return result.astype(np.float32)
 
 
+# ═══════════════════════════════════════════════════════════════
+# STATEFUL CYMBAL VOICE — hitting a ringing cymbal sums nonlinearly.
+# ═══════════════════════════════════════════════════════════════
+# Modes profiles extracted from the single-shot cymbal functions below.
+# The voice tracks each mode's current amplitude and phase across strikes,
+# so a new strike on a still-ringing cymbal adds energy with phase
+# coherence and amplitude saturation — real cymbals can't exceed the
+# plate's steady-state vibration.
+
+CYMBAL_MODE_PROFILES = {
+    "crash": [
+        (3700, 0.03, 3.0, 0.015), (4165, 0.03, 3.5, 0.015),
+        (5500, 0.03, 4.0, 0.018), (6300, 0.025, 5.0, 0.020),
+        (7800, 0.02, 6.0, 0.020), (9500, 0.015, 7.0, 0.025),
+    ],
+    "ride": [
+        (280, 0.015, 0.4, 0.005),   (482, 0.015, 0.5, 0.005),
+        (731, 0.02, 0.6, 0.008),    (1025, 0.03, 0.8, 0.008),
+        (1190, 0.035, 1.0, 0.010),  (1355, 0.035, 1.2, 0.010),
+        (1540, 0.03, 1.5, 0.012),   (1730, 0.03, 1.8, 0.012),
+        (2200, 0.03, 2.0, 0.015),   (2800, 0.025, 2.5, 0.015),
+        (3500, 0.02, 3.0, 0.018),   (4500, 0.015, 4.0, 0.020),
+        (5800, 0.01, 5.0, 0.020),   (7500, 0.008, 6.0, 0.025),
+    ],
+    "ride_bell": [
+        (1200, 0.04, 1.0, 0.008), (1800, 0.05, 1.2, 0.008),
+        (2800, 0.06, 1.5, 0.010), (3600, 0.05, 2.0, 0.012),
+        (4800, 0.04, 2.5, 0.015), (6200, 0.03, 3.0, 0.015),
+    ],
+    "hihat_open": [
+        (380, 0.04, 3.0, 0.03),   (654, 0.04, 3.5, 0.03),
+        (990, 0.05, 4.0, 0.04),   (1390, 0.05, 4.5, 0.04),
+        (1840, 0.06, 5.0, 0.05),  (2500, 0.06, 5.5, 0.05),
+        (3200, 0.06, 6.0, 0.06),  (4100, 0.05, 7.0, 0.06),
+        (5300, 0.04, 8.0, 0.07),  (6800, 0.04, 9.0, 0.07),
+        (8500, 0.03, 10.0, 0.08), (10500, 0.02, 12.0, 0.08),
+    ],
+    "splash": [
+        (4500, 0.03, 6.0, 0.015), (6000, 0.03, 7.0, 0.018),
+        (8000, 0.02, 8.0, 0.020), (10000, 0.015, 10.0, 0.025),
+    ],
+    "china": [
+        (850, 0.04, 1.5, 0.07),   (1200, 0.05, 1.8, 0.08),
+        (1600, 0.05, 2.0, 0.08),  (2100, 0.04, 2.5, 0.09),
+        (2800, 0.035, 3.0, 0.09), (3500, 0.03, 3.5, 0.10),
+        (4500, 0.025, 4.0, 0.10), (5800, 0.02, 5.0, 0.10),
+        (7500, 0.015, 6.0, 0.10),
+    ],
+}
+
+# Sound names that route through the stateful cymbal voice.
+# Stateful = carries mode amplitude and phase from hit to hit.
+CYMBAL_STATEFUL_SOUNDS = {
+    "crash":       ("crash", 2.5),
+    "ride":        ("ride", 3.0),
+    "ride_bell":   ("ride_bell", 1.5),
+    "hihat_open":  ("hihat_open", 0.8),
+    "china":       ("china", 1.5),
+    "splash":      ("splash", 0.6),
+}
+
+
+class CymbalVoice:
+    """A single cymbal that remembers it is still vibrating.
+
+    Each strike adds energy to the existing modal state with saturating
+    nonlinearity (a ringing plate resists further excitation) and phase
+    coherence (so a well-timed second hit can reinforce or cancel).
+    """
+
+    def __init__(self, profile_name, sr=44100):
+        modes_raw = CYMBAL_MODE_PROFILES[profile_name]
+        self.sr = sr
+        self.modes = []
+        for freq, amp, _base_decay, jitter in modes_raw:
+            # Detune each mode once (hand-hammered) — stays constant per voice
+            f = freq * (1.0 + np.random.uniform(-jitter, jitter))
+            damping = 0.0003 + 2.5e-6 * f + 1.2e-10 * f * f
+            decay_rate = damping * 2 * np.pi * f
+            # Shimmer: split each mode into a close-frequency pair
+            pair_detune = np.random.uniform(1.0, 6.0)
+            self.modes.append({
+                "f_a": f - pair_detune / 2,
+                "f_b": f + pair_detune / 2,
+                "max_amp_a": amp,
+                "max_amp_b": amp * np.random.uniform(0.5, 0.95),
+                "amp_a": 0.0,
+                "amp_b": 0.0,
+                "phase_a": np.random.uniform(0, 2 * np.pi),
+                "phase_b": np.random.uniform(0, 2 * np.pi),
+                "decay_rate": decay_rate,
+            })
+
+    def strike(self, velocity):
+        """Inject a strike. The new excitation sums nonlinearly with whatever
+        amplitude is currently in each mode. Returns immediately — call
+        render_interval() to get audio between strikes."""
+        for m in self.modes:
+            # Saturating sum: if a mode is already at max, a strike adds almost nothing
+            cur_a = m["amp_a"]
+            cur_b = m["amp_b"]
+            headroom_a = max(0.0, 1.0 - cur_a / max(m["max_amp_a"] * 1.2, 1e-6))
+            headroom_b = max(0.0, 1.0 - cur_b / max(m["max_amp_b"] * 1.2, 1e-6))
+            add_a = m["max_amp_a"] * velocity * headroom_a
+            add_b = m["max_amp_b"] * velocity * headroom_b
+            m["amp_a"] = min(m["max_amp_a"] * 1.2, cur_a + add_a)
+            m["amp_b"] = min(m["max_amp_b"] * 1.2, cur_b + add_b)
+
+    def render_interval(self, samples):
+        """Render `samples` of audio at the current state, then advance the state."""
+        if samples <= 0:
+            return np.zeros(0, dtype=np.float32)
+        dt = 1.0 / self.sr
+        t = np.arange(samples) * dt
+        out = np.zeros(samples, dtype=np.float64)
+        any_audible = False
+        for m in self.modes:
+            if m["amp_a"] < 1e-5 and m["amp_b"] < 1e-5:
+                continue
+            any_audible = True
+            env_a = m["amp_a"] * np.exp(-m["decay_rate"] * t)
+            env_b = m["amp_b"] * np.exp(-m["decay_rate"] * t)
+            phase_a = m["phase_a"] + 2 * np.pi * m["f_a"] * t
+            phase_b = m["phase_b"] + 2 * np.pi * m["f_b"] * t
+            out += np.sin(phase_a) * env_a + np.sin(phase_b) * env_b
+            # Advance stored state to end of window
+            m["amp_a"] = env_a[-1] if samples > 0 else m["amp_a"]
+            m["amp_b"] = env_b[-1] if samples > 0 else m["amp_b"]
+            m["phase_a"] = (phase_a[-1]) % (2 * np.pi)
+            m["phase_b"] = (phase_b[-1]) % (2 * np.pi)
+        if not any_audible:
+            return np.zeros(samples, dtype=np.float32)
+        return out.astype(np.float32)
+
+
+def render_cymbal_voice_pattern(profile_name, hits, total_samples, sr=44100):
+    """Render an entire pattern of hits on a single stateful cymbal.
+
+    `hits` is a list of (sample_position, velocity) sorted by position.
+    Returns a mono signal of length `total_samples`.
+    """
+    voice = CymbalVoice(profile_name, sr=sr)
+    out = np.zeros(total_samples, dtype=np.float32)
+    cursor = 0
+    for pos, vel in sorted(hits, key=lambda h: h[0]):
+        pos = max(0, min(int(pos), total_samples))
+        # Render the silence (actually, decaying state) up to the strike time
+        if pos > cursor:
+            chunk = voice.render_interval(pos - cursor)
+            out[cursor:cursor + len(chunk)] += chunk
+            cursor = pos
+        # Inject the new strike — modifies state, no output yet
+        voice.strike(float(vel))
+        # Add an explosive noise transient at the strike point so the attack
+        # still sounds like a real cymbal hit, not just pure tone
+        attack_n = min(int(0.005 * sr), total_samples - pos)
+        if attack_n > 0:
+            attack = np.random.randn(attack_n).astype(np.float32) * 0.15 * float(vel)
+            attack *= np.exp(-np.linspace(0, 15, attack_n))
+            # Bandpass the attack to match cymbal brightness
+            from scipy.signal import butter, lfilter as _lf
+            b, a = butter(2, [1500 / (sr / 2), min(13000 / (sr / 2), 0.99)], btype='band')
+            attack = _lf(b, a, attack).astype(np.float32)
+            out[pos:pos + attack_n] += attack
+    # Tail: render remaining samples of decay
+    if cursor < total_samples:
+        chunk = voice.render_interval(total_samples - cursor)
+        out[cursor:cursor + len(chunk)] += chunk
+    return out
+
+
 def drum_hihat_closed(sr=44100, decay_ms=50, brightness=0.7):
     """Closed hi-hat — 13-14" B20 bronze cymbals pressed together.
 
@@ -905,13 +1076,16 @@ def drum_cowbell(sr=44100):
 
 
 def drum_double_kick(sr=44100):
-    """Double bass drum hit — alternating left/right foot.
+    """Double bass drum — alternating left/right foot.
 
     Each hit is slightly different (human imprecision).
     The two hits overlap — second beater contacts before first decay.
+    Returned mono for compatibility with render_drum_pattern mixing; the
+    stereo placement is applied at mix time (left foot ~−0.25, right foot ~+0.25).
     Used in metal, prog, and fusion at high tempos (160-220+ BPM).
     """
-    # Two kicks with slight timing and velocity variation
+    # Two kicks with slight timing, pitch, punch, and sub variation
+    # — the left foot is fractionally weaker (most drummers have a dominant right)
     kick1 = drum_kick(sr, sustain_ms=150, pitch=48, punch=0.5, sub=0.4)
     kick2 = drum_kick(sr, sustain_ms=140, pitch=50, punch=0.45, sub=0.35)
 
@@ -923,6 +1097,30 @@ def drum_double_kick(sr=44100):
     result[gap:gap + len(kick2)] += kick2 * 0.85  # second hit slightly softer
 
     return result
+
+
+# Default stereo placement per instrument (drummer's perspective)
+# -1.0 = hard left, 0 = center, +1.0 = hard right
+DRUM_PANS = {
+    'kick': 0.0,
+    'double_kick': 0.0,      # stereo split handled specially in render
+    'snare': 0.0,
+    'hihat': 0.35,           # hats right of drummer
+    'hihat_open': 0.35,
+    'hihat_pedal': 0.35,
+    'clap': 0.0,
+    'tom_high': -0.35,       # rack toms left → right
+    'tom_mid': -0.10,
+    'tom_low': 0.20,          # floor tom right
+    'rim': 0.0,
+    'crash': -0.55,           # crash cymbal upper-left
+    'ride': 0.50,             # ride cymbal upper-right
+    'ride_bell': 0.50,
+    'splash': -0.65,
+    'china': 0.65,
+    'shaker': 0.15,
+    'cowbell': -0.20,
+}
 
 
 # All available drum sounds
@@ -948,6 +1146,127 @@ DRUM_SOUNDS = {
 }
 
 
+def render_sampler_note(sample_path, root_midi=60, target_midi=60, duration=1.0,
+                         velocity=100, attack_ms=5, decay_ms=50, sustain=0.8, release_ms=150,
+                         loop=False, sr=44100):
+    """Render a pitch-shifted sample with an ADSR envelope.
+
+    Basic multi-sample-instrument primitive: load a sample, resample by the pitch
+    ratio, optionally loop to fill `duration`, apply ADSR + velocity gain.
+
+    sample_path: WAV/FLAC/MP3 file.
+    root_midi:   the MIDI note the sample was recorded at (default C4 = 60)
+    target_midi: the MIDI note we want played. Pitch ratio = 2^((target-root)/12)
+    duration:    seconds of output
+    velocity:    0-127
+    attack/decay/release: milliseconds
+    sustain:     0-1, level after the decay stage
+    loop:        if True, repeat the sample to fill duration
+    """
+    import numpy as np
+    import soundfile as _sf
+    from scipy.signal import resample_poly
+
+    # Load
+    data, src_sr = _sf.read(str(sample_path))
+    if data.ndim > 1:
+        data = data.mean(axis=1)  # mono for simplicity
+    # Resample to the project sr if different
+    if src_sr != sr:
+        # Keep it simple with resample_poly rational ratio
+        from math import gcd
+        g = gcd(src_sr, sr)
+        data = resample_poly(data, sr // g, src_sr // g)
+
+    # Pitch-shift by resampling: target sample count = original / ratio
+    semitones = target_midi - root_midi
+    ratio = 2 ** (semitones / 12.0)
+    if abs(ratio - 1.0) > 1e-6:
+        # New length = original / ratio  (higher pitch → shorter)
+        new_len = max(1, int(len(data) / ratio))
+        # Use simple linear interpolation for speed; quality is fine for modest shifts
+        idx = np.linspace(0, len(data) - 1, new_len)
+        data = np.interp(idx, np.arange(len(data)), data).astype(np.float32)
+
+    # Fill/truncate to duration
+    target_samples = int(duration * sr)
+    if target_samples <= 0:
+        return np.zeros(0, dtype=np.float32)
+    if len(data) < target_samples:
+        if loop and len(data) > 0:
+            # Repeat to fill
+            reps = (target_samples // len(data)) + 1
+            data = np.tile(data, reps)[:target_samples]
+        else:
+            # Pad with silence
+            pad = np.zeros(target_samples - len(data), dtype=np.float32)
+            data = np.concatenate([data, pad])
+    else:
+        data = data[:target_samples]
+
+    # ADSR envelope
+    a = int((attack_ms / 1000) * sr)
+    d = int((decay_ms / 1000) * sr)
+    r = int((release_ms / 1000) * sr)
+    n = len(data)
+    env = np.ones(n, dtype=np.float32)
+    # Attack
+    if a > 0 and a < n:
+        env[:a] = np.linspace(0, 1, a)
+    elif a >= n:
+        env[:] = np.linspace(0, 1, n)
+    # Decay to sustain
+    if d > 0 and a + d < n:
+        env[a:a + d] = np.linspace(1, sustain, d)
+    # Sustain stays at `sustain` until release begins
+    release_start = max(a + d, n - r)
+    if a + d < release_start:
+        env[a + d:release_start] = sustain
+    # Release
+    if r > 0:
+        env[release_start:] = np.linspace(env[release_start - 1] if release_start > 0 else sustain, 0, n - release_start)
+
+    # Velocity-scale amplitude
+    amp = velocity / 127.0
+    return (data * env * amp).astype(np.float32)
+
+
+def render_sampler_pattern(sample_path, notes, root_midi=60, bpm=120,
+                            attack_ms=5, decay_ms=50, sustain=0.8, release_ms=150,
+                            loop=False, sr=44100):
+    """Render a list of MIDI notes through a sampler.
+
+    notes: list of {midi, beat, duration (beats), velocity}
+    """
+    import numpy as np
+    beat_sec = 60.0 / bpm
+    if not notes:
+        return np.zeros(sr, dtype=np.float32)
+    end_beat = max(n.get("beat", 0) + n.get("duration", 1) for n in notes) + 1
+    total_samples = int(end_beat * beat_sec * sr)
+    out = np.zeros(total_samples, dtype=np.float32)
+    for note in notes:
+        midi = int(note.get("midi", 60))
+        beat = float(note.get("beat", 0))
+        dur_beats = float(note.get("duration", 1))
+        vel = int(note.get("velocity", 100))
+        dur_sec = dur_beats * beat_sec
+        audio = render_sampler_note(sample_path, root_midi=root_midi,
+                                    target_midi=midi, duration=dur_sec,
+                                    velocity=vel, attack_ms=attack_ms,
+                                    decay_ms=decay_ms, sustain=sustain,
+                                    release_ms=release_ms, loop=loop, sr=sr)
+        start = int(beat * beat_sec * sr)
+        end = min(start + len(audio), total_samples)
+        out[start:end] += audio[:end - start]
+    # Soft-clip to prevent blow-up
+    import numpy as _np
+    peak = _np.max(_np.abs(out))
+    if peak > 1.0:
+        out = out / peak * 0.95
+    return out
+
+
 def render_drum_pattern(pattern, sr=44100, bpm=120):
     """Render a drum pattern to audio.
 
@@ -965,7 +1284,36 @@ def render_drum_pattern(pattern, sr=44100, bpm=120):
     end_beat = end_bar * 4
     # Add a tiny tail for the last hit's decay (but not full cymbal ring)
     total_samples = int(end_beat * beat_sec * sr)
-    audio = np.zeros(total_samples, dtype=np.float64)
+    # Stereo accumulator so per-kit-piece pans land correctly
+    stereo_out = np.zeros((total_samples, 2), dtype=np.float64)
+    # Alternating counter for double_kick L/R
+    double_kick_flip = 0
+
+    # ─── STATEFUL CYMBAL VOICES ───────────────────────────────────
+    # Collect hits on stateful cymbal sounds, render each as a single
+    # voice that remembers it was already ringing when the next strike
+    # arrives. This is what makes closely-spaced crash/ride/china hits
+    # sound physically right instead of like re-triggered samples.
+    cymbal_buckets = {}  # sound_name -> list of (sample_position, velocity)
+    for hit in pattern:
+        sn = hit.get('sound', 'kick')
+        if sn in CYMBAL_STATEFUL_SOUNDS:
+            beat = hit.get('beat', 0)
+            vel = hit.get('velocity', 0.8)
+            pos = int(beat * beat_sec * sr) + int(np.random.uniform(-0.0005, 0.0005) * sr)
+            cymbal_buckets.setdefault(sn, []).append((pos, vel))
+
+    for sn, hits in cymbal_buckets.items():
+        profile_name, _norm_factor = CYMBAL_STATEFUL_SOUNDS[sn]
+        mono = render_cymbal_voice_pattern(profile_name, hits, total_samples, sr=sr)
+        # Normalize and pan — per-instrument pan comes from DRUM_PANS
+        peak = np.max(np.abs(mono)) if mono.size else 0.0
+        if peak > 0.01:
+            mono = mono / peak * 0.55
+        pan = DRUM_PANS.get(sn, 0.0)
+        pan_angle = (float(pan) + 1.0) * np.pi / 4.0
+        stereo_out[:, 0] += mono * np.cos(pan_angle)
+        stereo_out[:, 1] += mono * np.sin(pan_angle)
 
     # Cache rendered drum sounds — normalize to prevent clipping
     cache = {}
@@ -974,6 +1322,10 @@ def render_drum_pattern(pattern, sr=44100, bpm=120):
         sound_name = hit.get('sound', 'kick')
         beat = hit.get('beat', 0)
         vel = hit.get('velocity', 0.8)
+
+        # Skip cymbals already handled by the stateful voice above
+        if sound_name in CYMBAL_STATEFUL_SOUNDS:
+            continue
 
         if sound_name not in cache:
             gen = DRUM_SOUNDS.get(sound_name)
@@ -1007,12 +1359,27 @@ def render_drum_pattern(pattern, sr=44100, bpm=120):
 
         start = max(0, int(beat * beat_sec * sr) + timing_jitter)
         end = min(start + len(sample), total_samples)
-        audio[start:end] += sample[:end-start] * vel
+        # Per-instrument stereo pan
+        pan = hit.get('pan')
+        if pan is None:
+            pan = DRUM_PANS.get(sound_name, 0.0)
+        # Double kick alternates L/R by successive hit
+        if sound_name == 'double_kick':
+            pan = -0.28 if double_kick_flip % 2 == 0 else 0.28
+            double_kick_flip += 1
+        # Constant-power pan
+        pan_angle = (float(pan) + 1.0) * np.pi / 4.0  # 0..pi/2
+        left_gain = np.cos(pan_angle)
+        right_gain = np.sin(pan_angle)
+        chunk = sample[:end-start] * vel
+        stereo_out[start:end, 0] += chunk * left_gain
+        stereo_out[start:end, 1] += chunk * right_gain
 
     # Fade out last 20ms to prevent click at bar boundary
     fade_samples = min(int(0.02 * sr), total_samples)
     if fade_samples > 0:
-        audio[-fade_samples:] *= np.linspace(1, 0, fade_samples)
+        fade = np.linspace(1, 0, fade_samples)[:, None]
+        stereo_out[-fade_samples:] *= fade
 
-    audio = np.clip(audio, -1.0, 1.0).astype(np.float32)
-    return np.column_stack([audio, audio])
+    stereo_out = np.clip(stereo_out, -1.0, 1.0).astype(np.float32)
+    return stereo_out

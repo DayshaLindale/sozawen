@@ -134,11 +134,13 @@ class Track:
         self.id = Track._next_id
         Track._next_id += 1
         self.name = name or f"Track {self.id + 1}"
-        self.track_type = track_type  # "audio", "bus", "master", "folder"
+        self.track_type = track_type  # "audio", "bus", "master", "folder", "vca"
         self.color = color
         self.regions = []
         self.volume = 1.0         # linear gain (0.0 - 2.0)
         self.pan = 0.0            # -1.0 (left) to 1.0 (right)
+        self.position_3d = None   # (x, y, z) in [-1, 1] for immersive render
+        self.lfe_send = 0.0       # 0..1 gain to LFE in immersive layouts
         self.muted = False
         self.solo = False
         self.record_armed = False
@@ -149,6 +151,32 @@ class Track:
         self.automation = {}      # param_name -> list of (sample, value) breakpoints
         self.parent_id = None     # for folder grouping
         self.sends = []           # list of (bus_track_id, send_gain)
+        self.vca_parent_id = None # optional VCA-track id whose fader proportionally scales this track
+
+    def _automation_at(self, param, position_samples):
+        """Interpolate the automation curve for `param` at the given sample
+        position. Returns None if no curve exists for that param."""
+        if not getattr(self, "automation", None):
+            return None
+        points = self.automation.get(param)
+        if not points:
+            return None
+        # points is either list of (sample, value) tuples OR list of {time,value} dicts
+        # (frontend uses dicts; keep both paths).
+        if isinstance(points[0], dict):
+            pts = [(p.get("time", 0), p.get("value", 0)) for p in points]
+        else:
+            pts = list(points)
+        # Find the bracketing pair
+        prev = pts[0]
+        for t, v in pts:
+            if t >= position_samples:
+                if t == prev[0]:
+                    return float(v)
+                frac = (position_samples - prev[0]) / max(1, (t - prev[0]))
+                return float(prev[1] + (v - prev[1]) * frac)
+            prev = (t, v)
+        return float(prev[1])
 
     def read_at(self, position, count):
         """Mix all regions at the given position. Returns (count, 2) float64 array."""
@@ -164,12 +192,44 @@ class Track:
                     data = data[:, :2]
                 output[:data.shape[0], :] += data[:output.shape[0], :]
 
-        # Apply track gain
-        output *= self.volume
+        # Apply VST3/CLAP plugins in fx_chain (pedalboard). Each plugin processes
+        # the buffer before gain/pan. Skipped cleanly if a plugin errors — a bad
+        # plugin should not silence the track mid-playback.
+        fx_chain = getattr(self, 'fx_chain', None) or []
+        if fx_chain:
+            try:
+                proc = output.astype(np.float32)
+                for fx in fx_chain:
+                    if (isinstance(fx, dict)
+                            and fx.get("type") == "vst3"
+                            and fx.get("enabled", True)):
+                        plug = fx.get("plugin")
+                        if plug is not None:
+                            try:
+                                proc = plug.process(proc, 44100)
+                            except Exception:
+                                pass
+                output = proc.astype(np.float64)
+            except Exception:
+                pass
 
-        # Apply pan (constant power panning)
-        if self.pan != 0.0:
-            angle = (self.pan + 1.0) * np.pi / 4.0  # 0 to pi/2
+        # Apply track gain — automation overrides the static volume if present.
+        # We read the automation value at the START of the buffer and hold it
+        # for the buffer's duration. For typical buffer sizes (<2048 samples),
+        # this is imperceptible vs true per-sample interpolation.
+        vol = self.volume
+        auto_vol = self._automation_at("volume", position)
+        if auto_vol is not None:
+            vol = auto_vol
+        output *= vol
+
+        # Apply pan (constant power panning) — automation overrides static pan
+        pan = self.pan
+        auto_pan = self._automation_at("pan", position)
+        if auto_pan is not None:
+            pan = auto_pan
+        if pan != 0.0:
+            angle = (pan + 1.0) * np.pi / 4.0  # 0 to pi/2
             output[:, 0] *= np.cos(angle)
             output[:, 1] *= np.sin(angle)
 
@@ -216,6 +276,10 @@ class AudioEngine:
         self.bpm = 120.0
         self.time_sig_num = 4
         self.time_sig_den = 4
+        # Time-signature changes mid-song: list of {bar, numerator, denominator}
+        # At bar 0 the engine uses time_sig_num/time_sig_den (above). Any entry
+        # with bar > 0 takes effect at that bar onwards. Sorted by bar.
+        self.time_sig_changes = []
 
         # Hardware inserts — route audio through external gear
         # Each insert: {track_id, send_output, return_input, latency_samples, active}

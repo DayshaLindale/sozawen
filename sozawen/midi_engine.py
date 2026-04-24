@@ -94,6 +94,175 @@ class MidiPattern:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# MIDI EFFECTS — pattern transformations
+# ═══════════════════════════════════════════════════════════════════
+
+_SCALE_INTERVALS = {
+    "major":            [0, 2, 4, 5, 7, 9, 11],
+    "minor":            [0, 2, 3, 5, 7, 8, 10],
+    "harmonic_minor":   [0, 2, 3, 5, 7, 8, 11],
+    "melodic_minor":    [0, 2, 3, 5, 7, 9, 11],
+    "dorian":           [0, 2, 3, 5, 7, 9, 10],
+    "phrygian":         [0, 1, 3, 5, 7, 8, 10],
+    "lydian":           [0, 2, 4, 6, 7, 9, 11],
+    "mixolydian":       [0, 2, 4, 5, 7, 9, 10],
+    "pentatonic_major": [0, 2, 4, 7, 9],
+    "pentatonic_minor": [0, 3, 5, 7, 10],
+    "blues":            [0, 3, 5, 6, 7, 10],
+    "chromatic":        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+}
+
+_KEY_ROOTS = {"C":0,"C#":1,"Db":1,"D":2,"D#":3,"Eb":3,"E":4,"F":5,"F#":6,"Gb":6,
+              "G":7,"G#":8,"Ab":8,"A":9,"A#":10,"Bb":10,"B":11}
+
+
+def _allowed_pitch_classes(key, scale):
+    root = _KEY_ROOTS.get(key, 0)
+    intervals = _SCALE_INTERVALS.get(scale, _SCALE_INTERVALS["major"])
+    return {(root + i) % 12 for i in intervals}
+
+
+def force_to_scale(pattern, key="C", scale="major"):
+    """Snap every note in the pattern to the nearest in-scale pitch.
+
+    For a note not in the scale, move it up or down by the minimum number of
+    semitones to reach a valid pitch. Ties go to the UPPER pitch (musically
+    brighter resolution).
+    """
+    allowed = _allowed_pitch_classes(key, scale)
+    out = MidiPattern(pattern.name + " (scaled)", pattern.length_beats)
+    for n in pattern.notes:
+        pc = n.pitch % 12
+        if pc in allowed:
+            out.add_note(n.pitch, n.start_beat, n.duration_beats, n.velocity)
+            continue
+        # Search out ±1, ±2... until we find an allowed pitch class
+        new_pitch = n.pitch
+        for delta in range(1, 7):
+            if (n.pitch + delta) % 12 in allowed:
+                new_pitch = n.pitch + delta
+                break
+            if (n.pitch - delta) % 12 in allowed:
+                new_pitch = n.pitch - delta
+                break
+        new_pitch = max(0, min(127, new_pitch))
+        out.add_note(new_pitch, n.start_beat, n.duration_beats, n.velocity)
+    return out
+
+
+def arpeggiate_pattern(pattern, mode="up", rate_beats=0.25, octaves=1, gate=0.9):
+    """Treat simultaneous (or near-simultaneous) notes as chords and spray them
+    as an arpeggio.
+
+    mode: 'up', 'down', 'updown', 'random', 'order' (order = input order)
+    rate_beats: subdivision of each arp step (0.25 = 16th notes)
+    octaves: 1-4, number of octaves the arp spans
+    gate: 0-1, fraction of rate_beats each arp note plays (0.9 = slight detached)
+    """
+    import random as _random
+    out = MidiPattern(pattern.name + " (arp)", pattern.length_beats)
+    if not pattern.notes:
+        return out
+
+    # Group notes into chord events by start_beat (rounded to arp rate)
+    groups = {}
+    for n in pattern.notes:
+        key = round(n.start_beat / rate_beats) * rate_beats
+        groups.setdefault(key, []).append(n)
+
+    sorted_keys = sorted(groups.keys())
+    for i, start in enumerate(sorted_keys):
+        group = sorted(groups[start], key=lambda nn: nn.pitch)
+        # Build the arp sequence — repeat group across octaves
+        sequence = []
+        for o in range(octaves):
+            for nn in group:
+                sequence.append((nn.pitch + 12 * o, nn.velocity))
+
+        if mode == "down":
+            sequence = list(reversed(sequence))
+        elif mode == "updown":
+            sequence = sequence + list(reversed(sequence[1:-1])) if len(sequence) > 2 else sequence
+        elif mode == "random":
+            _random.shuffle(sequence)
+        # else up / order
+
+        # Next chord change limits how many arp notes fit
+        end_key = sorted_keys[i + 1] if i + 1 < len(sorted_keys) else pattern.length_beats
+        span = end_key - start
+        max_steps = int(span / rate_beats)
+        for step in range(max_steps):
+            if not sequence:
+                break
+            pitch, vel = sequence[step % len(sequence)]
+            t = start + step * rate_beats
+            if t >= pattern.length_beats:
+                break
+            out.add_note(pitch, t, rate_beats * gate, vel)
+    return out
+
+
+def generate_chords_from_melody(pattern, chord_type="triad", key="C", scale="major",
+                                 inversion=0, octave_offset=-1):
+    """For each melody note, build a harmonizing chord BELOW it in the given key/scale.
+
+    chord_type: triad | seventh | ninth | power
+    inversion: 0, 1, 2 (for triads)
+    octave_offset: -1 puts the chord an octave below the melody
+    """
+    allowed = _allowed_pitch_classes(key, scale)
+    intervals_map = {
+        "triad":   [0, 2, 4],         # root, third, fifth (scale degrees within the scale)
+        "seventh": [0, 2, 4, 6],
+        "ninth":   [0, 2, 4, 6, 8],
+        "power":   [0, 4],
+    }
+    intervals = intervals_map.get(chord_type, intervals_map["triad"])
+
+    out = MidiPattern(pattern.name + " + chords", pattern.length_beats)
+    # Keep the melody
+    for n in pattern.notes:
+        out.add_note(n.pitch, n.start_beat, n.duration_beats, n.velocity)
+    # Add chord tones
+    root = _KEY_ROOTS.get(key, 0)
+    scale_intervals = _SCALE_INTERVALS.get(scale, _SCALE_INTERVALS["major"])
+    for n in pattern.notes:
+        # Find the scale degree of this pitch (closest within key)
+        pc = n.pitch % 12
+        # Map pitch class to scale degree index by rotating scale root
+        try:
+            base_pc_in_scale = (pc - root) % 12
+            if base_pc_in_scale not in scale_intervals:
+                continue  # skip chord tones for out-of-scale melody notes
+            deg = scale_intervals.index(base_pc_in_scale)
+        except (ValueError, IndexError):
+            continue
+        # Build chord tones
+        chord_pitches = []
+        for iv in intervals:
+            step = (deg + iv) % len(scale_intervals)
+            octave_add = ((deg + iv) // len(scale_intervals)) * 12
+            chord_pc = scale_intervals[step]
+            chord_pitches.append(root + chord_pc + octave_add)
+        # Apply inversion
+        for _ in range(inversion):
+            chord_pitches.append(chord_pitches.pop(0) + 12)
+        # Shift whole chord by octave_offset
+        base_pitch = n.pitch + octave_offset * 12
+        # Align chord around base_pitch — take the chord root near base_pitch
+        while base_pitch - chord_pitches[0] > 12:
+            chord_pitches = [p + 12 for p in chord_pitches]
+        while chord_pitches[0] - base_pitch > 12:
+            chord_pitches = [p - 12 for p in chord_pitches]
+
+        chord_vel = max(40, n.velocity - 30)  # quieter than melody
+        for p in chord_pitches:
+            p = max(0, min(127, p))
+            out.add_note(p, n.start_beat, n.duration_beats, chord_vel)
+    return out
+
+
+# ═══════════════════════════════════════════════════════════════════
 # CHORD DETECTION — analyze audio for chords
 # ═══════════════════════════════════════════════════════════════════
 

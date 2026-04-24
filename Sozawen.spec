@@ -13,13 +13,24 @@ BASE = Path('.').resolve()
 
 # Core dependencies only — no torch, no demucs, no whisper in the base install
 # Those are loaded dynamically and download models on first use
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+
+# llama-cpp-python ships compiled DLLs in llama_cpp/lib/ that PyInstaller's
+# hiddenimport alone doesn't pull. Collect them explicitly.
+_llama_binaries = collect_dynamic_libs('llama_cpp')
+_llama_datas = collect_data_files('llama_cpp')
+
 a = Analysis(
     ['sozawen/__main__.py'],
     pathex=[str(BASE)],
-    binaries=[],
+    binaries=_llama_binaries,
     datas=[
         ('static', 'static'),
-    ],
+        # Bundle the Bandmate GGUF so users never have to download it.
+        # ~1.1GB model — installer grows but there's zero "bully download"
+        # after install.
+        ('models', 'models'),
+    ] + _llama_datas,
     hiddenimports=[
         'uvicorn', 'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
         'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
@@ -35,6 +46,11 @@ a = Analysis(
         'librosa', 'librosa.core', 'librosa.feature', 'librosa.beat',
         'librosa.effects', 'librosa.onset', 'librosa.util',
         'pyloudnorm',
+        'pedalboard',
+        'PIL', 'PIL.Image',
+        'llama_cpp', 'llama_cpp.llama',
+        'music21', 'music21.stream', 'music21.note', 'music21.chord',
+        'music21.meter', 'music21.key', 'music21.tempo', 'music21.converter',
         'webview', 'webview.platforms', 'webview.platforms.edgechromium',
         'tkinter', 'tkinter.filedialog',
         'pydub',

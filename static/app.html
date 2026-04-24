@@ -609,10 +609,8 @@
         // intentionally a no-op on startup.
     }
     function activateLicense() {
-        // Validate directly against the Sozawen license server. Bypasses the
-        // Python-side license.py (which still has the old LemonSqueezy code
-        // path from an earlier build) so we don't need a PyInstaller rebuild
-        // to ship working activation. Key format: SOZA-XXXX-XXXX-XXXX.
+        // Validate directly against the Sozawen license server.
+        // Key format: SOZA-XXXX-XXXX-XXXX.
         const raw = document.getElementById('licenseKeyInput').value.trim().toUpperCase();
         const msg = document.getElementById('licenseMessage');
         if (!raw) { msg.textContent = 'Enter a license key'; msg.style.color = 'var(--red)'; return; }

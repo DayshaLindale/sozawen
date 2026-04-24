@@ -82,6 +82,10 @@ class ContextState:
 
     # Tool visibility — 0.0 (hidden) to 1.0 (prominent)
     tool_weights: dict = field(default_factory=dict)
+    # Map tool_id → epoch timestamp of when the user last opened it. Used to
+    # rotate suggestions: recently-used tools drop in weight, unused tools
+    # bubble up within the current phase.
+    tool_last_used: dict = field(default_factory=dict)
 
 
 # Tool definitions with their contexts
@@ -120,6 +124,8 @@ TOOLS = {
                      "tip": "Pitch correction for vocals. Subtle correction (20-40%) keeps it natural. Heavy correction (80-100%) creates the Auto-Tune effect. Set your song key first. Use AFTER recording, BEFORE mixing."},
     "tempo_map":    {"label": "Tempo Map",        "icon": "⏱", "group": "edit",
                      "tip": "Change tempo mid-song. Add tempo change points along the timeline. Essential for live recordings that speed up/slow down, or for dramatic ritardando/accelerando in composed music."},
+    "time_sig":     {"label": "Time Signature",   "icon": "𝄴", "group": "edit",
+                     "tip": "Set the base time signature and add mid-song meter changes (3/4 at bar 9, 6/8 at bar 17, back to 4/4 at bar 25). Great for genre shifts and dramatic bridges."},
     "templates":    {"label": "Templates",         "icon": "📋", "group": "import",
                      "tip": "Pre-configured project sessions. Songwriting, Band Recording, Beat Making, Podcast, Mixing, Orchestral — start making music immediately instead of configuring software."},
     "spectrum":     {"label": "Spectrum Analyzer", "icon": "📊", "group": "mix",
@@ -134,6 +140,8 @@ TOOLS = {
                      "tip": "Visual guide to every scale — Major, Minor, Pentatonic, Blues, modes. See which notes are safe to play. Use while composing or soloing to stay in key."},
     "input_select": {"label": "Input Device",     "icon": "🎤", "group": "record",
                      "tip": "Choose your microphone or audio interface. Set the input channel if your interface has multiple inputs. Use before recording. After: Set levels, enable count-in, hit Record."},
+    "midi_learn":   {"label": "MIDI Learn",       "icon": "⚙", "group": "perform",
+                     "tip": "Map any knob or fader on a hardware MIDI controller to Sozawen parameters. Click Learn, move the controller, done. Master volume, per-track volume/pan/mute, tempo — all controllable from hardware."},
     "midi_input":   {"label": "MIDI Input",       "icon": "🎹", "group": "record",
                      "tip": "Connect a MIDI keyboard or controller. Play notes in real-time through any instrument. Use if you have external hardware."},
     "tuner":        {"label": "Tuner",            "icon": "🎵", "group": "record",
@@ -188,6 +196,38 @@ TOOLS = {
                      "tip": "Adds room ambience and space. Use on vocals, snare, guitars — NOT on bass or kick. Chain: EQ → Compressor → Reverb. Use sends (not insert) so multiple tracks share one reverb. Less is more."},
     "delay":        {"label": "Delay",            "icon": "⋯", "group": "mix",
                      "tip": "Repeating echoes synced to BPM. Use on vocals (subtle) and guitars (rhythmic). Chain: After compressor, before or alongside reverb. Sync to tempo for musical results. Ping-pong delay adds width."},
+    "distortion":   {"label": "Distortion",        "icon": "⚡", "group": "mix",
+                     "tip": "Asymmetric saturation — tube, tape, diode, or fuzz. Adds harmonic character and perceived loudness. Drives even-order harmonics (tube, tape) for warmth or odd-order (diode, fuzz) for aggression."},
+    "parallel_comp":{"label": "Parallel Comp",    "icon": "∥", "group": "mix",
+                     "tip": "New York compression. Heavy compression mixed BENEATH the dry signal. Fattens drums and vocals without destroying dynamics. 30% blend is the classic setting."},
+    "chorus":       {"label": "Chorus",           "icon": "❋", "group": "mix",
+                     "tip": "Multiple detuned, delayed copies blended with dry. Adds shimmer and stereo width. Classic on clean guitars, electric pianos, pads."},
+    "flanger":      {"label": "Flanger",          "icon": "∿", "group": "mix",
+                     "tip": "Short modulated delay with feedback. The jet-engine sweep. Heavy effect; use sparingly."},
+    "phaser":       {"label": "Phaser",           "icon": "≈", "group": "mix",
+                     "tip": "Swept all-pass filters create notches that sweep across the spectrum. Warmer and more organic than flanger."},
+    "tremolo":      {"label": "Tremolo",          "icon": "∼", "group": "mix",
+                     "tip": "Amplitude wobble. Sine shape for smooth tremolo, triangle for old-amp feel, square for choppy gate effect."},
+    "arpeggiator":  {"label": "Arpeggiator",      "icon": "♬", "group": "edit",
+                     "tip": "MIDI effect: turn chord stacks into arpeggios. Up / Down / UpDown / Random / Order modes, 1-4 octave span, 16th-note-or-finer rate."},
+    "chord_gen":    {"label": "Chord Generator",  "icon": "♫", "group": "edit",
+                     "tip": "MIDI effect: harmonize a melody with diatonic chords. Triad, 7th, 9th, or power chord built below each note in the current key."},
+    "scale_force":  {"label": "Scale Force",      "icon": "♭", "group": "edit",
+                     "tip": "MIDI effect: snap every note to the nearest pitch in the chosen key and scale. Saves out-of-key takes without retracking."},
+    "melodic_seq":  {"label": "Melodic Step Seq", "icon": "▮", "group": "edit",
+                     "tip": "Step sequencer for pitched notes. 16 (or 32/64) steps by 8 or 16 pitch rows. Click to place notes, pick a scale, trigger through any instrument."},
+    "sampler":      {"label": "Sampler",          "icon": "🎛", "group": "record",
+                     "tip": "Multi-sample instrument. Load any WAV as the root sample, pitch-shifted across the keyboard. ADSR envelope, velocity, optional loop. Turns any sound into a playable instrument."},
+    "multiband_eq": {"label": "Multi-band EQ",    "icon": "▦", "group": "mix",
+                     "tip": "4-band EQ with independent gain per band. Split at Low / LowMid / HiMid / High crossovers. Frequency-surgical vs the standard EQ's broad strokes."},
+    "multiband_comp":{"label": "Multi-band Comp", "icon": "▥", "group": "mix",
+                     "tip": "4-band compressor. Compress the muddy mids without touching the highs. Essential for mastering and problem-frequency taming."},
+    "sidechain":    {"label": "Sidechain",        "icon": "⇄", "group": "mix",
+                     "tip": "Duck a track when another triggers. The classic EDM pump: kick triggers, bass ducks. Also tame muddy low-mids under vocals."},
+    "mixer":        {"label": "Mixer",            "icon": "▤", "group": "mix",
+                     "tip": "Dedicated multi-channel strip view. Every track as a vertical fader with volume, pan, mute, solo, and VCA assignment. The traditional console workflow."},
+    "vca":          {"label": "VCA / Groups",     "icon": "⬢", "group": "mix",
+                     "tip": "VCA tracks proportionally scale the volume of any tracks assigned to them. Group all drums to a Drum VCA, ride the Drum VCA fader to control the whole drum section without touching individual track faders."},
     "quantize":     {"label": "Quantize",          "icon": "⊞", "group": "edit",
                      "tip": "Snap recorded MIDI notes to the nearest grid position. Tightens up timing that was played slightly off-beat. Set the grid resolution (1/4, 1/8, 1/16) and strength (100% = perfect grid, 50% = halfway)."},
     "spatial":      {"label": "Spatial Audio",      "icon": "🌐", "group": "mix",
@@ -226,6 +266,8 @@ TOOLS = {
                      "tip": "Compare your mix against a professional reference track. Load a song you want to sound like, switch between yours and theirs. Match loudness first (our ears prefer louder). The fastest way to improve."},
     "export":       {"label": "Export",           "icon": "↗", "group": "master",
                      "tip": "Render your mix to a file. WAV (lossless, for mastering), MP3 (streaming/sharing), FLAC (lossless + smaller). Always export WAV first, then convert. The final step."},
+    "tutorials":    {"label": "Tutorials",        "icon": "🎓", "group": "master",
+                     "tip": "Interactive walkthroughs. Pick a workflow (record a vocal, program drums, mix a track, export to Spotify, compose a score) and Sozawen steps you through it."},
     "learn":        {"label": "Learn",            "icon": "📖", "group": "master",
                      "tip": "Built-in encyclopedia — from 'what is a note' to LUFS targets for Spotify. Search any topic. Use anytime you don't understand a term or technique."},
 }
@@ -309,24 +351,42 @@ class ContextEngine:
             Phase.RECORD: {
                 "input_select": 1.0, "metronome": 0.9, "count_in": 0.8,
                 "synth": 0.6, "drums": 0.6, "pad": 0.6,
+                "tuner": 0.7, "punch": 0.6, "sampler": 0.55,
+                "hardware": 0.55, "midi_input": 0.5, "lyrics_editor": 0.5,
+                "instruments": 0.7,
             },
             Phase.EDIT: {
                 "split": 1.0, "trim": 0.9, "crossfade": 0.8,
                 "stretch": 0.7, "pitch": 0.7, "reverse": 0.5,
                 "noise_gate": 0.4, "normalize": 0.4,
+                "quantize": 0.8, "piano_roll": 0.7, "score": 0.7,
+                "arpeggiator": 0.55, "chord_gen": 0.55, "scale_force": 0.6,
+                "melodic_seq": 0.55, "warp": 0.5, "audio_to_drums": 0.5,
+                "time_sig": 0.5, "tempo_map": 0.5, "video_sync": 0.45,
+                "click_removal": 0.4,
             },
             Phase.MIX: {
                 "eq": 1.0, "compressor": 0.9, "reverb": 0.8, "delay": 0.7,
                 "sends": 0.7, "bandmate": 0.6, "bleed_remove": 0.6, "normalize": 0.5,
                 "lufs": 0.4,
+                "multiband_eq": 0.75, "multiband_comp": 0.7,
+                "sidechain": 0.65, "parallel_comp": 0.6,
+                "distortion": 0.55, "chorus": 0.5, "flanger": 0.45,
+                "phaser": 0.45, "tremolo": 0.45,
+                "spectrum": 0.8, "mixer": 0.8, "vca": 0.65,
+                "bus": 0.6, "plugins": 0.55, "spatial": 0.5,
+                "stereo_width": 0.5, "automation": 0.55,
             },
             Phase.MASTER: {
                 "limiter": 1.0, "lufs": 1.0, "stereo_width": 0.8,
                 "reference": 0.8, "export": 0.9,
                 "eq": 0.5, "compressor": 0.5,
+                "true_peak": 0.9, "multiband_eq": 0.7, "multiband_comp": 0.7,
+                "pdf_export": 0.4, "tutorials": 0.35,
             },
             Phase.EXPORT: {
                 "export": 1.0, "lufs": 0.8, "reference": 0.7,
+                "true_peak": 0.8, "pdf_export": 0.5,
             },
         }
 
@@ -359,20 +419,51 @@ class ContextEngine:
                 weights["lufs"] = 0.9
                 weights["export"] = 0.8
 
+        # ─── ROTATION — keep suggestions fresh within a phase ───────────────
+        # We shuffle ORDER among prominent tools, but never push so hard
+        # that prominent slots go empty. Used tools get a small demotion
+        # (decays over 2 min); unused tools in the current phase get lifted
+        # up to the prominent threshold so fresh options surface.
+        now = time.time()
+        PHASE_PROMINENT = 0.5  # anything ≥ this renders in the prominent strip
+        for tool_id in weights:
+            base = weights[tool_id]
+            last = self.state.tool_last_used.get(tool_id)
+            if last is not None:
+                seconds_ago = now - last
+                if seconds_ago < 120:
+                    # Gentle decaying penalty — keeps the tool visible but
+                    # steps it back so neighbors can take the top position
+                    penalty = 0.15 * (1 - seconds_ago / 120.0)
+                    weights[tool_id] = max(0.35, base - penalty)
+            else:
+                # Never used — LIFT tools that are phase-relevant enough
+                # (base ≥ 0.3) so they can reach the prominent threshold
+                # and give the user something new to try
+                if base >= 0.3:
+                    weights[tool_id] = min(0.95, base + 0.15)
+
         return weights
 
     def get_ui_state(self):
         """Return the context state for the frontend."""
-        # Sort tools by weight, group into prominent vs available
+        # Sort tools by weight descending. We guarantee a minimum prominent
+        # slot count so the user always has a useful set surfaced, even in
+        # thinly-populated phases like EMPTY.
         sorted_tools = sorted(
             [(tid, TOOLS[tid], w) for tid, w in self.state.tool_weights.items()],
             key=lambda x: -x[2]
         )
 
-        prominent = []  # weight >= 0.5 — shown prominently
-        available = []  # weight < 0.5 — in the drawer
+        PROMINENT_MIN = 12  # always surface at least this many
+        PROMINENT_MAX = 18  # never overwhelm
+        # Any tool with weight ≥ 0.5 is "genuinely relevant"; below that we
+        # fill up to PROMINENT_MIN from the top-sorted list so rotation has
+        # enough slots to cycle through.
+        prominent = []
+        available = []
 
-        for tool_id, tool_info, weight in sorted_tools:
+        for idx, (tool_id, tool_info, weight) in enumerate(sorted_tools):
             entry = {
                 "id": tool_id,
                 "label": tool_info["label"],
@@ -381,7 +472,10 @@ class ContextEngine:
                 "weight": round(weight, 2),
                 "tip": tool_info.get("tip", ""),
             }
-            if weight >= 0.5:
+            # Hard-relevant (≥0.5) always prominent; then pad to MIN; never over MAX
+            if weight >= 0.5 and len(prominent) < PROMINENT_MAX:
+                prominent.append(entry)
+            elif len(prominent) < PROMINENT_MIN:
                 prominent.append(entry)
             else:
                 available.append(entry)
