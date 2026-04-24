@@ -6682,6 +6682,33 @@
             response = response.replace(/\[QUANTIZE ([^\]]+)\]/g, _render('quantize', 'Quantize MIDI'));
             response = response.replace(/\[SPATIAL_RENDER ([^\]]+)\]/g, _render('spatial', 'Render spatial mix'));
 
+            // Server-executed tags — these have already run in the backend
+            // (see app.py's bandmate_chat handler). Replace the raw tag text
+            // with a clean confirmation so the user sees natural language, not
+            // syntax. These should NOT be re-rendered as Apply buttons.
+            const _confirm = (icon, label) => (match, params) => {
+                // Extract the first human-meaningful field for a short label
+                const m = (params || '').match(/(?:model|name|track|bpm|family)=(?:"([^"]*)"|(\S+))/);
+                const detail = m ? (m[1] || m[2]) : '';
+                return `<span style="display:inline-block; background:rgba(45,212,168,.06); color:var(--teal); padding:2px 8px; border-radius:10px; font-size:10px; margin:2px 2px; letter-spacing:0.5px;">${icon} ${label}${detail ? ' — ' + detail : ''}</span>`;
+            };
+            response = response.replace(/\[INSTRUMENT ([^\]]+)\]/g, _confirm('✓', 'Rendered instrument'));
+            response = response.replace(/\[TRACK ([^\]]+)\]/g, _confirm('✓', 'Track'));
+            response = response.replace(/\[TEMPO ([^\]]+)\]/g, _confirm('✓', 'Tempo set'));
+            response = response.replace(/\[TIME_SIG ([^\]]+)\]/g, _confirm('✓', 'Time signature'));
+            response = response.replace(/\[TRANSPOSE ([^\]]+)\]/g, _confirm('✓', 'Transposed'));
+            response = response.replace(/\[CHORD_SYMBOL ([^\]]+)\]/g, _confirm('✓', 'Chord symbol'));
+            response = response.replace(/\[LUFS ([^\]]+)\]/g, _confirm('✓', 'Loudness'));
+            response = response.replace(/\[LYRIC_LINE ([^\]]+)\]/g, _confirm('✓', 'Lyric line'));
+
+            // Catchall — any tag we didn't explicitly handle above gets hidden
+            // so raw syntax never leaks into the chat. Rendered as a tiny muted
+            // marker so it's visible we omitted something, without being ugly.
+            response = response.replace(/\[([A-Z_]+)\s+([^\]]+)\]/g, (match, type, params) => {
+                const short = (params.length > 30 ? params.slice(0, 30) + '…' : params);
+                return `<span style="display:inline-block; background:rgba(255,255,255,.03); color:var(--text-muted); padding:2px 8px; border-radius:10px; font-size:10px; margin:2px 2px; opacity:.7;">· ${type.toLowerCase()}: ${short}</span>`;
+            });
+
             window._bandmateActions = actions;
             chat.innerHTML += `<div style="color:var(--teal); margin-top:4px;"><strong>Bandmate:</strong> ${response}</div>`;
             chat.scrollTop = chat.scrollHeight;
