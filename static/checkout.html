@@ -165,6 +165,10 @@
                 Buy for yourself
                 <span class="price">$79</span>
             </button>
+            <button type="button" class="mode-btn" data-mode="student" id="btn-student">
+                I'm a student
+                <span class="price">$19</span>
+            </button>
             <button type="button" class="mode-btn" data-mode="gift" id="btn-gift">
                 Pay it forward
                 <span class="price">$79</span>
@@ -174,7 +178,7 @@
         <div class="summary">
             <div class="summary-mode" id="sum-label">Sozawen &mdash; lifetime license</div>
             <div id="sum-detail">Delivered instantly via download + email with your license key.</div>
-            <div class="summary-line"><span>Total</span><strong>$79.00 USD</strong></div>
+            <div class="summary-line"><span>Total</span><strong id="sum-total">$79.00 USD</strong></div>
         </div>
 
         <form id="payment-form">
@@ -204,14 +208,19 @@
         const API_BASE = 'https://notare-updates.onrender.com';
         const stripe = Stripe(PUB_KEY);
 
-        // Determine initial mode from URL param ?mode=gift|self
+        // Determine initial mode from URL param ?mode=gift|self|student
         const urlMode = new URLSearchParams(location.search).get('mode');
-        let mode = (urlMode === 'gift') ? 'gift' : 'self_purchase';
+        const VALID_MODES = ['self_purchase', 'gift', 'student'];
+        let mode = VALID_MODES.includes(urlMode) ? urlMode
+                 : (urlMode === 'self') ? 'self_purchase'
+                 : 'self_purchase';
 
         const btnSelf = document.getElementById('btn-self');
+        const btnStudent = document.getElementById('btn-student');
         const btnGift = document.getElementById('btn-gift');
         const sumLabel = document.getElementById('sum-label');
         const sumDetail = document.getElementById('sum-detail');
+        const sumTotal = document.getElementById('sum-total');
         const errBox = document.getElementById('error-message');
         const submitBtn = document.getElementById('submit');
         const submitLabel = document.getElementById('submit-label');
@@ -219,14 +228,22 @@
 
         function renderMode() {
             btnSelf.classList.toggle('active', mode === 'self_purchase');
+            btnStudent.classList.toggle('active', mode === 'student');
             btnGift.classList.toggle('active', mode === 'gift');
             if (mode === 'gift') {
                 sumLabel.innerHTML = 'Pay it forward &mdash; gift a Sozawen seat';
                 sumDetail.textContent = 'Your $79 funds a free license for a musician who can\'t afford one. You won\'t receive the software yourself.';
+                sumTotal.textContent = '$79.00 USD';
                 submitLabel.textContent = 'Gift $79.00';
+            } else if (mode === 'student') {
+                sumLabel.innerHTML = 'Sozawen student license &mdash; lifetime';
+                sumDetail.textContent = 'Honor system — no .edu email required. Same full software, same lifetime license. Just check yes if you\'re actually a student.';
+                sumTotal.textContent = '$19.00 USD';
+                submitLabel.textContent = 'Pay $19.00';
             } else {
                 sumLabel.innerHTML = 'Sozawen &mdash; lifetime license';
                 sumDetail.textContent = 'Delivered instantly via download + email with your license key.';
+                sumTotal.textContent = '$79.00 USD';
                 submitLabel.textContent = 'Pay $79.00';
             }
         }
@@ -280,6 +297,7 @@
         initElements();
 
         btnSelf.addEventListener('click', () => { if (mode !== 'self_purchase') { mode = 'self_purchase'; renderMode(); initElements(); } });
+        btnStudent.addEventListener('click', () => { if (mode !== 'student') { mode = 'student'; renderMode(); initElements(); } });
         btnGift.addEventListener('click', () => { if (mode !== 'gift') { mode = 'gift'; renderMode(); initElements(); } });
 
         document.getElementById('payment-form').addEventListener('submit', async (e) => {
@@ -299,7 +317,7 @@
             if (error) {
                 errBox.textContent = error.message || 'Payment could not be completed.';
                 submitBtn.disabled = false;
-                submitLabel.textContent = mode === 'gift' ? 'Gift $79.00' : 'Pay $79.00';
+                submitLabel.textContent = mode === 'gift' ? 'Gift $79.00' : (mode === 'student' ? 'Pay $19.00' : 'Pay $79.00');
             }
             // On success, Stripe redirects — no code after this runs.
         });
