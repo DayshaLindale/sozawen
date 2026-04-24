@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Sozawen</title>
+    <meta name="description" content="Download Sozawen — a full DAW with 62 physically-modeled instruments. Windows 10/11, ~1.2GB, offline after install.">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Crimson+Pro:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #08080f;
+            --text: #d8d8e8;
+            --text-dim: #7878a0;
+            --text-muted: #4a4a70;
+            --violet: #9b59b6;
+            --violet-glow: #c084e0;
+            --teal: #2dd4a8;
+            --border: rgba(255,255,255,.06);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 24px 80px;
+            font-weight: 300;
+            line-height: 1.7;
+        }
+        a { color: var(--teal); text-decoration: none; }
+        a:hover { color: var(--violet-glow); }
+        @keyframes breathe { 0%,100%{opacity:.3} 50%{opacity:.6} }
+        @keyframes glow-pulse { 0%,100%{text-shadow:0 0 30px rgba(155,89,182,.2)} 50%{text-shadow:0 0 60px rgba(155,89,182,.4), 0 0 120px rgba(45,212,168,.15)} }
+        .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(100px); z-index: 0; }
+        .orb-violet {
+            width: 600px; height: 600px; top: -10%; left: -5%;
+            background: radial-gradient(circle, rgba(155,89,182,.12) 0%, transparent 70%);
+            animation: breathe 10s ease-in-out infinite;
+        }
+        .orb-teal {
+            width: 500px; height: 500px; bottom: -10%; right: -5%;
+            background: radial-gradient(circle, rgba(45,212,168,.1) 0%, transparent 70%);
+            animation: breathe 10s ease-in-out infinite 5s;
+        }
+        .wrap { max-width: 640px; margin: 0 auto; text-align: center; position: relative; z-index: 1; }
+
+        .mark-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 56px; }
+        .mark {
+            font-size: 24px; font-weight: 200; letter-spacing: 8px;
+            background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: glow-pulse 6s ease-in-out infinite;
+            text-decoration: none;
+        }
+        .mark-back { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+
+        h1 {
+            font-family: 'Crimson Pro', serif; font-weight: 200; font-style: italic;
+            font-size: 42px; color: var(--text); margin-bottom: 20px; line-height: 1.2;
+        }
+        .sub {
+            font-family: 'Crimson Pro', serif; font-size: 18px; color: var(--text-dim);
+            margin-bottom: 48px; font-style: italic;
+        }
+
+        .btn-download {
+            display: inline-block; padding: 20px 56px;
+            background: linear-gradient(135deg, var(--violet), var(--teal));
+            color: #fff; text-decoration: none; border-radius: 50px; font-weight: 500;
+            font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
+            transition: transform .3s; position: relative; margin-bottom: 14px;
+        }
+        .btn-download::after {
+            content: ''; position: absolute; inset: -2px; border-radius: 52px;
+            background: linear-gradient(135deg, var(--violet), var(--teal));
+            z-index: -1; filter: blur(24px); opacity: .4;
+        }
+        .btn-download:hover { transform: translateY(-2px); color: #fff; }
+        .specs {
+            font-size: 12px; color: var(--text-muted); letter-spacing: 1px;
+            margin-top: 18px; margin-bottom: 40px;
+        }
+
+        .card {
+            background: rgba(255,255,255,.02);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px 28px;
+            margin: 0 auto 20px;
+            text-align: left;
+            max-width: 540px;
+        }
+        .card h3 {
+            font-size: 11px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--violet-glow); margin-bottom: 14px;
+        }
+        .card p {
+            font-size: 14px; color: var(--text-dim); margin-bottom: 10px;
+        }
+        .card p:last-child { margin-bottom: 0; }
+        .card code {
+            background: rgba(45,212,168,.06); padding: 2px 8px; border-radius: 4px;
+            color: var(--teal); font-family: Consolas, monospace; font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .muted { color: var(--text-muted); font-size: 12px; }
+
+        .tier-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px; margin-top: 16px;
+        }
+        .tier-link {
+            padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px;
+            font-size: 13px; color: var(--text); text-align: center; transition: all .3s;
+        }
+        .tier-link strong { display: block; font-size: 15px; color: var(--teal); margin-bottom: 4px; letter-spacing: 1px; }
+        .tier-link:hover { border-color: rgba(45,212,168,.3); background: rgba(45,212,168,.03); }
+        .tier-link small { display: block; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+
+        footer {
+            margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--border);
+            font-size: 11px; color: var(--text-muted); letter-spacing: 1px;
+        }
+        footer a { color: var(--text-muted); margin: 0 10px; }
+        footer a:hover { color: var(--teal); }
+    </style>
+</head>
+<body>
+    <div class="orb orb-violet"></div>
+    <div class="orb orb-teal"></div>
+
+    <div class="wrap">
+        <div class="mark-row">
+            <a href="/" class="mark">SOZAWEN</a>
+            <a href="/" class="mark-back">&larr; Home</a>
+        </div>
+
+        <h1>Download Sozawen.</h1>
+        <p class="sub">Latest release — v1.0.0</p>
+
+        <a href="https://github.com/DayshaLindale/sozawen/releases/download/v1.0.0/SozawenSetup_v1.0.0.exe" class="btn-download">Download for Windows</a>
+        <p class="specs">Windows 10/11 &middot; ~1.2GB (bandmate AI bundled) &middot; No admin required &middot; Fully offline after install</p>
+
+        <div class="card">
+            <h3>After the installer finishes</h3>
+            <p>Windows may show a &ldquo;Windows protected your PC&rdquo; warning on first run because the installer isn&rsquo;t code-signed yet (coming soon). Click <strong>More info</strong> &rarr; <strong>Run anyway</strong> to proceed. The app is safe; that warning just means the certificate isn&rsquo;t in place yet.</p>
+            <p>Once installed, launch Sozawen, open <strong>Preferences</strong>, paste your license key (format <code>SOZA-XXXX-XXXX-XXXX</code>), and click activate. The app also works without a key &mdash; activation just marks you as a supporter.</p>
+        </div>
+
+        <div class="card">
+            <h3>Already have a license?</h3>
+            <p>Paste your key in Sozawen &rarr; Preferences &rarr; License. That&rsquo;s it &mdash; the key is validated once and then everything runs offline.</p>
+            <p class="muted">Lost your key? <a href="mailto:dayshalindale@sozawen.com?subject=Sozawen%20license%20key%20lookup&body=Hi%20%E2%80%94%20I%20bought%20Sozawen%20and%20can't%20find%20my%20license%20key.%20My%20Stripe%20receipt%20email%20is%3A%20">Email me</a> with the email address you used at checkout and I&rsquo;ll look it up.</p>
+        </div>
+
+        <div class="card">
+            <h3>Don't have a license yet?</h3>
+            <div class="tier-row">
+                <a href="/checkout.html" class="tier-link">
+                    <strong>$79</strong>
+                    Lifetime license
+                    <small>One payment, forever</small>
+                </a>
+                <a href="/checkout.html?mode=gift" class="tier-link">
+                    <strong>Gift $79</strong>
+                    Pay it forward
+                    <small>Funds a scholarship seat</small>
+                </a>
+                <a href="mailto:dayshalindale@sozawen.com?subject=Sozawen%20scholarship%20request&body=Tell%20me%20a%20little%20about%20what%20you're%20working%20on%20(or%20don't%20—%20either%20way%20I'll%20send%20you%20a%20license)." class="tier-link">
+                    <strong>Free</strong>
+                    Scholarship
+                    <small>Just write me</small>
+                </a>
+                <a href="mailto:dayshalindale@sozawen.com?subject=Sozawen%20classroom%20license%20inquiry" class="tier-link">
+                    <strong>$10/seat</strong>
+                    Classroom
+                    <small>Email for bulk keys</small>
+                </a>
+            </div>
+        </div>
+
+        <footer>
+            <a href="/">sozawen.com</a>
+            <a href="/static/terms.html">Terms</a>
+            <a href="/static/privacy.html">Privacy</a>
+            <a href="/static/eula.html">EULA</a>
+            <div style="margin-top:14px; font-style: italic; font-family: 'Crimson Pro', serif; color: var(--teal); opacity: .7;">A bandmate who listens.</div>
+        </footer>
+    </div>
+</body>
+</html>

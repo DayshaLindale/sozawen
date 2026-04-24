@@ -165,13 +165,14 @@
                 Buy for yourself
                 <span class="price">$79</span>
             </button>
-            <button type="button" class="mode-btn" data-mode="student" id="btn-student">
-                I'm a student
-                <span class="price">$19</span>
-            </button>
             <button type="button" class="mode-btn" data-mode="gift" id="btn-gift">
                 Pay it forward
                 <span class="price">$79</span>
+            </button>
+            <!-- Student tier: reachable only via ?mode=student URL, no public button -->
+            <button type="button" class="mode-btn" data-mode="student" id="btn-student" style="display:none;">
+                I'm a student
+                <span class="price">$19</span>
             </button>
         </div>
 
@@ -225,6 +226,11 @@
         const submitBtn = document.getElementById('submit');
         const submitLabel = document.getElementById('submit-label');
         const paymentEl = document.getElementById('payment-element');
+
+        // Student tier: only visible when someone lands via ?mode=student
+        if (mode === 'student') {
+            btnStudent.style.display = '';
+        }
 
         function renderMode() {
             btnSelf.classList.toggle('active', mode === 'self_purchase');
