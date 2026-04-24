@@ -20,72 +20,118 @@
             --border: rgba(255,255,255,.06);
         }
         body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 72px 32px 120px;
-            font-weight: 300;
-            line-height: 1.85;
-            overflow-x: hidden;
+            font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
+            overflow-x: hidden; font-weight: 300; line-height: 1.85;
         }
-        a { color: var(--teal); text-decoration: none; }
+        a { color: var(--teal); text-decoration: none; transition: color .3s; }
         a:hover { color: var(--violet-glow); }
 
+        /* ── animations ── */
         @keyframes breathe { 0%,100%{opacity:.3} 50%{opacity:.6} }
+        @keyframes drift {
+            0%,100% { transform: translate(0,0); }
+            50%     { transform: translate(40px,-30px); }
+        }
         @keyframes glow-pulse {
             0%,100% { text-shadow: 0 0 30px rgba(155,89,182,.2); }
             50%     { text-shadow: 0 0 60px rgba(155,89,182,.4), 0 0 120px rgba(45,212,168,.15); }
         }
+        @keyframes wave-crawl {
+            0%   { background-position: 0 0; }
+            100% { background-position: 200% 0; }
+        }
 
+        /* ── orbs ── */
         .orb { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(100px); z-index: 0; }
         .orb-violet {
             width: 600px; height: 600px; top: -10%; left: -5%;
             background: radial-gradient(circle, rgba(155,89,182,.12) 0%, transparent 70%);
-            animation: breathe 10s ease-in-out infinite;
+            animation: breathe 10s ease-in-out infinite, drift 30s ease-in-out infinite;
         }
         .orb-teal {
             width: 500px; height: 500px; bottom: -10%; right: -5%;
             background: radial-gradient(circle, rgba(45,212,168,.1) 0%, transparent 70%);
-            animation: breathe 10s ease-in-out infinite 5s;
+            animation: breathe 10s ease-in-out infinite 5s, drift 25s ease-in-out infinite reverse;
+        }
+        .orb-center {
+            width: 800px; height: 800px; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            background: radial-gradient(circle, rgba(155,89,182,.04) 0%, transparent 60%);
+            animation: breathe 15s ease-in-out infinite 2s;
         }
 
-        .wrap { max-width: 700px; margin: 0 auto; position: relative; z-index: 1; }
+        /* ── wave divider ── */
+        .wave {
+            height: 1px; margin: 0 auto; max-width: 600px;
+            background: linear-gradient(90deg, transparent, var(--violet), var(--teal), transparent);
+            background-size: 200% 100%;
+            animation: wave-crawl 8s linear infinite;
+            opacity: .5;
+        }
 
-        /* Header */
-        .mark-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 120px; }
-        .mark {
-            font-size: 20px; font-weight: 200; letter-spacing: 8px;
+        /* ── scroll reveal ── */
+        .reveal {
+            opacity: 0; transform: translateY(40px);
+            transition: opacity .8s ease, transform .8s ease;
+        }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+
+        /* ── floating nav ── */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 32px; background: rgba(8,8,15,.7);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+        .nav-logo {
+            font-size: 14px; font-weight: 400; letter-spacing: 6px;
+            color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 10px;
+        }
+        .nav-logo img { height: 22px; width: 22px; }
+        .nav-links { display: flex; gap: 28px; }
+        .nav-links a {
+            font-size: 12px; color: var(--text-dim); text-decoration: none; letter-spacing: 1.5px;
+            text-transform: uppercase; transition: color .3s;
+        }
+        .nav-links a:hover { color: var(--teal); }
+        .nav-links a.active { color: var(--text); }
+
+        /* ── layout ── */
+        .page { position: relative; z-index: 1; }
+        .section { max-width: 680px; margin: 0 auto; padding: 120px 32px; }
+        .section-wide { max-width: 900px; margin: 0 auto; padding: 100px 32px; }
+
+        /* ── hero ── */
+        .hero {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; padding: 80px 32px;
+        }
+        .hero-inner { max-width: 640px; }
+        .logo {
+            font-size: 64px; font-weight: 200; letter-spacing: 16px;
             background: linear-gradient(135deg, var(--violet) 20%, var(--teal) 80%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
             animation: glow-pulse 6s ease-in-out infinite;
-            text-decoration: none;
+            margin-bottom: 16px;
         }
-        .mark-back {
-            font-size: 11px; color: var(--text-muted);
-            letter-spacing: 2px; text-transform: uppercase;
+        .tagline {
+            font-family: 'Crimson Pro', serif; font-style: italic; font-weight: 200;
+            font-size: 24px; color: var(--teal); letter-spacing: 4px; margin-bottom: 56px; opacity: .8;
         }
-        .mark-back:hover { color: var(--teal); }
-
-        /* Hero */
-        .hero { text-align: center; margin-bottom: 96px; }
-        .hero h1 {
-            font-family: 'Crimson Pro', serif; font-weight: 200; font-style: italic;
-            font-size: 60px; color: var(--text); margin-bottom: 28px; line-height: 1.15;
+        .hero-poem {
+            font-family: 'Crimson Pro', serif; font-size: 22px; line-height: 2.2;
+            color: var(--text-dim); font-weight: 300; margin-bottom: 16px;
         }
-        .hero .tagline {
-            font-family: 'Crimson Pro', serif; font-size: 21px; color: var(--text-dim);
-            font-style: italic; margin-bottom: 72px; line-height: 1.6;
-        }
-        .hero .tagline .burn { color: var(--violet-glow); font-style: normal; }
-        .hero .tagline .flow { color: var(--teal); font-style: normal; }
+        .hero-poem em { color: var(--text); font-style: normal; }
+        .hero-poem .burn { color: var(--violet-glow); font-style: normal; }
+        .hero-poem .flow { color: var(--teal); font-style: normal; }
 
         .btn-glow {
-            display: inline-block; padding: 20px 64px;
+            display: inline-block; margin-top: 48px; padding: 20px 64px;
             background: linear-gradient(135deg, var(--violet), var(--teal));
-            color: #fff; text-decoration: none; border-radius: 50px;
-            font-weight: 500; font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
-            transition: transform .4s; border: none; position: relative;
+            color: #fff; text-decoration: none; border-radius: 50px; font-weight: 500;
+            font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
+            transition: all .4s; border: none; position: relative;
         }
         .btn-glow::after {
             content: ''; position: absolute; inset: -2px; border-radius: 52px;
@@ -95,113 +141,144 @@
         .btn-glow:hover { transform: translateY(-3px); color: #fff; }
         .btn-glow:hover::after { opacity: .7; }
 
-        .specs {
-            font-size: 11px; color: var(--text-muted);
-            margin-top: 30px; letter-spacing: 1.5px;
-        }
+        .specs { font-size: 11px; color: var(--text-muted); margin-top: 28px; letter-spacing: 1.5px; }
 
-        /* Cards */
-        .card {
-            background: rgba(255,255,255,.02);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 44px 40px;
-            margin-bottom: 28px;
+        /* ── section content ── */
+        .section-title {
+            font-family: 'Crimson Pro', serif; font-style: italic; font-weight: 200;
+            font-size: 42px; color: var(--text); text-align: center; margin-bottom: 48px; line-height: 1.25;
         }
-        .card h3 {
-            font-family: 'Crimson Pro', serif; font-style: italic; font-weight: 300;
-            font-size: 26px; color: var(--text); margin-bottom: 22px;
+        .section-body {
+            font-family: 'Crimson Pro', serif; font-size: 20px; line-height: 2.2;
+            color: var(--text-dim); font-weight: 300;
         }
-        .card p {
-            font-size: 15px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.95;
-        }
-        .card p:last-child { margin-bottom: 0; }
-        .card .burn { color: var(--violet-glow); }
-        .card .flow { color: var(--teal); }
-        .card code {
-            background: rgba(45,212,168,.06); padding: 2px 8px; border-radius: 4px;
-            color: var(--teal); font-family: Consolas, monospace; font-size: 12px;
+        .section-body p { margin-bottom: 28px; }
+        .section-body p:last-child { margin-bottom: 0; }
+        .section-body .burn { color: var(--violet-glow); }
+        .section-body .flow { color: var(--teal); }
+        .section-body strong { color: var(--text); font-weight: 400; }
+        .section-body code {
+            background: rgba(45,212,168,.06); padding: 3px 10px; border-radius: 4px;
+            color: var(--teal); font-family: Consolas, monospace; font-size: 15px;
             letter-spacing: 1px;
         }
-        .card kbd {
-            background: rgba(255,255,255,.06); padding: 2px 8px; border-radius: 4px;
-            color: var(--text); font-family: inherit; font-size: 13px;
-            border: 1px solid rgba(255,255,255,.08);
-        }
 
-        /* Tier grid */
+        /* ── tier grid (section-wide) ── */
+        .tier-intro {
+            font-family: 'Crimson Pro', serif; font-size: 19px; line-height: 2;
+            color: var(--text-dim); text-align: center; margin-bottom: 56px;
+        }
         .tier-row {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 16px; margin-top: 28px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 24px;
         }
         .tier {
-            padding: 24px 18px; border: 1px solid var(--border); border-radius: 12px;
-            text-align: center; transition: all .3s; display: block; color: inherit;
+            padding: 40px 28px; border: 1px solid var(--border); border-radius: 16px;
+            text-align: center; transition: all .4s; display: block; color: inherit;
+            background: rgba(255,255,255,.015);
         }
-        .tier:hover { border-color: rgba(45,212,168,.3); background: rgba(45,212,168,.03); color: inherit; }
+        .tier:hover {
+            border-color: rgba(45,212,168,.3); background: rgba(45,212,168,.04);
+            color: inherit; transform: translateY(-4px);
+        }
         .tier strong {
-            display: block; font-family: 'Crimson Pro', serif; font-style: italic;
-            font-size: 22px; color: var(--teal); margin-bottom: 8px;
+            display: block; font-family: 'Crimson Pro', serif; font-style: italic; font-weight: 300;
+            font-size: 32px; color: var(--teal); margin-bottom: 14px;
         }
-        .tier .label { font-size: 13px; color: var(--text); display: block; margin-bottom: 6px; letter-spacing: 0.5px; }
-        .tier small { display: block; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+        .tier .label { font-size: 14px; color: var(--text); display: block; margin-bottom: 10px; letter-spacing: 0.5px; }
+        .tier small { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
 
-        /* Footer */
-        footer {
-            margin-top: 120px; padding-top: 36px; border-top: 1px solid var(--border);
-            font-size: 11px; color: var(--text-muted); letter-spacing: 1.5px; text-align: center;
+        /* ── footer ── */
+        .footer {
+            text-align: center; padding: 80px 32px 64px;
+            color: var(--text-muted); font-size: 12px; letter-spacing: 1.5px;
+            border-top: 1px solid rgba(255,255,255,.04);
         }
-        footer a { color: var(--text-muted); margin: 0 14px; }
-        footer a:hover { color: var(--teal); }
-        footer .bandmate {
-            margin-top: 20px; font-family: 'Crimson Pro', serif; font-style: italic;
-            color: var(--teal); opacity: .7; font-size: 14px; letter-spacing: 0;
+        .footer a { color: var(--text-muted); margin: 0 14px; }
+        .footer a:hover { color: var(--teal); }
+        .footer .bandmate {
+            margin-top: 24px; font-family: 'Crimson Pro', serif; font-style: italic;
+            color: var(--teal); opacity: .7; font-size: 15px; letter-spacing: 0;
         }
 
-        @media (max-width: 600px) {
-            body { padding: 48px 22px 80px; }
-            .hero h1 { font-size: 44px; }
-            .hero .tagline { font-size: 18px; }
-            .card { padding: 32px 26px; }
-            .mark-row { margin-bottom: 72px; }
-            .hero { margin-bottom: 64px; }
-            footer { margin-top: 80px; }
+        @media (max-width: 720px) {
+            .nav { padding: 16px 22px; }
+            .nav-links { gap: 18px; }
+            .nav-links a { font-size: 11px; letter-spacing: 1px; }
+            .logo { font-size: 44px; letter-spacing: 10px; }
+            .tagline { font-size: 18px; letter-spacing: 2px; margin-bottom: 40px; }
+            .hero-poem { font-size: 18px; line-height: 1.9; }
+            .section { padding: 80px 24px; }
+            .section-wide { padding: 80px 22px; }
+            .section-title { font-size: 32px; }
+            .section-body { font-size: 17px; line-height: 2; }
+            .section-body p { margin-bottom: 22px; }
+            .tier-row { gap: 16px; }
+            .tier { padding: 28px 20px; }
+            .tier strong { font-size: 26px; }
         }
     </style>
 </head>
 <body>
     <div class="orb orb-violet"></div>
     <div class="orb orb-teal"></div>
+    <div class="orb orb-center"></div>
 
-    <div class="wrap">
-        <div class="mark-row">
-            <a href="/" class="mark">SOZAWEN</a>
-            <a href="/" class="mark-back">&larr; Home</a>
+    <nav class="nav" id="nav">
+        <a href="/" class="nav-logo"><img src="/static/favicon.svg" alt="">SOZAWEN</a>
+        <div class="nav-links">
+            <a href="/#story">Story</a>
+            <a href="/features.html">Features</a>
+            <a href="/download.html" class="active">Download</a>
         </div>
+    </nav>
 
+    <div class="page">
+
+        <!-- ── hero ── -->
         <section class="hero">
-            <h1>Here it is.</h1>
-            <p class="tagline">One file. <span class="burn">Yours</span> once you&rsquo;ve got it &mdash; <span class="flow">forever</span>.</p>
+            <div class="hero-inner">
+                <div class="logo">SOZAWEN</div>
+                <div class="tagline">Here it is.</div>
 
-            <a href="https://github.com/DayshaLindale/sozawen/releases/download/v1.0.0/SozawenSetup_v1.0.0.exe" class="btn-glow">Download Sozawen</a>
+                <div class="hero-poem">
+                    <p>One file. <span class="burn">Yours</span> once you&rsquo;ve got it &mdash; <span class="flow">forever</span>.</p>
+                </div>
 
-            <p class="specs">Windows 10/11 &middot; ~1.2GB (bandmate brain included) &middot; No admin &middot; No account &middot; Offline after install</p>
+                <a href="https://github.com/DayshaLindale/sozawen/releases/download/v1.0.0/SozawenSetup_v1.0.0.exe" class="btn-glow">Download Sozawen</a>
+
+                <p class="specs">Windows 10/11 &middot; ~1.2GB (bandmate brain included) &middot; No admin &middot; No account &middot; Offline after install</p>
+            </div>
         </section>
 
-        <div class="card">
-            <h3>Once it&rsquo;s installed.</h3>
-            <p>Windows doesn&rsquo;t know me yet. On first run you&rsquo;ll see a scary-looking <em>&ldquo;Windows protected your PC&rdquo;</em> panel. Click <strong>More info</strong>, then <strong>Run anyway</strong>. The app is safe &mdash; that warning just means I haven&rsquo;t bought a code-signing certificate yet. It&rsquo;s coming.</p>
-            <p>Open Sozawen, go to <strong>Preferences</strong>, paste your license key (<code>SOZA-XXXX-XXXX-XXXX</code>), hit activate. One validation, then it runs offline for the rest of its life. The app also runs <em>without</em> a key &mdash; activation just marks you as a supporter and unlocks any future paid-only features.</p>
-        </div>
+        <div class="wave"></div>
 
-        <div class="card">
-            <h3>Lost your key?</h3>
-            <p>It happens. <a href="mailto:dayshalindale@sozawen.com?subject=Sozawen%20license%20key%20lookup&body=Hi%20%E2%80%94%20I%20bought%20Sozawen%20and%20can't%20find%20my%20license%20key.%20My%20Stripe%20receipt%20email%20is%3A%20">Send me the email address you used at checkout</a> and I&rsquo;ll look it up and send it back. Usually same day.</p>
-        </div>
+        <!-- ── once it's installed ── -->
+        <section class="section reveal">
+            <h2 class="section-title">Once it&rsquo;s installed.</h2>
+            <div class="section-body">
+                <p>Windows doesn&rsquo;t know me yet. On first run you&rsquo;ll see a <span class="burn">scary-looking</span> <em>&ldquo;Windows protected your PC&rdquo;</em> panel. Click <strong>More info</strong>, then <strong>Run anyway</strong>. The app is safe &mdash; that warning just means I haven&rsquo;t bought a code-signing certificate yet. It&rsquo;s coming.</p>
+                <p>Open Sozawen. Go to <strong>Preferences</strong>. Paste your license key <code>SOZA-XXXX-XXXX-XXXX</code> and hit activate. One validation, then it runs <span class="flow">offline forever</span>.</p>
+                <p>The app also runs without a key &mdash; activation just marks you as a supporter and unlocks any future paid-only features. Everything core is in the box.</p>
+            </div>
+        </section>
 
-        <div class="card">
-            <h3>First time here?</h3>
-            <p>One price. One payment. No subscription, no cloud, no account, no expiry. Pick what fits.</p>
+        <div class="wave"></div>
+
+        <!-- ── lost your key ── -->
+        <section class="section reveal">
+            <h2 class="section-title">Lost your key?</h2>
+            <div class="section-body">
+                <p>It happens. <a href="mailto:dayshalindale@sozawen.com?subject=Sozawen%20license%20key%20lookup&body=Hi%20%E2%80%94%20I%20bought%20Sozawen%20and%20can't%20find%20my%20license%20key.%20My%20Stripe%20receipt%20email%20is%3A%20">Send me the email you used at checkout</a> and I&rsquo;ll look it up and send it back. Usually <span class="flow">same day</span>.</p>
+            </div>
+        </section>
+
+        <div class="wave"></div>
+
+        <!-- ── first time here ── -->
+        <section class="section-wide reveal">
+            <h2 class="section-title">First time here?</h2>
+            <p class="tier-intro">One price. One payment. <span style="color: var(--teal);">No subscription, no cloud, no account, no expiry.</span> Pick what fits.</p>
             <div class="tier-row">
                 <a href="/checkout.html" class="tier">
                     <strong>$79</strong>
@@ -211,28 +288,42 @@
                 <a href="/checkout.html?mode=gift" class="tier">
                     <strong>$79</strong>
                     <span class="label">Pay it forward</span>
-                    <small>Funds a free seat</small>
+                    <small>Funds a free seat for someone who can&rsquo;t afford it</small>
                 </a>
                 <a href="mailto:dayshalindale@sozawen.com?subject=Sozawen%20classroom%20license%20inquiry" class="tier">
                     <strong>$10/seat</strong>
                     <span class="label">Classroom</span>
-                    <small>Email for bulk keys</small>
+                    <small>Email me with class size. No minimum.</small>
                 </a>
                 <a href="mailto:dayshalindale@sozawen.com?subject=Sozawen%20scholarship%20request&body=Tell%20me%20a%20little%20about%20what%20you're%20working%20on%20(or%20don't%20—%20either%20way%20I'll%20send%20you%20a%20license)." class="tier">
                     <strong>Free</strong>
                     <span class="label">Scholarship</span>
-                    <small>Just write me</small>
+                    <small>Just write me. No questions.</small>
                 </a>
             </div>
-        </div>
+        </section>
 
-        <footer>
+        <div class="wave"></div>
+
+        <!-- ── footer ── -->
+        <footer class="footer">
             <a href="/">sozawen.com</a>
             <a href="/static/terms.html">Terms</a>
             <a href="/static/privacy.html">Privacy</a>
             <a href="/static/eula.html">EULA</a>
             <div class="bandmate">A bandmate who listens.</div>
         </footer>
+
     </div>
+
+    <script>
+        // Reveal-on-scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.15 });
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    </script>
 </body>
 </html>
