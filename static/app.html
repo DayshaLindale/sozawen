@@ -12131,6 +12131,16 @@
     document.addEventListener('mouseout', e => {
         if (e.target.closest('[data-tip]')) document.getElementById('tooltip').style.display = 'none';
     });
+
+    // Hidden admin panel shortcut — Ctrl+Shift+A opens the grant/scholarship
+    // admin dashboard in the default browser. Admin key still required at the
+    // login screen, so this is a convenience entry point, not a bypass.
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+            e.preventDefault();
+            window.open('https://notare-updates.onrender.com/static/sozawen-admin.html', '_blank');
+        }
+    });
     </script>
     <div id="tooltip"></div>
 </body>
