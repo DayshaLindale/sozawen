@@ -29,7 +29,7 @@ The Software itself (code, interface, design, branding) remains the property of 
 Sozawen processes all audio locally on your computer. No audio data is uploaded, transmitted, or stored on any external server.
 
 6. LICENSE ACTIVATION
-The Software requires a one-time license activation via internet connection. After activation, the Software works offline. Your license is bound to one machine. To transfer to a new machine, contact lindale@sozawen.com.
+The Software requires a one-time license activation via internet connection. After activation, the Software works offline. Your license is bound to one machine. To transfer to a new machine, contact dayshalindale@sozawen.com.
 
 7. REFUNDS
 Sozawen offers a 30-day money-back guarantee. If you are not satisfied for any reason, request a refund through LemonSqueezy within 30 days of purchase.
@@ -44,7 +44,7 @@ IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONS
 This Agreement is governed by the laws of the State of South Carolina, United States.
 
 11. CONTACT
-lindale@sozawen.com
+dayshalindale@sozawen.com
 https://sozawen.com
 
 (c) 2026 Daysha Lindale. Born from the burn. Built by feeling.
