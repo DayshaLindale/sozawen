@@ -604,7 +604,7 @@
     // function stays for future use (if we ever want to surface a soft nudge
     // for unpaid users), but no modal is shown and nothing blocks music-making.
     // The license activation UI still exists and works — it's just opt-in, not
-    // gatekept. Matches Reaper's 20-year ship model and the Lindale Doctrine.
+    // gatekept. Trust-based licensing.
     function checkLicense() {
         // intentionally a no-op on startup.
     }
@@ -2700,11 +2700,11 @@
                     <select><option>Equal Power — volume stays consistent</option><option>Linear — simple straight fade</option><option>S-Curve — smooth and natural</option></select></div>
                 <button class="btn btn-primary" style="width:100%" onclick="applyCrossfade()">Apply Crossfade</button>`,
 
-            stretch: `<h3>Time Stretch ${h('Changes speed/duration without changing pitch. Uses phase vocoder algorithm — same technique as Ableton Warp, Logic Flex Time, and hardware samplers like the Akai MPC.')}</h3>
+            stretch: `<h3>Time Stretch ${h('Changes speed/duration without changing pitch. Uses phase vocoder algorithm — the standard technique used by major DAWs and hardware samplers.')}</h3>
                 <div style="font-size:9px; color:var(--text-muted); margin-bottom:12px; letter-spacing:1px;">PHASE VOCODER TIME STRETCH</div>
                 <div class="field"><label>Rate ${h('Playback speed multiplier. 1.0 = original. 0.5 = half speed (twice as long, same pitch). 2.0 = double speed (half as long, same pitch). On an MPC or sampler: the time stretch percentage.')}</label>
                     <input type="range" min="0.1" max="4.0" value="1.0" step="0.01" oninput="this.nextElementSibling.textContent=this.value+'x ('+(this.value<1?'slower':'faster')+(this.value==1.0?'original':'')+')'"><span style="font-size:11px; color:var(--teal);">1.0x</span></div>
-                <div class="field"><label>BPM Match ${h('Instead of a rate, match tempos. Enter the original BPM and your target BPM — the rate is calculated automatically. Works like Ableton Warp or Logic tempo matching.')}</label>
+                <div class="field"><label>BPM Match ${h('Instead of a rate, match tempos. Enter the original BPM and your target BPM — the rate is calculated automatically. Works like tempo matching in any professional DAW.')}</label>
                     <div style="display:flex; gap:8px; align-items:center;">
                         <input type="text" id="stretchOrigBPM" placeholder="Original" style="width:40%; text-align:center;">
                         <span style="color:var(--text-muted); font-size:11px;">BPM to</span>
@@ -3032,7 +3032,7 @@
                         <option value="128">128 (8 bars / 32nd rolls)</option>
                     </select></div>
                     <div class="field" style="margin:0;"><label>Bars</label>
-                        <input type="number" id="drumBars" value="4" min="1" step="1" style="width:60px; padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:11px;" title="Pattern length in bars. Any positive integer — memory is the only ceiling. Beats FL Studio's 9,999-step max."></div>
+                        <input type="number" id="drumBars" value="4" min="1" step="1" style="width:60px; padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:11px;" title="Pattern length in bars. Any positive integer — memory is the only ceiling. No arbitrary step limit."></div>
                     <div class="field" style="margin:0;"><label>Start at beat</label>
                         <input type="number" id="drumOffset" value="0" min="0" step="4" style="width:60px; padding:4px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:11px;" title="Absolute beat on the timeline. 0=bar 1, 4=bar 2, 8=bar 3, 16=bar 5, 32=bar 9. Hover the ruler to see beat numbers.">
                         <span id="drumOffsetInfo" style="font-size:8px;color:var(--text-muted);"></span></div>
@@ -3193,7 +3193,7 @@
                 </div>
                 <p style="font-size:9px;color:var(--text-muted);margin-top:6px;">Video follows the transport — play, pause, seek all stay in sync. Pop out for a larger view while you compose.</p>`,
 
-            clip_launcher: `<h3>Clip Launcher ${h('Trigger loops and clips in real-time — like Ableton Session View. Load clips into slots, trigger them with clicks or keyboard. For live performance, jamming, and building arrangements by feel.')}</h3>
+            clip_launcher: `<h3>Clip Launcher ${h('Trigger loops and clips in real-time — session-view style workflow. Load clips into slots, trigger them with clicks or keyboard. For live performance, jamming, and building arrangements by feel.')}</h3>
                 <div style="font-size:9px;color:var(--text-muted);letter-spacing:1px;margin-bottom:8px;">CLIP SLOTS (click to trigger, click again to stop)</div>
                 <div id="clipGrid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:10px;">
                     ${Array.from({length:16}, (_,i) => `
