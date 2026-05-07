@@ -4674,19 +4674,59 @@
     }).catch(()=>{});
 
     // ═══ MENU ACTIONS ═══
-    function newProject() { showDialog('Start a new project?\n\nUnsaved changes will be lost.', 'confirm', function(yes) { if(yes) { tracks=[]; trackIdCounter=0; renderTracks(); document.getElementById('emptyState').style.display='flex'; stopAll(); reportAction('none'); }}); }
+    function newProject() {
+        showDialog('Start a new project?\n\nUnsaved changes will be lost.', 'confirm', function(yes) {
+            if (!yes) return;
+            // Wipe SERVER-side engine state too — without this, tracks /
+            // regions / plugins / metronome / automation from the previous
+            // project leak into the new one. Front-end-only clearing is
+            // not enough because the engine is a long-lived singleton.
+            fetch('/api/project/new', { method: 'POST' }).catch(() => {});
+            tracks = [];
+            trackIdCounter = 0;
+            renderTracks();
+            document.getElementById('emptyState').style.display = 'flex';
+            stopAll();
+            reportAction('none');
+        });
+    }
     function openProject() {
         // Use tkinter file dialog to pick a project file
         fetch('/api/pick-file').then(r => r.json()).then(d => {
             if (d.path && d.path.endsWith('.json')) {
                 fetch('/api/project/recover').then(r=>r.json()).then(proj => {
                     if (proj.available && proj.project) {
-                        tracks = proj.project.tracks || [];
-                        trackIdCounter = Math.max(...tracks.map(t=>t.id), 0) + 1;
-                        renderTracks();
-                        document.getElementById('emptyState').style.display = 'none';
-                        reloadAllWaveforms();
-                        document.getElementById('statusText').textContent = 'Project loaded';
+                        // Reset engine BEFORE applying loaded project so the
+                        // previous project's tracks / regions / plugins
+                        // don't bleed into the loaded one. The server-side
+                        // load returns a track_id_map remapping saved
+                        // engineIds → fresh engine IDs (the saved IDs are
+                        // stale post-reset). Apply that map to UI tracks
+                        // BEFORE rendering so /api/track/{id}/* calls hit
+                        // the correct engine track.
+                        fetch('/api/project/load', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(proj.project),
+                        }).then(r => r.json()).then(loadResp => {
+                            tracks = proj.project.tracks || [];
+                            if (loadResp && loadResp.ok && Array.isArray(loadResp.track_id_map)) {
+                                const remap = new Map();
+                                for (const m of loadResp.track_id_map) {
+                                    if (m && m.old != null && m.new != null) remap.set(m.old, m.new);
+                                }
+                                for (const t of tracks) {
+                                    if (remap.has(t.engineId)) t.engineId = remap.get(t.engineId);
+                                }
+                            }
+                            trackIdCounter = Math.max(...tracks.map(t=>t.id), 0) + 1;
+                            renderTracks();
+                            document.getElementById('emptyState').style.display = 'none';
+                            reloadAllWaveforms();
+                            document.getElementById('statusText').textContent = 'Project loaded';
+                        }).catch(() => {
+                            document.getElementById('statusText').textContent = 'Load failed';
+                        });
                     }
                 });
             }
@@ -5479,7 +5519,7 @@
         ];
         const status = document.getElementById('mbeqStatus');
         if (status) status.textContent = 'Applying…';
-        fetch('/api/fx', {
+        fetch('/api/fx/apply', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({track_id: selectedTrack, effect: 'multiband_eq',
                                   params: {crossovers, band_gains_db}})
@@ -5508,7 +5548,7 @@
         }
         const status = document.getElementById('mbcStatus');
         if (status) status.textContent = 'Applying (4-band, takes a moment)…';
-        fetch('/api/fx', {
+        fetch('/api/fx/apply', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({track_id: selectedTrack, effect: 'multiband_compressor',
                                   params: {crossovers, band_settings}})
@@ -6205,7 +6245,7 @@
         if (!selectedTrack) { showStatus('Select a track first'); return; }
         const status = document.getElementById(statusId);
         if (status) status.textContent = 'Applying…';
-        fetch('/api/fx', {
+        fetch('/api/fx/apply', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({track_id: selectedTrack, effect, params})
         }).then(r=>r.json()).then(d => {
@@ -6264,7 +6304,7 @@
         const mix = parseInt(document.getElementById('distMix').value) / 100;
         const status = document.getElementById('distStatus');
         if (status) status.textContent = 'Applying…';
-        fetch('/api/fx', {
+        fetch('/api/fx/apply', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({track_id: selectedTrack, effect: 'distortion',
                                   params: {mode, drive, bias, tone, mix}})
@@ -6286,7 +6326,7 @@
         const blend = parseInt(document.getElementById('parcompBlend').value) / 100;
         const status = document.getElementById('parcompStatus');
         if (status) status.textContent = 'Applying…';
-        fetch('/api/fx', {
+        fetch('/api/fx/apply', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({track_id: selectedTrack, effect: 'parallel_compression',
                                   params: {ratio, threshold_db, blend}})

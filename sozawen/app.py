@@ -51,11 +51,40 @@ SETTINGS = {}
 if SETTINGS_PATH.exists():
     try:
         SETTINGS = json.loads(SETTINGS_PATH.read_text(encoding='utf-8'))
-    except:
-        pass
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as _se:
+        # Corrupted settings shouldn't silently kill the app — log and run
+        # with defaults so the user can repair via Settings UI.
+        import logging as _logging
+        _logging.warning("Settings load failed (%s) — running with defaults", _se)
+        SETTINGS = {}
 
 def save_settings():
     SETTINGS_PATH.write_text(json.dumps(SETTINGS, indent=2), encoding='utf-8')
+
+
+def _safe_float(value, default=0.0, lo=None, hi=None):
+    """Coerce a JSON-supplied value to float with a default, optionally
+    clamped. Used at API boundaries — frontend bugs / fuzzed input
+    shouldn't 500 the endpoint."""
+    try:
+        f = float(value if value is not None else default)
+    except (TypeError, ValueError):
+        f = float(default)
+    if lo is not None: f = max(lo, f)
+    if hi is not None: f = min(hi, f)
+    return f
+
+
+def _safe_int(value, default=0, lo=None, hi=None):
+    """Coerce a JSON-supplied value to int with a default, optionally
+    clamped. Same rationale as _safe_float."""
+    try:
+        i = int(value if value is not None else default)
+    except (TypeError, ValueError):
+        i = int(default)
+    if lo is not None: i = max(lo, i)
+    if hi is not None: i = min(hi, i)
+    return i
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -79,15 +108,22 @@ _engine = AudioEngine(sample_rate=44100, buffer_size=1024)
 _engine.start()
 _context = ContextEngine()
 
-# Clean temp directory on startup — no stale renders from previous sessions
+# Clean temp directory on startup — no stale renders from previous sessions.
+# Failures here aren't fatal but log them so a user accumulating temp files
+# (Windows file-handle held by another app, perm denied, etc.) can be
+# diagnosed instead of silently filling their disk.
+import logging as _startup_logging
 _temp_dir = BASE_DIR / "temp"
-_temp_dir.mkdir(exist_ok=True)
-for _f in _temp_dir.glob("drums_*.wav"):
-    try: _f.unlink()
-    except: pass
-for _f in _temp_dir.glob("inst_*.wav"):
-    try: _f.unlink()
-    except: pass
+try:
+    _temp_dir.mkdir(exist_ok=True)
+except OSError as _e:
+    _startup_logging.warning("Could not create temp dir %s: %s", _temp_dir, _e)
+for _pattern in ("drums_*.wav", "inst_*.wav"):
+    for _f in _temp_dir.glob(_pattern):
+        try:
+            _f.unlink()
+        except OSError as _e:
+            _startup_logging.debug("Temp cleanup skipped %s: %s", _f.name, _e)
 
 
 @api.get("/api/status")
@@ -138,16 +174,14 @@ async def transport_stop():
 async def metronome_subdivision(request: Request):
     """Set metronome subdivision — quarter, eighth, sixteenth, triplet."""
     data = await request.json()
-    subdiv = int(data.get("subdivision", 1))
-    _engine.metronome_subdivision = max(1, min(4, subdiv))
+    _engine.metronome_subdivision = _safe_int(data.get("subdivision"), default=1, lo=1, hi=4)
     return JSONResponse({"ok": True, "subdivision": _engine.metronome_subdivision})
 
 @api.post("/api/transport/speed")
 async def transport_speed(request: Request):
     """Set playback speed for practice mode."""
     data = await request.json()
-    rate = float(data.get("rate", 1.0))
-    _engine.playback_rate = max(0.25, min(2.0, rate))
+    _engine.playback_rate = _safe_float(data.get("rate"), default=1.0, lo=0.25, hi=2.0)
     return JSONResponse({"ok": True, "rate": _engine.playback_rate})
 
 @api.post("/api/track/{track_id}/duplicate")
@@ -493,9 +527,9 @@ async def apply_vocal_tuning(request: Request):
     import asyncio
     data = await request.json()
     track_id = data.get("track_id")
-    strength = float(data.get("strength", 0.5))
+    strength = _safe_float(data.get("strength"), default=0.5, lo=0.0, hi=1.0)
     key = data.get("key", "C")
-    speed_ms = int(data.get("speed_ms", 30))
+    speed_ms = _safe_int(data.get("speed_ms"), default=30, lo=1, hi=2000)
 
     if not track_id or track_id not in _engine.tracks:
         return JSONResponse({"error": "Track not found"}, status_code=400)
@@ -542,7 +576,9 @@ async def audio_to_drums(request: Request):
     import asyncio
     data = await request.json()
     track_id = data.get("track_id")
-    sensitivity = float(data.get("sensitivity", 5))  # 1..10 — higher detects more
+    # 1..10 scale — higher detects more. Clamp 0..11 (slightly above 10
+    # for "even more sensitive than 10" cases authors sometimes want).
+    sensitivity = _safe_float(data.get("sensitivity"), default=5.0, lo=0.0, hi=11.0)
     replace_source = bool(data.get("replace_source", False))
 
     if not track_id or track_id not in _engine.tracks:
@@ -597,8 +633,11 @@ async def audio_to_drums(request: Request):
                 onset_strength /= np.max(onset_strength)
 
             # Peak picking — find onset times. Sensitivity lowers threshold.
-            threshold = max(0.05, 0.5 - 0.04 * sensitivity)
-            min_gap = int(0.05 * sr / hop)  # minimum 50ms between onsets
+            # Clamp sensitivity to [0, 11] so threshold stays positive
+            # (above 11.25 the formula goes negative → trips on every frame).
+            _sens = max(0.0, min(11.0, float(sensitivity)))
+            threshold = max(0.05, 0.5 - 0.04 * _sens)
+            min_gap = max(1, int(0.05 * sr / hop))  # minimum 50ms between onsets, ≥1 frame
             peaks = []
             for i in range(1, len(onset_strength) - 1):
                 if (onset_strength[i] > threshold and
@@ -704,22 +743,24 @@ async def upload_file(request: Request):
 
 @api.post("/api/session/reset")
 async def session_reset():
-    """Clear all tracks and reset engine state. Called on page load."""
+    """Clear all engine state. Called on page load AND from
+    loadProjectTemplate to give the user a guaranteed-clean canvas. Now
+    routes through the unified engine.reset() so it covers tracks,
+    metronome, time signature, hardware inserts, record buffers, etc.
+    — not just the dict + transport (which was the previous incomplete
+    behavior that let project state leak across loads)."""
     _engine.stop_transport()
-    _engine.position = 0
-    track_ids = list(_engine.tracks.keys())
-    for tid in track_ids:
-        try: del _engine.tracks[tid]
-        except: pass
+    _engine.reset()
     # Session reset also clears undo history — there's no coherent pre-state to go back to
     _cmds.history().clear()
-    # Clean temp files
+    # Clean temp files. Bare except would swallow KeyboardInterrupt and
+    # genuine bugs — narrow to filesystem errors only.
     for f in (BASE_DIR / "temp").glob("drums_*.wav"):
         try: f.unlink()
-        except: pass
+        except OSError: pass
     for f in (BASE_DIR / "temp").glob("inst_*.wav"):
         try: f.unlink()
-        except: pass
+        except OSError: pass
     return JSONResponse({"ok": True, "cleared": len(track_ids)})
 
 @api.post("/api/transport/seek")
@@ -738,11 +779,12 @@ async def transport_loop(request: Request):
     end: seconds — loop end point (0 = end of content)
     """
     data = await request.json()
-    _engine.looping = data.get("loop", _engine.looping)
+    _engine.looping = bool(data.get("loop", _engine.looping))
     if "start" in data:
-        _engine.loop_start = int(data["start"] * _engine.sample_rate)
+        _start_s = _safe_float(data.get("start"), default=0.0, lo=0.0, hi=86400.0)
+        _engine.loop_start = int(_start_s * _engine.sample_rate)
     if "end" in data:
-        end_sec = data["end"]
+        end_sec = _safe_float(data.get("end"), default=0.0, lo=0.0, hi=86400.0)
         if end_sec > 0:
             _engine.loop_end = int(end_sec * _engine.sample_rate)
         else:
@@ -838,13 +880,14 @@ async def set_clip_gain(track_id: int, region_index: int, request: Request):
     """Per-clip gain. gain_db is applied as a linear multiplier to every
     sample this region produces — independent of the track fader."""
     data = await request.json()
-    gain_db = float(data.get("gain_db", 0.0))
+    # Bounded BEFORE the 10^(x/20) exponent so an unbounded value can't
+    # produce inf / overflow. ±60 dB is way past any musically useful range.
+    gain_db = _safe_float(data.get("gain_db"), default=0.0, lo=-60.0, hi=60.0)
     track = _engine.tracks.get(track_id)
     if not track:
         return JSONResponse({"error": "Track not found"}, status_code=404)
     if region_index < 0 or region_index >= len(track.regions):
         return JSONResponse({"error": "Region index out of range"}, status_code=404)
-    import math as _math
     _cmds.record_before(_engine, f"Clip gain on {track.name}")
     track.regions[region_index].gain = float(10 ** (gain_db / 20.0))
     return JSONResponse({"ok": True, "gain_db": gain_db, "gain_linear": track.regions[region_index].gain})
@@ -973,7 +1016,10 @@ async def delete_track(track_id: int):
 async def set_track_offset(track_id: int, request: Request):
     """Move a track's region to a new position on the timeline."""
     data = await request.json()
-    offset_samples = int(data.get("offset_samples", 0))
+    # Clamp to ±24 hours @ 192kHz so a fuzzed offset can't allocate
+    # absurd buffers downstream when the engine pads / aligns regions.
+    offset_samples = _safe_int(data.get("offset_samples"), default=0,
+                               lo=-(192000 * 86400), hi=(192000 * 86400))
     if track_id in _engine.tracks:
         track = _engine.tracks[track_id]
         _cmds.record_before(_engine, f"Move {track.name}")
@@ -998,7 +1044,7 @@ async def set_track_pan(track_id: int, request: Request):
     track = _engine.tracks.get(track_id)
     if track:
         _cmds.record_before(_engine, f"Pan {track.name}")
-        track.pan = max(-1.0, min(1.0, float(data.get("pan", 0.0))))
+        track.pan = _safe_float(data.get("pan"), default=0.0, lo=-1.0, hi=1.0)
         return JSONResponse({"ok": True, "pan": track.pan})
     return JSONResponse({"error": "Track not found"}, status_code=404)
 
@@ -1074,16 +1120,141 @@ from sozawen.knowledge_base import search_knowledge, get_article, get_categories
 @api.post("/api/project/save")
 async def save_project(request: Request):
     """Save the current project state."""
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception as _e:
+        return JSONResponse({"ok": False, "error": f"Invalid project JSON: {_e}"},
+                            status_code=400)
     project_dir = BASE_DIR / "projects"
-    project_dir.mkdir(exist_ok=True)
+    try:
+        project_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as _e:
+        import logging as _lg
+        _lg.error("Could not create projects dir %s: %s", project_dir, _e)
+        return JSONResponse({"ok": False, "error": f"Cannot create projects directory: {_e}"},
+                            status_code=500)
     from datetime import datetime
     filename = f"project_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     filepath = project_dir / filename
-    filepath.write_text(json.dumps(data, indent=2), encoding='utf-8')
-    # Also save as "last_session.json" for crash recovery
-    (project_dir / "last_session.json").write_text(json.dumps(data, indent=2), encoding='utf-8')
+    payload = json.dumps(data, indent=2)
+    try:
+        filepath.write_text(payload, encoding='utf-8')
+        # Also save as "last_session.json" for crash recovery
+        (project_dir / "last_session.json").write_text(payload, encoding='utf-8')
+    except OSError as _e:
+        import logging as _lg
+        _lg.error("Could not write project %s: %s", filepath, _e)
+        return JSONResponse({"ok": False, "error": f"Save failed: {_e}"},
+                            status_code=500)
     return JSONResponse({"ok": True, "path": str(filepath)})
+
+@api.post("/api/project/new")
+async def new_project():
+    """Wipe all in-memory engine state for a fresh project. Required when
+    the user starts a new project or switches projects WITHOUT restarting
+    the app — otherwise tracks / regions / plugins / automation /
+    metronome from the previous project leak into the new one.
+
+    The frontend MUST call this before constructing the new project state,
+    OR before applying a /api/project/load payload.
+    """
+    try:
+        _engine.reset()
+    except Exception as _e:
+        import logging as _lg
+        _lg.error("Engine reset failed: %s", _e)
+        return JSONResponse({"ok": False, "error": str(_e)}, status_code=500)
+    return JSONResponse({"ok": True})
+
+
+@api.post("/api/project/load")
+async def load_project(request: Request):
+    """Load a saved project JSON into the engine. Resets engine state
+    first so the loaded project doesn't merge with whatever was open."""
+    try:
+        data = await request.json()
+    except Exception as _e:
+        return JSONResponse({"ok": False, "error": f"Invalid project JSON: {_e}"},
+                            status_code=400)
+    # Reset BEFORE applying — guarantees no leak from previous project
+    try:
+        _engine.reset()
+    except Exception as _e:
+        import logging as _lg
+        _lg.error("Engine reset failed during load: %s", _e)
+        return JSONResponse({"ok": False, "error": f"Reset failed: {_e}"},
+                            status_code=500)
+
+    # Apply the loaded project state. The frontend's project format is the
+    # mirror of /api/project/save's body — we trust it shape-wise but
+    # tolerate missing fields gracefully (older saves may lack newer keys).
+    track_id_map = []  # [{"old": <saved engineId>, "new": <fresh engineId>}, ...]
+    try:
+        # Transport / metronome
+        if "bpm" in data:
+            _engine.bpm = float(data["bpm"]) or 120.0
+        if "time_sig_num" in data: _engine.time_sig_num = int(data["time_sig_num"])
+        if "time_sig_den" in data: _engine.time_sig_den = int(data["time_sig_den"])
+        if "metronome_on" in data: _engine.metronome_on = bool(data["metronome_on"])
+        if "loop_start" in data:   _engine.loop_start = int(data["loop_start"])
+        if "loop_end" in data:     _engine.loop_end = int(data["loop_end"])
+        if "looping" in data:      _engine.looping = bool(data["looping"])
+
+        # Tracks + regions — engine state was wiped by reset() above, so we
+        # rebuild fresh engine tracks (with new IDs) from the saved payload.
+        # We return a track_id_map so the frontend can re-align its
+        # engineId references; the saved engineId is stale post-reset.
+        for t_data in (data.get("tracks") or []):
+            # A corrupted save can have non-dict entries (None, str, int).
+            # Skip those rather than crashing — partial-restore is better
+            # than full-load-fails-with-500.
+            if not isinstance(t_data, dict):
+                import logging as _lg
+                _lg.warning("Skipping non-dict track entry: %r", type(t_data).__name__)
+                continue
+            t_name = str(t_data.get("name") or "Track")
+            old_id = t_data.get("engineId")
+            new_track = _engine.add_track(name=t_name)
+            track_id_map.append({"old": old_id, "new": new_track.id})
+
+            # Re-attach audio file if it still exists on disk. Missing files
+            # are a non-fatal warning — the track exists but waveform load
+            # will fail loudly on the frontend's reloadAllWaveforms call.
+            file_path = t_data.get("file")
+            if file_path and Path(file_path).exists():
+                try:
+                    new_track.add_region(str(file_path),
+                                         source_type="loaded",
+                                         name=t_name)
+                except Exception as _re:
+                    import logging as _lg
+                    _lg.warning("Region restore failed for %s: %s", file_path, _re)
+            elif file_path:
+                import logging as _lg
+                _lg.warning("Saved track file missing on disk: %s", file_path)
+
+            # Mixer state (mute/solo/pan/volume) — saved track stores
+            # volume on a 0-100 UI scale; engine wants 0.0-1.0.
+            if "muted" in t_data: new_track.muted = bool(t_data["muted"])
+            if "solo" in t_data:  new_track.solo  = bool(t_data["solo"])
+            if "pan" in t_data:
+                try: new_track.pan = float(t_data["pan"])
+                except (TypeError, ValueError): pass
+            if "volume" in t_data:
+                try: new_track.volume = max(0.0, min(2.0, float(t_data["volume"]) / 100.0))
+                except (TypeError, ValueError): pass
+    except Exception as _e:
+        import logging as _lg
+        _lg.error("Project load failed mid-apply: %s", _e)
+        # Reset again so we don't leave a partially-loaded zombie state
+        try: _engine.reset()
+        except Exception: pass
+        return JSONResponse({"ok": False, "error": f"Load failed: {_e}"},
+                            status_code=500)
+    return JSONResponse({"ok": True,
+                         "tracks": len(_engine.tracks),
+                         "track_id_map": track_id_map})
+
 
 @api.get("/api/project/recover")
 async def recover_project():
@@ -1094,8 +1265,16 @@ async def recover_project():
         try:
             data = json.loads(last.read_text(encoding='utf-8'))
             return JSONResponse({"available": True, "project": data})
-        except:
-            pass
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError) as _e:
+            # Corrupted recovery file — return error so the UI can warn the
+            # user instead of silently saying "no recovery available" when a
+            # session existed but was unreadable.
+            import logging as _lg
+            _lg.warning("Recovery file %s unreadable: %s", last, _e)
+            return JSONResponse({
+                "available": False,
+                "error": f"Recovery file present but unreadable: {_e}",
+            })
     return JSONResponse({"available": False})
 
 from sozawen.editing import (detect_channels, split_channels, split_region_at_sample,
@@ -1210,7 +1389,7 @@ async def api_detect_transients(request: Request):
     import asyncio
     data = await request.json()
     track_id = data.get("track_id")
-    sensitivity = data.get("sensitivity", 0.5)
+    sensitivity = _safe_float(data.get("sensitivity"), default=0.5, lo=0.0, hi=1.0)
 
     track = _engine.tracks.get(track_id) if track_id is not None else next(iter(_engine.tracks.values()), None)
     if not track or not track.regions:
@@ -1255,6 +1434,13 @@ async def apply_effect(request: Request):
         return JSONResponse({"error": "No track or audio loaded"}, status_code=400)
 
     source_path = track.regions[0].source_path
+    # Source-file existence check — the region holds the path, but the file
+    # behind it may have been moved/deleted between load and apply (common
+    # when a user opens a project whose source files since moved).
+    if not source_path or not Path(source_path).exists():
+        return JSONResponse(
+            {"error": f"Source audio file missing on disk: {source_path}"},
+            status_code=400)
 
     fx_map = {
         "noise_gate": lambda: apply_noise_gate(source_path, **params),
@@ -1340,30 +1526,37 @@ async def get_export_platforms():
     return JSONResponse({"ok": True, "presets": PLATFORM_PRESETS})
 
 
-def _apply_dither(audio, method="tpdf", bit_depth=16):
+def _apply_dither(audio, method="tpdf", bit_depth=16, seed=None):
     """Apply dither before bit-depth reduction. Reduces quantization distortion.
 
     - tpdf: Triangular PDF dither (standard, widest applicability)
     - rectangular: Simple rectangular PDF (older / lighter noise floor)
     - highpass: TPDF followed by a gentle high-pass so dither noise is less audible
     - none: no dither (use for intermediate files that will be processed further)
+
+    `seed` controls reproducibility — same input + seed = same dithered output.
+    Defaults to a fixed seed so repeat exports of the same project produce
+    byte-identical files (helpful for diffing exports and for users who
+    re-export and expect stable hashes). Pass None *explicitly* via caller
+    to opt back into nondeterministic dither.
     """
     import numpy as _np
     if method in (None, "", "none"):
         return audio
+    rng = _np.random.default_rng(42 if seed is None else seed)
     scale = float(2 ** (bit_depth - 1))
     noise_amp = 1.0 / scale
     if method == "rectangular":
-        noise = _np.random.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
+        noise = rng.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
     elif method == "highpass":
         # TPDF then first-order difference (trivial HPF of white noise)
-        n1 = _np.random.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
-        n2 = _np.random.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
+        n1 = rng.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
+        n2 = rng.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
         tpdf = n1 + n2
         noise = _np.diff(tpdf, axis=0, prepend=0).astype(audio.dtype)
     else:  # tpdf default
-        n1 = _np.random.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
-        n2 = _np.random.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
+        n1 = rng.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
+        n2 = rng.uniform(-noise_amp, noise_amp, audio.shape).astype(audio.dtype)
         noise = n1 + n2
     return audio + noise
 
@@ -1408,8 +1601,16 @@ async def export_audio(request: Request):
     preset = PLATFORM_PRESETS.get(preset_name, {}) if preset_name else {}
 
     format = preset.get("format") or data.get("format", "wav")
-    sample_rate = int(preset.get("sample_rate") or data.get("sample_rate", 44100))
-    bit_depth = int(preset.get("bit_depth") or data.get("bit_depth", 24))
+    # Validate sample_rate/bit_depth before the long-running mixdown so a
+    # fuzzed value can't crash hours into the export.
+    sample_rate = _safe_int(
+        preset.get("sample_rate") or data.get("sample_rate", 44100),
+        default=44100, lo=8000, hi=384000)
+    bit_depth = _safe_int(
+        preset.get("bit_depth") or data.get("bit_depth", 24),
+        default=24, lo=8, hi=32)
+    if bit_depth not in (8, 16, 24, 32):
+        bit_depth = 24
     dither = preset.get("dither", data.get("dither", "tpdf" if bit_depth < 32 else "none"))
     target_lufs = preset.get("lufs") if preset_name else data.get("target_lufs")
 
@@ -1443,8 +1644,28 @@ async def export_audio(request: Request):
     if bit_depth < 32 and format in ("wav", "flac"):
         mixed = _apply_dither(mixed, method=dither, bit_depth=bit_depth)
 
+    # Export destination — try ~/Music first (Windows + macOS standard);
+    # if that's missing or unwritable (locked-down user, network home, etc.)
+    # fall back to a sozawen-owned dir in the user profile so export never
+    # silently dies on a permission error.
     music_dir = Path.home() / "Music"
-    music_dir.mkdir(exist_ok=True)
+    try:
+        music_dir.mkdir(exist_ok=True)
+        # Verify we can actually write — mkdir succeeding doesn't guarantee
+        # writability when the dir already exists with locked perms.
+        _probe = music_dir / ".sozawen_write_probe"
+        _probe.write_text("", encoding='utf-8')
+        _probe.unlink()
+    except (OSError, PermissionError) as _e:
+        import logging as _lg
+        _lg.warning("~/Music unwritable (%s); falling back to ~/.sozawen/exports", _e)
+        music_dir = Path.home() / ".sozawen" / "exports"
+        try:
+            music_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as _e2:
+            return JSONResponse(
+                {"error": f"No writable export directory: {_e2}"},
+                status_code=500)
     output_path = str(music_dir / f"sozawen_export.{format}")
 
     try:
@@ -2276,7 +2497,7 @@ async def midi_learn_mappings():
 @api.post("/api/midi/learn/delete")
 async def midi_learn_delete(request: Request):
     data = await request.json()
-    cc = int(data.get("cc", -1))
+    cc = _safe_int(data.get("cc"), default=-1, lo=-1, hi=127)
     if cc in _midi_cc_mappings:
         del _midi_cc_mappings[cc]
     return JSONResponse({"ok": True})
@@ -2323,7 +2544,8 @@ async def set_input_channel(track_id: int, request: Request):
     data = await request.json()
     track = _engine.tracks.get(track_id)
     if track:
-        track.input_channel = int(data.get("channel", 0))
+        # Channel index bounded — most audio interfaces top out around 64.
+        track.input_channel = _safe_int(data.get("channel"), default=0, lo=0, hi=255)
         return JSONResponse({"ok": True, "channel": track.input_channel})
     return JSONResponse({"error": "Track not found"}, status_code=404)
 
@@ -2346,9 +2568,13 @@ async def toggle_phase(track_id: int):
 async def set_loop(request: Request):
     """Set loop start/end points."""
     data = await request.json()
-    _engine.loop_start = int(data.get("start", 0) * _engine.sample_rate)
-    _engine.loop_end = int(data.get("end", 0) * _engine.sample_rate)
-    _engine.looping = data.get("enabled", True) and _engine.loop_end > _engine.loop_start
+    # Loop bounds in seconds, clamped to ±24h before the sample-rate multiply
+    # so a fuzzed value can't OOM the engine when it allocates loop buffers.
+    _start_s = _safe_float(data.get("start"), default=0.0, lo=-86400.0, hi=86400.0)
+    _end_s = _safe_float(data.get("end"), default=0.0, lo=-86400.0, hi=86400.0)
+    _engine.loop_start = int(_start_s * _engine.sample_rate)
+    _engine.loop_end = int(_end_s * _engine.sample_rate)
+    _engine.looping = bool(data.get("enabled", True)) and _engine.loop_end > _engine.loop_start
     return JSONResponse({
         "ok": True, "looping": _engine.looping,
         "start": _engine.loop_start / _engine.sample_rate,
@@ -3623,7 +3849,8 @@ async def render_sheet(request: Request):
     key = data.get("key", "C")
     time_sig = data.get("time_sig", "4/4")
     clef = data.get("clef")
-    width = int(data.get("width", 800))
+    # Bound width to keep SVG generation from allocating absurd memory.
+    width = _safe_int(data.get("width"), default=800, lo=200, hi=8000)
 
     from sozawen.sheet_music import render_notation_svg
     svg = render_notation_svg(events, key=key, time_sig=time_sig, clef=clef, width=width)
@@ -3687,7 +3914,7 @@ async def render_orchestral(request: Request):
     parts = data.get("parts", [])
     key = data.get("key", "C")
     time_sig = data.get("time_sig", "4/4")
-    width = int(data.get("width", 900))
+    width = _safe_int(data.get("width"), default=900, lo=200, hi=8000)
 
     from sozawen.sheet_music import render_orchestral_score
     svg = render_orchestral_score(parts, key=key, time_sig=time_sig, width=width)
@@ -3743,9 +3970,9 @@ async def get_time_signature():
 async def set_default_time_sig(request: Request):
     """Set the project's base time signature (applies from bar 0)."""
     data = await request.json()
-    num = int(data.get("numerator", 4))
-    den = int(data.get("denominator", 4))
-    if num < 1 or num > 32 or den not in (1, 2, 4, 8, 16, 32):
+    num = _safe_int(data.get("numerator"), default=4, lo=1, hi=32)
+    den = _safe_int(data.get("denominator"), default=4, lo=1, hi=32)
+    if den not in (1, 2, 4, 8, 16, 32):
         return JSONResponse({"error": "Invalid time signature"}, status_code=400)
     _engine.time_sig_num = num
     _engine.time_sig_den = den
@@ -3756,11 +3983,11 @@ async def set_default_time_sig(request: Request):
 async def add_time_sig_change(request: Request):
     """Add a mid-song time signature change at a given bar."""
     data = await request.json()
-    bar = int(data.get("bar", 0))
-    num = int(data.get("numerator", 4))
-    den = int(data.get("denominator", 4))
-    if bar < 0 or num < 1 or num > 32 or den not in (1, 2, 4, 8, 16, 32):
-        return JSONResponse({"error": "Invalid"}, status_code=400)
+    bar = _safe_int(data.get("bar"), default=0, lo=0, hi=10000)
+    num = _safe_int(data.get("numerator"), default=4, lo=1, hi=32)
+    den = _safe_int(data.get("denominator"), default=4, lo=1, hi=32)
+    if den not in (1, 2, 4, 8, 16, 32):
+        return JSONResponse({"error": "Invalid denominator"}, status_code=400)
     changes = getattr(_engine, "time_sig_changes", [])
     # Replace existing change at same bar if any
     changes = [c for c in changes if c["bar"] != bar]
@@ -3773,7 +4000,7 @@ async def add_time_sig_change(request: Request):
 @api.post("/api/time-sig/delete")
 async def delete_time_sig_change(request: Request):
     data = await request.json()
-    bar = int(data.get("bar", -1))
+    bar = _safe_int(data.get("bar"), default=-1, lo=-1, hi=10000)
     changes = [c for c in getattr(_engine, "time_sig_changes", []) if c["bar"] != bar]
     _engine.time_sig_changes = changes
     return JSONResponse({"ok": True, "changes": changes})
@@ -3800,7 +4027,7 @@ async def add_marker(request: Request):
     marker = {
         "id": _marker_id_counter,
         "name": data.get("name", f"Marker {_marker_id_counter}"),
-        "time": float(data.get("time", 0.0)),
+        "time": _safe_float(data.get("time"), default=0.0, lo=0.0, hi=86400.0),
         "note": data.get("note", ""),
         "color": data.get("color", "#d4a84d"),
     }
@@ -3817,7 +4044,10 @@ async def update_marker(request: Request):
         if m["id"] == mid:
             for key in ("name", "time", "note", "color"):
                 if key in data:
-                    m[key] = data[key] if key != "time" else float(data[key])
+                    if key == "time":
+                        m[key] = _safe_float(data.get(key), default=0.0, lo=0.0, hi=86400.0)
+                    else:
+                        m[key] = data[key]
             _markers.sort(key=lambda mm: mm["time"])
             return JSONResponse({"ok": True, "marker": m})
     return JSONResponse({"error": "Marker not found"}, status_code=404)
@@ -4206,12 +4436,12 @@ async def api_sampler_render(request: Request):
     notes = data.get("notes", [])
     if not notes:
         return JSONResponse({"error": "No notes provided"}, status_code=400)
-    root_midi = int(data.get("root_midi", 60))
-    bpm = float(data.get("bpm", _engine.bpm or 120))
-    attack_ms = int(data.get("attack_ms", 5))
-    decay_ms = int(data.get("decay_ms", 50))
-    sustain = float(data.get("sustain", 0.8))
-    release_ms = int(data.get("release_ms", 150))
+    root_midi = _safe_int(data.get("root_midi"), default=60, lo=0, hi=127)
+    bpm = _safe_float(data.get("bpm"), default=float(_engine.bpm or 120), lo=20.0, hi=300.0)
+    attack_ms = _safe_int(data.get("attack_ms"), default=5, lo=0, hi=10000)
+    decay_ms = _safe_int(data.get("decay_ms"), default=50, lo=0, hi=10000)
+    sustain = _safe_float(data.get("sustain"), default=0.8, lo=0.0, hi=1.0)
+    release_ms = _safe_int(data.get("release_ms"), default=150, lo=0, hi=10000)
     loop = bool(data.get("loop", False))
     name = data.get("name", "Sampler")
 
@@ -4245,15 +4475,20 @@ async def api_midi_arpeggiate(request: Request):
     from sozawen.midi_engine import MidiPattern, arpeggiate_pattern
     data = await request.json()
     notes_in = data.get("notes", [])
-    pat = MidiPattern("arp-input", length_beats=data.get("length_beats", 16))
+    pat = MidiPattern("arp-input",
+                      length_beats=_safe_float(data.get("length_beats"), default=16.0, lo=0.001, hi=10000.0))
     for n in notes_in:
-        pat.add_note(int(n.get("pitch", 60)), float(n.get("start_beat", 0)),
-                     float(n.get("duration_beats", 0.25)), int(n.get("velocity", 100)))
+        if not isinstance(n, dict):
+            continue  # skip malformed note entries instead of 500-ing the endpoint
+        pat.add_note(_safe_int(n.get("pitch"), default=60, lo=0, hi=127),
+                     _safe_float(n.get("start_beat"), default=0.0, lo=0.0, hi=10000.0),
+                     _safe_float(n.get("duration_beats"), default=0.25, lo=0.001, hi=10000.0),
+                     _safe_int(n.get("velocity"), default=100, lo=0, hi=127))
     out = arpeggiate_pattern(pat,
                              mode=data.get("mode", "up"),
-                             rate_beats=float(data.get("rate_beats", 0.25)),
-                             octaves=int(data.get("octaves", 1)),
-                             gate=float(data.get("gate", 0.9)))
+                             rate_beats=_safe_float(data.get("rate_beats"), default=0.25, lo=0.001, hi=64.0),
+                             octaves=_safe_int(data.get("octaves"), default=1, lo=1, hi=10),
+                             gate=_safe_float(data.get("gate"), default=0.9, lo=0.0, hi=1.0))
     return JSONResponse({"ok": True, "notes": [
         {"pitch": n.pitch, "start_beat": n.start_beat,
          "duration_beats": n.duration_beats, "velocity": n.velocity}
@@ -4265,17 +4500,22 @@ async def api_midi_chords(request: Request):
     """Generate harmonizing chords for each melody note."""
     from sozawen.midi_engine import MidiPattern, generate_chords_from_melody
     data = await request.json()
-    pat = MidiPattern("melody", length_beats=data.get("length_beats", 16))
+    pat = MidiPattern("melody",
+                      length_beats=_safe_float(data.get("length_beats"), default=16.0, lo=0.001, hi=10000.0))
     for n in data.get("notes", []):
-        pat.add_note(int(n.get("pitch", 60)), float(n.get("start_beat", 0)),
-                     float(n.get("duration_beats", 0.5)), int(n.get("velocity", 100)))
+        if not isinstance(n, dict):
+            continue
+        pat.add_note(_safe_int(n.get("pitch"), default=60, lo=0, hi=127),
+                     _safe_float(n.get("start_beat"), default=0.0, lo=0.0, hi=10000.0),
+                     _safe_float(n.get("duration_beats"), default=0.5, lo=0.001, hi=10000.0),
+                     _safe_int(n.get("velocity"), default=100, lo=0, hi=127))
     out = generate_chords_from_melody(
         pat,
         chord_type=data.get("chord_type", "triad"),
         key=data.get("key", "C"),
         scale=data.get("scale", "major"),
-        inversion=int(data.get("inversion", 0)),
-        octave_offset=int(data.get("octave_offset", -1)),
+        inversion=_safe_int(data.get("inversion"), default=0, lo=0, hi=7),
+        octave_offset=_safe_int(data.get("octave_offset"), default=-1, lo=-4, hi=4),
     )
     return JSONResponse({"ok": True, "notes": [
         {"pitch": n.pitch, "start_beat": n.start_beat,
@@ -4288,10 +4528,15 @@ async def api_midi_scale_force(request: Request):
     """Snap every note to the nearest in-scale pitch."""
     from sozawen.midi_engine import MidiPattern, force_to_scale
     data = await request.json()
-    pat = MidiPattern("input", length_beats=data.get("length_beats", 16))
+    pat = MidiPattern("input",
+                      length_beats=_safe_float(data.get("length_beats"), default=16.0, lo=0.001, hi=10000.0))
     for n in data.get("notes", []):
-        pat.add_note(int(n.get("pitch", 60)), float(n.get("start_beat", 0)),
-                     float(n.get("duration_beats", 0.25)), int(n.get("velocity", 100)))
+        if not isinstance(n, dict):
+            continue
+        pat.add_note(_safe_int(n.get("pitch"), default=60, lo=0, hi=127),
+                     _safe_float(n.get("start_beat"), default=0.0, lo=0.0, hi=10000.0),
+                     _safe_float(n.get("duration_beats"), default=0.25, lo=0.001, hi=10000.0),
+                     _safe_int(n.get("velocity"), default=100, lo=0, hi=127))
     out = force_to_scale(pat, key=data.get("key", "C"), scale=data.get("scale", "major"))
     return JSONResponse({"ok": True, "notes": [
         {"pitch": n.pitch, "start_beat": n.start_beat,
@@ -4305,9 +4550,9 @@ async def api_midi_quantize(request: Request):
     import numpy as _np
     data = await request.json()
     track_id = data.get("track_id")
-    grid = float(data.get("grid", 0.25))       # beats (0.25 = 16th)
-    strength = float(data.get("strength", 1.0))
-    swing = float(data.get("swing", 0.0))
+    grid = _safe_float(data.get("grid"), default=0.25, lo=0.001, hi=64.0)  # beats (0.25 = 16th)
+    strength = _safe_float(data.get("strength"), default=1.0, lo=0.0, hi=1.0)
+    swing = _safe_float(data.get("swing"), default=0.0, lo=0.0, hi=1.0)
     if track_id is None or track_id not in _engine.tracks:
         return JSONResponse({"error": "Track not found"}, status_code=400)
     track = _engine.tracks[track_id]
@@ -4321,7 +4566,12 @@ async def api_midi_quantize(request: Request):
         if not midi_notes:
             continue
         for n in midi_notes:
-            t = float(n.get("start", n.get("time", 0.0)))
+            # Engine-internal note dicts; guarded just in case a saved
+            # project carries garbage values forward.
+            try:
+                t = float(n.get("start", n.get("time", 0.0)))
+            except (TypeError, ValueError):
+                continue
             snapped = round(t / grid_sec) * grid_sec
             # Swing: shift every other grid slot later by swing * grid_sec/2
             slot_index = int(round(snapped / grid_sec))
@@ -4440,12 +4690,14 @@ async def api_track_position_3d(track_id: int, request: Request):
     if track_id not in _engine.tracks:
         return JSONResponse({"error": "Track not found"}, status_code=404)
     track = _engine.tracks[track_id]
+    # Spatial coords clamped to a generous-but-finite cube so a fuzzed
+    # value can't blow up the panner's distance attenuation math.
     track.position_3d = (
-        float(data.get("x", 0.0)),
-        float(data.get("y", 1.0)),
-        float(data.get("z", 0.0)),
+        _safe_float(data.get("x"), default=0.0, lo=-100.0, hi=100.0),
+        _safe_float(data.get("y"), default=1.0, lo=-100.0, hi=100.0),
+        _safe_float(data.get("z"), default=0.0, lo=-100.0, hi=100.0),
     )
-    track.lfe_send = float(data.get("lfe_send", 0.0))
+    track.lfe_send = _safe_float(data.get("lfe_send"), default=0.0, lo=0.0, hi=1.0)
     return JSONResponse({"ok": True, "position": list(track.position_3d),
                          "lfe_send": track.lfe_send})
 

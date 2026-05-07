@@ -100,6 +100,10 @@ def fit_to_tempo(audio, original_bpm, target_bpm, sr=44100):
     Returns: tempo-matched audio.
     """
     if original_bpm <= 0 or target_bpm <= 0:
+        # Don't silently no-op — log so a caller passing bad BPM can debug.
+        import logging as _lg
+        _lg.warning("fit_to_tempo: invalid bpm (orig=%s target=%s) — returning audio unchanged",
+                    original_bpm, target_bpm)
         return audio
 
     rate = target_bpm / original_bpm

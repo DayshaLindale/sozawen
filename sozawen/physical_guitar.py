@@ -43,8 +43,15 @@ def karplus_strong(freq, duration, sr=44100, decay=0.996, brightness=0.5,
     4. The delay line length = sample_rate / frequency (string length)
     """
     n_samples = int(duration * sr)
-    delay_length = int(sr / freq)
+    # Guard against freq out of audible range (delay-line length = sr/freq;
+    # freq > sr/2 produces delay < 2 samples and the Karplus-Strong loop
+    # degenerates). Log so silent high notes don't go unexplained.
+    delay_length = int(sr / max(float(freq), 1.0))
     if delay_length < 2:
+        import logging as _kp_logging
+        _kp_logging.warning("Karplus-Strong: freq %.1f Hz too high for sr=%d "
+                            "(delay_length=%d < 2) — returning silence",
+                            freq, sr, delay_length)
         return np.zeros(n_samples, dtype=np.float32)
 
     # === EXCITATION (the pluck) ===

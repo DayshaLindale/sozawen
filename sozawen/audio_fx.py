@@ -221,8 +221,11 @@ def apply_compressor(path, threshold_db=-20, ratio=3.0, attack_ms=10, release_ms
         if np.any(above):
             # How many dB above threshold
             db_over = 20 * np.log10(env[above] / threshold + 1e-10)
-            # Reduce by (1 - 1/ratio) of the overshoot
-            db_reduction = db_over * (1.0 - 1.0 / ratio)
+            # Reduce by (1 - 1/ratio) of the overshoot. Guard ratio=0
+            # (UI bug or malformed payload) — division would crash the
+            # entire FX apply.
+            _safe_ratio = max(1.0, float(ratio or 1.0))
+            db_reduction = db_over * (1.0 - 1.0 / _safe_ratio)
             gain[above] = _db_to_linear(-db_reduction)
 
         result[:, ch] *= gain.astype(np.float32)
@@ -708,7 +711,10 @@ def apply_sidechain_compression(target_path, sidechain_path, threshold_db=-20, r
     above = env > threshold
     if np.any(above):
         db_over = 20 * np.log10(env[above] / threshold + 1e-10)
-        db_reduction = db_over * (1.0 - 1.0 / ratio)
+        # Same ratio=0 guard as the standalone compressor — sidechain
+        # had been missing it.
+        _safe_ratio = max(1.0, float(ratio or 1.0))
+        db_reduction = db_over * (1.0 - 1.0 / _safe_ratio)
         gain[above] = _db_to_linear(-db_reduction)
 
     # Apply gain to target
@@ -857,9 +863,11 @@ def apply_distortion(path, drive=0.4, bias=0.06, tone=0.5, mode="tube", mix=1.0)
 
     # Tone: gentle post-shape brightness
     if tone < 0.5:
-        # Darker — LPF
+        # Darker — LPF. Clamp normalized cutoff < 1.0 so butter() doesn't
+        # raise on degenerate sample rates.
         cutoff = 1000 + tone * 8000  # 0→1kHz, 0.5→5kHz
-        b, a = butter(2, cutoff / (sr / 2), btype="low")
+        _norm = max(0.001, min(0.99, cutoff / (sr / 2)))
+        b, a = butter(2, _norm, btype="low")
         x = lfilter(b, a, x, axis=0)
     elif tone > 0.5:
         # Brighter — high-shelf boost
@@ -996,18 +1004,26 @@ def _split_bands(audio, sr, crossovers):
     from scipy.signal import butter as _butter, sosfiltfilt as _sosfilt
     bands = []
     prev_cut = 0
+    # Clamp helper — multiband filters with normalized freq ≥ 1.0 raise.
+    # Caller may send crossovers=[50000] with sr=44100; we clamp safely.
+    def _safe_norm(f):
+        return max(0.001, min(0.99, float(f) / (sr / 2)))
     for cut in crossovers + [None]:
         if prev_cut == 0 and cut is not None:
             # Lowest band: LPF below first crossover
-            sos = _butter(4, cut / (sr / 2), btype="low", output="sos")
+            sos = _butter(4, _safe_norm(cut), btype="low", output="sos")
             bands.append(_sosfilt(sos, audio, axis=0))
         elif cut is None:
             # Highest band: HPF above last crossover
-            sos = _butter(4, prev_cut / (sr / 2), btype="high", output="sos")
+            sos = _butter(4, _safe_norm(prev_cut), btype="high", output="sos")
             bands.append(_sosfilt(sos, audio, axis=0))
         else:
-            # Middle bands: BPF between prev_cut and cut
-            sos = _butter(4, [prev_cut / (sr / 2), cut / (sr / 2)], btype="band", output="sos")
+            # Middle bands: BPF between prev_cut and cut (clamp both ends)
+            _lo = _safe_norm(prev_cut)
+            _hi = _safe_norm(cut)
+            if _lo >= _hi:
+                _hi = min(0.99, _lo + 0.001)
+            sos = _butter(4, [_lo, _hi], btype="band", output="sos")
             bands.append(_sosfilt(sos, audio, axis=0))
         prev_cut = cut if cut is not None else prev_cut
     return bands

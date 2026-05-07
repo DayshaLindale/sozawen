@@ -305,6 +305,56 @@ class AudioEngine:
 
         logger.info("AudioEngine: %dHz, buffer %d, %dch", sample_rate, buffer_size, channels)
 
+    def reset(self):
+        """Clear all per-project state — tracks, regions, automation,
+        playhead, recording, metronome config, hardware inserts, mixer
+        state. Called when the user opens a new project or loads a
+        different project so previous-project state doesn't bleed forward.
+
+        Does NOT touch: sample_rate, buffer_size, channels, audio streams
+        (those are device-bound, not project-bound).
+        """
+        with self._lock:
+            # Stop any in-flight transport — recording / playback shouldn't
+            # continue running against a project that's being torn down.
+            self.playing = False
+            self.recording = False
+            self.looping = False
+            self.loop_start = 0
+            self.loop_end = 0
+            self.position = 0
+            self.playback_rate = 1.0
+
+            # Clear all tracks (including their regions, plugin chains,
+            # automation, mute/solo/arm state — held inside Track objects)
+            self.tracks = OrderedDict()
+            self.master = Track(name="Master", track_type="master")
+
+            # Reset metronome / time signature to defaults so a new
+            # project doesn't inherit the previous one's tempo.
+            self.metronome_on = False
+            self.metronome_subdivision = 1
+            self.bpm = 120.0
+            self.time_sig_num = 4
+            self.time_sig_den = 4
+            self.time_sig_changes = []
+
+            # Hardware inserts are project-scoped (which mixer outputs
+            # route to which external gear)
+            self.hardware_inserts = {}
+            self.hw_insert_latency = {}
+
+            # Recording / monitoring buffers — drop any in-flight data
+            self._record_buffers = {}
+            self._monitor_buffer = None
+            self._input_levels = {}
+
+            # Metering values
+            self.master_peak = [0.0, 0.0]
+            self.track_peaks = {}
+
+        logger.info("AudioEngine: reset for new project")
+
     def start(self):
         """Start the audio output stream in a dedicated thread."""
         if self._stream is not None:
@@ -430,8 +480,12 @@ class AudioEngine:
             self._input_stream.close()
             self._input_stream = None
 
-        # Save recorded audio to files and create regions
-        for track_id, buffers in self._record_buffers.items():
+        # Save recorded audio to files and create regions.
+        # Snapshot under lock so input_callback can't append mid-iteration
+        # (would crash with RuntimeError: dictionary changed size).
+        with self._lock:
+            buffers_snapshot = {tid: list(bufs) for tid, bufs in self._record_buffers.items()}
+        for track_id, buffers in buffers_snapshot.items():
             if not buffers:
                 continue
             track = self.tracks.get(track_id)
@@ -439,11 +493,26 @@ class AudioEngine:
                 continue
 
             audio = np.concatenate(buffers, axis=0)
-            # Save to project directory
+            # Save to project directory. Anchor the recordings dir against
+            # an absolute base so where-the-app-was-launched-from doesn't
+            # determine where audio lands; PyInstaller-frozen builds had
+            # CWD pointing to wherever the user double-clicked from, which
+            # silently created stray recordings/ folders all over disk.
             from datetime import datetime
-            filename = f"recording_{track.name}_{datetime.now().strftime('%H%M%S')}.wav"
-            filepath = Path("recordings") / filename
-            filepath.parent.mkdir(exist_ok=True)
+            try:
+                # Prefer the engine-configured project dir if set later;
+                # for now, anchor off the user's app-data area.
+                _base = getattr(self, "_recordings_dir", None) or (
+                    Path.home() / ".sozawen" / "recordings")
+            except Exception:
+                _base = Path.home() / ".sozawen" / "recordings"
+            _base = Path(_base).resolve()
+            # Microsecond precision so two recordings finishing in the same
+            # second on the same track don't overwrite each other.
+            _ts = datetime.now().strftime('%H%M%S_%f')
+            filename = f"recording_{track.name}_{_ts}.wav"
+            filepath = _base / filename
+            filepath.parent.mkdir(parents=True, exist_ok=True)
             sf.write(str(filepath), audio, self.sample_rate)
 
             # Add as region on the track
@@ -451,9 +520,10 @@ class AudioEngine:
                            source_type="recorded", name=filename)
             logger.info("Saved recording: %s (%d samples)", filename, len(audio))
 
-        self._record_buffers.clear()
-        for track in self.tracks.values():
-            track.record_armed = False
+        with self._lock:
+            self._record_buffers.clear()
+            for track in self.tracks.values():
+                track.record_armed = False
 
     def _output_callback(self, outdata, frames, time_info, status):
         """Real-time audio output callback."""
@@ -496,9 +566,12 @@ class AudioEngine:
                 peak_r = float(np.max(np.abs(track_audio[:, 1])))
                 self.track_peaks[track_id] = [peak_l, peak_r]
 
-            # Metronome — click on each beat during playback
+            # Metronome — click on each beat during playback. Guard against
+            # BPM=0 (UI bug or corrupt project file) — would otherwise crash
+            # the entire audio callback and silence playback.
             if self.metronome_on and self.playing:
-                beat_samples = int(60.0 / self.bpm * self.sample_rate)
+                _safe_bpm = max(20.0, min(300.0, float(self.bpm or 120.0)))
+                beat_samples = int(60.0 / _safe_bpm * self.sample_rate)
                 pos_in_beat = self.position % beat_samples
                 if pos_in_beat < 600:  # short click at start of beat
                     is_downbeat = (self.position // beat_samples) % self.time_sig_num == 0
@@ -549,39 +622,50 @@ class AudioEngine:
         """Record input audio to armed track buffers + monitoring.
 
         Multi-channel: each track gets only its assigned input channel.
+
+        Thread-safety: this runs on the PortAudio input thread; the output
+        callback and HTTP handlers can race on _monitor_buffer,
+        _input_levels, and _record_buffers. We take the same `_lock` the
+        output callback uses so reads and writes are mutually exclusive.
         """
         audio = indata.copy().astype(np.float64)
         n_channels = audio.shape[1] if audio.ndim > 1 else 1
 
-        # Store for input monitoring (even when not recording)
-        if self.input_monitoring:
-            self._monitor_buffer = audio
+        with self._lock:
+            # Store for input monitoring (even when not recording)
+            if self.input_monitoring:
+                self._monitor_buffer = audio
 
-        # Compute per-channel peak levels for live metering
-        n_ch = audio.shape[1] if audio.ndim > 1 else 1
-        for ch in range(n_ch):
-            ch_data = audio[:, ch] if audio.ndim > 1 else audio
-            peak = float(np.max(np.abs(ch_data)))
-            self._input_levels[ch] = peak
+            # Compute per-channel peak levels for live metering
+            n_ch = audio.shape[1] if audio.ndim > 1 else 1
+            for ch in range(n_ch):
+                ch_data = audio[:, ch] if audio.ndim > 1 else audio
+                peak = float(np.max(np.abs(ch_data)))
+                self._input_levels[ch] = peak
 
-        if not self.recording:
-            return
+            if not self.recording:
+                return
 
-        for track_id in self._record_buffers:
-            track = self.tracks.get(track_id)
-            if not track:
-                continue
-            # Get the assigned channel for this track
-            ch = track.input_channel if hasattr(track, 'input_channel') else 0
-            ch = min(ch, n_channels - 1)  # clamp to available channels
+            # Snapshot the keys so we don't iterate a dict that another
+            # thread (e.g. /api/track/delete) might mutate mid-iteration.
+            track_ids = list(self._record_buffers.keys())
+            for track_id in track_ids:
+                if track_id not in self._record_buffers:
+                    continue
+                track = self.tracks.get(track_id)
+                if not track:
+                    continue
+                # Get the assigned channel for this track
+                ch = track.input_channel if hasattr(track, 'input_channel') else 0
+                ch = min(ch, n_channels - 1)  # clamp to available channels
 
-            if n_channels == 1 or audio.ndim == 1:
-                # Mono input — all tracks get the same signal
-                self._record_buffers[track_id].append(audio.reshape(-1, 1) if audio.ndim == 1 else audio)
-            else:
-                # Multi-channel — extract assigned channel as mono
-                channel_audio = audio[:, ch:ch+1]
-                self._record_buffers[track_id].append(channel_audio)
+                if n_channels == 1 or audio.ndim == 1:
+                    # Mono input — all tracks get the same signal
+                    self._record_buffers[track_id].append(audio.reshape(-1, 1) if audio.ndim == 1 else audio)
+                else:
+                    # Multi-channel — extract assigned channel as mono
+                    channel_audio = audio[:, ch:ch+1]
+                    self._record_buffers[track_id].append(channel_audio)
 
     # ═══════════════════════════════════════════════════════════════
     # Track management
@@ -590,13 +674,19 @@ class AudioEngine:
     def add_track(self, name="", track_type="audio", color=None):
         track = Track(name=name, track_type=track_type,
                      color=color or "#9b59b6")
-        self.tracks[track.id] = track
+        # Lock against the audio callback that iterates self.tracks every
+        # buffer — without this the dict can mutate mid-iteration and
+        # raise RuntimeError: dictionary changed size during iteration.
+        with self._lock:
+            self.tracks[track.id] = track
         logger.info("Track added: %s (id=%d, type=%s)", track.name, track.id, track_type)
         return track
 
     def remove_track(self, track_id):
-        if track_id in self.tracks:
-            del self.tracks[track_id]
+        # Same lock as add_track — protects the audio-callback iterator.
+        with self._lock:
+            if track_id in self.tracks:
+                del self.tracks[track_id]
 
     def get_duration_seconds(self):
         if not self.tracks:
